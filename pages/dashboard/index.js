@@ -1,16 +1,15 @@
 import React, { useEffect } from 'react';
-import TopSection from './TopSection';
-import LoginForm from './LoginForm';
-import Navbar from './Navbar';
+import Signup from 'components/Auth/Signup';
 import Head from 'next/head'
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import { setUser, userLoadingStart, userLoadingEnd, userLoadingEndwithNoone } from "slices/user";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db, getEducationsByUserId, getCareersByUserId } from "firebaseConfig";
+import { db } from "firebaseConfig";
 import LoadingPage from 'components/Common/Loading';
 import Router from 'next/router';
+import Dashboard from 'components/Dashboard';
 
 const index = () => {
 
@@ -18,7 +17,15 @@ const index = () => {
   const dispatch = useDispatch();
   const router = useRouter();
   const { user, loading } = useSelector(state => state.user);
-
+  // useEffect(() => {
+  //   if ((user || user?.userID)) {
+  //     if (user?.purpose === 1) {
+  //       router.push('/friends')
+  //     } else {
+  //       router.push('/news')
+  //     }
+  //   }
+  // }, [router, user]);
   useEffect(() => {
     const authStateListener = onAuthStateChanged(auth, async (user) => {
       dispatch(userLoadingStart());
@@ -67,16 +74,6 @@ const index = () => {
   }, [auth, dispatch, user?.uid, user?.userID]);
 
   useEffect(() => {
-    if ((user || user?.userID)) {
-      // if (user?.purpose === 1) {
-      router.push('/dashboard')
-      // } else {
-      //   router.push('/dashboard')
-      // }
-    }
-  }, [router, user]);
-
-  useEffect(() => {
     if (!user?.userID) return;
 
     const unsubscribe = onSnapshot(doc(db, "users", user.userID), (user) => {
@@ -118,19 +115,39 @@ const index = () => {
   }, [dispatch, user?.uid, user?.userID]);
 
   return (
-    // <Navbar>
-    <div className='max-w-md mx-auto pt-[var(--navbar-height)] md:px-2 pb-4 md:pb-auto flex flex-col min-h-screen overflow-hidden"'>
-      <main className="flex-grow" >
-        <TopSection />
-        {/* <FeaturesHome /> */}
-        {/* <Features /> */}
-        <LoginForm />
-        {/* <Newsletter /> */}
-      </main >
-      {/* <Footer /> */}
-    </div>
-    // </Navbar>
+    <>
+      <Head>
+        <title>추억과 즐거움으로 이성을 만나다! 피그말리온</title>
+
+        <meta name="keywords" content="피그말리온, 소개팅, 단체미팅, 연애, 소개팅앱, 반상회, 소통플랫폼" />
+        <meta name="description" content="자연스러운 만남!, 나와 맞는 조건의 이성과의 만남" />
+
+        <meta name="application-name" content="가장 자연스러운 이성과의 만남, 피그말리온" />
+        <meta name="msapplication-tooltip" content="피그말리온(PYGMalion)" />
+
+        <meta property="og:type" content="개성있는 채용, 피그말리온(PYGMalion)" />
+        <meta property="og:title" content="가장 자연스러운 이성과의 만남, 피그말리온" />
+        <meta property="og:description" content="피그말리온에서 나의 인연을 찾아보세요!" />
+        <meta property="og:image" content="https://pygm.co.kr/logo/pygm.png" />
+        <meta property="og:url" content="https://pygm.co.kr" />
+
+        <meta name="twitter:card" content="피그말리온(PYGMalion)에서 인연을 찾아보세요!" />
+        <meta name="twitter:title" content="가장 자연스러운 이성과의 만남, 피그말리온" />
+        <meta name="twitter:description" content="피그말리온에서 나의 인연을 찾아보세요!" />
+        <meta name="twitter:image" content="https://pygm.co.kr/logo/pygm.png" />
+        <meta name="twitter:domain" content="https://pygm.co.kr" />
+      </Head>
+
+      {loading ?
+        <LoadingPage />
+        :
+        <Dashboard />
+      }
+    </>
+
   );
 };
+
+
 
 export default index;

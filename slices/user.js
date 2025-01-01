@@ -50,7 +50,7 @@ export const user = createSlice({
   name: "user",
   initialState,
   reducers: {
-    
+
     login: (state, action) => {
       state.user = action.payload;
       state.isLoggedIn = true;
@@ -66,6 +66,19 @@ export const user = createSlice({
       state.signUpSuccess = true;
       state.isLoggedIn = true;
     },
+    setUser(state, action) {
+      state.user = action.payload;
+    },
+    userLoadingStart(state) {
+      state.loading = true;
+    },
+    userLoadingEnd(state) {
+      state.loading = false;
+    },
+    userLoadingEndwithNoone(state) {
+      state.loading = false;
+      state.user = null;
+    },
   },
 
 
@@ -79,15 +92,15 @@ export const user = createSlice({
   //   },
   // }
 
-   extraReducers: (builder) => {
+  extraReducers: (builder) => {
     builder
-      // .addCase((state, action) => {
-      //         state,
-      //         action.payload.user,
-      //   // action is inferred correctly here if using TS
-      // })
-      // You can chain calls, or have separate `builder.addCase()` lines each time
-      
+    // .addCase((state, action) => {
+    //         state,
+    //         action.payload.user,
+    //   // action is inferred correctly here if using TS
+    // })
+    // You can chain calls, or have separate `builder.addCase()` lines each time
+
   },
 });
 
@@ -95,6 +108,10 @@ export const {
   login,
   signUp,
   signOut,
+  setUser,
+  userLoadingStart,
+  userLoadingEnd,
+  userLoadingEndwithNoone
 } = user.actions;
 
 export const useUserState = () => useAppSelector((state) => state.user);
