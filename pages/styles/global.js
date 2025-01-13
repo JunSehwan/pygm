@@ -182,12 +182,12 @@ h4, .h4 {
     --light: #f8f9fa;
     --dark: #343a40;
      @media screen and (max-width: 640px) {
-        --navbar-height: 52.39px;
+        --navbar-height: 76px;
     }
     @media screen and (min-width: 641px) and (max-width: 768px) {
-        --navbar-height: 59px;
+        --navbar-height: 76px;
     }
-    --navbar-height: 62px;
+    --navbar-height: 76px;
     --breakpoint-xs: 0;
     --breakpoint-sm: 576px;
     --breakpoint-md: 768px;

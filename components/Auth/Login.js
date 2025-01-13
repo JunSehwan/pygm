@@ -20,17 +20,6 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 
 const Login = () => {
-  // useEffect(() => {
-  //   if ((user || user?.userID)) {
-  //     if (user?.purpose == 1) {
-  //       console.log(user?.purpose)
-  //       router.push('/friends')
-  //     } else {
-  //       console.log(user?.purpose)
-  //       router.push('/news')
-  //     }
-  //   }
-  // }, [router, user]);
   const dispatch = useDispatch();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -73,11 +62,7 @@ const Login = () => {
 
   useEffect(() => {
     if (signUpSuccess && isLoggedIn && !!user) {
-      if (user?.purpose === 1) {
-        router.push("/friends")
-      } else {
-        router.push("/news")
-      }
+        router.push("/dashboard")
     }
   }, [isLoggedIn, router, signUpSuccess, user])
 

@@ -258,3 +258,200 @@ export async function sendMailForSignUp(email, username) {
     throw new Error('Something went wrong with sending email. Error Message: ', e.message);
   }
 }
+
+async function updateUserDatabase(property, newValue) {
+  if (!auth.currentUser) return;
+
+  const user = auth.currentUser;
+  await updateDoc(
+    doc(db, "users", user.uid),
+    {
+      [property]: newValue,
+    }
+  );
+}
+
+export async function updateUserBasicInfo(
+  username, nickname, newForm, religion, tel, gender,
+  address_sido, address_sigugun) {
+
+  const user = auth.currentUser;
+
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+  try {
+    await updateProfile(user, {
+      displayName: username,
+    });
+    await updateUserDatabase("religion", religion);
+    await updateUserDatabase("username", user.displayName);
+    await updateUserDatabase("nickname", nickname);
+    await updateUserDatabase("gender", gender);
+    await updateUserDatabase("birthday", newForm);
+    // await updateUserDatabase("url_one", url_one);
+    // await updateUserDatabase("url_two", url_two);
+    // await updateUserDatabase("url_three", url_three);
+    await updateUserDatabase("address_sido", address_sido);
+    await updateUserDatabase("address_sigugun", address_sigugun);
+    await updateUserDatabase("phonenumber", tel);
+    // await updateUserDatabase("category", checkedCategory);
+    return ({
+      username: username, nickname: nickname,
+      newForm: newForm, religion: religion, tel: tel,
+      gender: gender, address_sido: address_sido,
+      address_sigugun: address_sigugun,
+    })
+  } catch (error) {
+    console.error(error);
+    alert("profile update에 문제가 있습니다.");
+  }
+}
+
+export async function updateThinkMbtiInfo(
+  mbti_ei, mbti_sn, mbti_tf, mbti_jp) {
+
+  const user = auth.currentUser;
+
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+  try {
+    await updateUserDatabase("mbti_ei", mbti_ei);
+    await updateUserDatabase("mbti_sn", mbti_sn);
+    await updateUserDatabase("mbti_tf", mbti_tf);
+    await updateUserDatabase("mbti_jp", mbti_jp);
+    return ({
+      mbti_ei: mbti_ei, mbti_sn: mbti_sn,
+      mbti_tf: mbti_tf, mbti_jp: mbti_jp,
+    })
+  } catch (error) {
+    console.error(error);
+    alert("MBTI update에 문제가 있습니다.");
+  }
+}
+
+
+
+export async function updateMycompanyInfo
+  (education,
+    school,
+    school_open,
+    job,
+    company,
+    company_open,
+    salary,
+    duty,
+    company_location_sido,
+    company_location_sigugun,
+  ) {
+
+  const user = auth.currentUser;
+
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+  try {
+    await updateUserDatabase("education", education);
+    await updateUserDatabase("school", school);
+    await updateUserDatabase("school_open", school_open);
+    await updateUserDatabase("job", job);
+    await updateUserDatabase("company", company);
+    await updateUserDatabase("company_open", company_open);
+    await updateUserDatabase("duty", duty);
+    await updateUserDatabase("salary", salary);
+    await updateUserDatabase("company_location_sido", company_location_sido);
+    await updateUserDatabase("company_location_sigugun", company_location_sigugun);
+    // await updateUserDatabase("jobdocument", user.jobdocument);
+
+    return ({
+      education: education,
+      school: school,
+      school_open: school_open,
+      job: job,
+      company: company,
+      company_open: company_open,
+      duty: duty,
+      salary: salary,
+      company_location_sido: company_location_sido,
+      company_location_sigugun: company_location_sigugun,
+    })
+  } catch (error) {
+    console.error(error);
+    alert("profile update에 문제가 있습니다.");
+  }
+}
+
+export async function updateHobby(
+  hobby, drink, health, hotplace, tour, tourlike, tourpurpose,
+  hobbyshare, interest) {
+
+  const user = auth.currentUser;
+
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+  try {
+    await updateUserDatabase("hobby", hobby);
+    await updateUserDatabase("drink", drink);
+    await updateUserDatabase("health", health);
+    await updateUserDatabase("hotplace", hotplace);
+    await updateUserDatabase("tour", tour);
+    await updateUserDatabase("tourlike", tourlike);
+    await updateUserDatabase("tourpurpose", tourpurpose);
+    await updateUserDatabase("hobbyshare", hobbyshare);
+    await updateUserDatabase("interest", interest);
+    return ({
+      hobby: hobby, drink: drink, health: health,
+      hotplace: hotplace, tour: tour, tourlike: tourlike,
+      tourpurpose: tourpurpose, hobbyshare: hobbyshare, interest: interest,
+    })
+  } catch (error) {
+    console.error(error);
+    alert("update에 문제가 있습니다.");
+  }
+}
+
+export async function updateRomance(
+  opfriend, friendmeeting, longdistance, datecycle, dateromance, contact,
+  contactcycle, passwordshare, wedding, wedding_dating, prefer_age_min,
+  prefer_age_max) {
+
+  const user = auth.currentUser;
+
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+  try {
+    await updateUserDatabase("opfriend", opfriend);
+    await updateUserDatabase("friendmeeting", friendmeeting);
+    await updateUserDatabase("longdistance", longdistance);
+    await updateUserDatabase("datecycle", datecycle);
+    await updateUserDatabase("dateromance", dateromance);
+    await updateUserDatabase("contact", contact);
+    await updateUserDatabase("contactcycle", contactcycle);
+    await updateUserDatabase("passwordshare", passwordshare);
+    await updateUserDatabase("wedding", wedding);
+    await updateUserDatabase("wedding_dating", wedding_dating);
+    await updateUserDatabase("prefer_age_min", prefer_age_min);
+    await updateUserDatabase("prefer_age_max", prefer_age_max);
+
+    return ({
+      opfriend: opfriend,
+      friendmeeting: friendmeeting,
+      longdistance: longdistance,
+      datecycle: datecycle,
+      dateromance: dateromance,
+      contact: contact,
+      contactcycle: contactcycle,
+      passwordshare: passwordshare,
+      wedding: wedding,
+      wedding_dating: wedding_dating,
+      prefer_age_min: prefer_age_min,
+      prefer_age_max: prefer_age_max,
+    })
+  } catch (error) {
+    console.error(error);
+    alert("update에 문제가 있습니다.");
+  }
+}

@@ -9,7 +9,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "firebaseConfig";
 import LoadingPage from 'components/Common/Loading';
 import Router from 'next/router';
-import Dashboard from 'components/Dashboard';
+import Datehome from 'components/Date/Datehome'
 import Navbar from 'components/Common/Navbar_Date';
 
 const index = () => {
@@ -138,9 +138,9 @@ const index = () => {
         <LoadingPage />
         :
         <>
-          {/* <Navbar>
-          </Navbar> */}
-          <Dashboard />
+          <Navbar>
+          <Datehome />
+          </Navbar>
         </>
       }
     </>

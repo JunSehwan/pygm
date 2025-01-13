@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import Signup from 'components/Auth/Signup';
 import Head from 'next/head'
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
@@ -9,7 +8,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "firebaseConfig";
 import LoadingPage from 'components/Common/Loading';
 import Router from 'next/router';
-import Dashboard from 'components/Dashboard';
+import DateProfile from 'components/Date/DateProfile'
 import Navbar from 'components/Common/Navbar_Date';
 
 const index = () => {
@@ -37,29 +36,57 @@ const index = () => {
       const currentUser = {
         userID: user.uid,
         username: docData.username,
+        nickname: docData.nickname,
         email: docData.email,
-        email_using: docData.email_using,
         birthday: docData.birthday,
         gender: docData.gender,
-        avatar: docData.avatar,
+        thumbimage: docData.thumbimage,
         phonenumber: docData.phonenumber,
-        category: docData.category,
-        url_one: docData.url_one,
-        url_two: docData.url_two,
-        url_three: docData.url_three,
-        about: docData.about,
-        address: docData.address,
-        style: docData.style,
-        survey: docData.survey,
-        favorites: docData.favorites,
-        favLikes: docData.favLikes,
-        experts: docData.experts,
-        expertNum: docData.expertNum,
-        point: docData.point,
-        points: docData.points,
-        givePoint: docData.givePoint,
-        infoseen: docData.infoseen,
-        purpose: docData.purpose,
+        religion: docData.religion,
+        address_sido: docData.address_sido,
+        address_sigugun: docData.address_sigugun,
+
+        education: docData.education,
+        school: docData.school,
+        school_open: docData.school_open,
+        job: docData.job,
+        company: docData.company,
+        company_open: docData.company_open,
+        jobdocument: docData.jobdocument,
+        duty: docData.duty,
+        salary: docData.salary,
+        company_location_sido: docData.company_location_sido,
+        company_location_sigugun: docData.company_location_sigugun,
+
+        mbti_ei: docData.mbti_ei,
+        mbti_sn: docData.mbti_sn,
+        mbti_tf: docData.mbti_tf,
+        mbti_jp: docData.mbti_jp,
+
+        hobby: docData.hobby,
+        drink: docData.drink,
+        health: docData.health,
+        hotplace: docData.hotplace,
+        tour: docData.tour,
+        tourlike: docData.tourlike,
+        tourpurpose: docData.tourpurpose,
+        hobbyshare: docData.hobbyshare,
+        interest: docData.interest,
+
+        opfriend: docData.opfriend,
+        friendmeeting: docData.friendmeeting,
+        longdistance: docData.longdistance,
+        datecycle: docData.datecycle,
+        dateromance: docData.dateromance,
+        contact: docData.contact,
+        contactcycle: docData.contactcycle,
+        passwordshare: docData.passwordshare,
+        wedding: docData.wedding,
+        wedding_dating: docData.wedding_dating,
+        prefer_age_min: docData.prefer_age_min,
+        prefer_age_max: docData.prefer_age_max,
+
+   
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
@@ -79,28 +106,57 @@ const index = () => {
       const currentUser = {
         userID: user.id,
         username: docData.username,
+        nickname: docData.nickname,
         email: docData.email,
         birthday: docData.birthday,
         gender: docData.gender,
-        avatar: docData.avatar,
+        thumbimage: docData.thumbimage,
         phonenumber: docData.phonenumber,
-        category: docData.category,
-        url_one: docData.url_one,
-        url_two: docData.url_two,
-        url_three: docData.url_three,
-        about: docData.about,
-        address: docData.address,
-        style: docData.style,
-        survey: docData.survey,
-        favorites: docData.favorites,
-        favLikes: docData.favLikes,
-        experts: docData.experts,
-        expertNum: docData.expertNum,
-        point: docData.point,
-        points: docData.points,
-        givePoint: docData.givePoint,
-        infoseen: docData.infoseen,
-        purpose: docData.purpose,
+        religion: docData.religion,
+        address_sido: docData.address_sido,
+        address_sigugun: docData.address_sigugun,
+
+        education: docData.education,
+        school: docData.school,
+        school_open: docData.school_open,
+        job: docData.job,
+        company: docData.company,
+        company_open: docData.company_open,
+        jobdocument: docData.jobdocument,
+        duty: docData.duty,
+        salary: docData.salary,
+        company_location_sido: docData.company_location_sido,
+        company_location_sigugun: docData.company_location_sigugun,
+
+        mbti_ei: docData.mbti_ei,
+        mbti_sn: docData.mbti_sn,
+        mbti_tf: docData.mbti_tf,
+        mbti_jp: docData.mbti_jp,
+
+        hobby: docData.hobby,
+        drink: docData.drink,
+        health: docData.health,
+        hotplace: docData.hotplace,
+        tour: docData.tour,
+        tourlike: docData.tourlike,
+        tourpurpose: docData.tourpurpose,
+        hobbyshare: docData.hobbyshare,
+        interest: docData.interest,
+
+        opfriend: docData.opfriend,
+        friendmeeting: docData.friendmeeting,
+        longdistance: docData.longdistance,
+        datecycle: docData.datecycle,
+        dateromance: docData.dateromance,
+        contact: docData.contact,
+        contactcycle: docData.contactcycle,
+        passwordshare: docData.passwordshare,
+        wedding: docData.wedding,
+        wedding_dating: docData.wedding_dating,
+        prefer_age_min: docData.prefer_age_min,
+        prefer_age_max: docData.prefer_age_max,
+
+
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
@@ -109,7 +165,6 @@ const index = () => {
       unsubscribe();
     };
   }, [dispatch, user?.uid, user?.userID]);
-
   return (
     <>
       <Head>
@@ -138,9 +193,9 @@ const index = () => {
         <LoadingPage />
         :
         <>
-          {/* <Navbar>
-          </Navbar> */}
-          <Dashboard />
+          <Navbar>
+            <DateProfile />
+          </Navbar>
         </>
       }
     </>
