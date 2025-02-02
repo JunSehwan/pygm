@@ -9,8 +9,8 @@ import {
   useMoveScroll2,
   useMoveScroll3,
   useMoveScroll4,
-  useMoveScroll5,
-  useMoveScroll6
+  // useMoveScroll5,
+  // useMoveScroll6
 } from 'hooks/useMoveScroll';
 
 const index = () => {
@@ -19,8 +19,8 @@ const index = () => {
   const { element2, onMoveToElement2 } = useMoveScroll2();
   const { element3, onMoveToElement3 } = useMoveScroll3();
   const { element4, onMoveToElement4 } = useMoveScroll4();
-  const { element5, onMoveToElement5 } = useMoveScroll5();
-  const { element6, onMoveToElement6 } = useMoveScroll6();
+  // const { element5, onMoveToElement5 } = useMoveScroll5();
+  // const { element6, onMoveToElement6 } = useMoveScroll6();
 
   return (
     <>
@@ -30,8 +30,8 @@ const index = () => {
           onMoveToElement2={onMoveToElement2}
           onMoveToElement3={onMoveToElement3}
           onMoveToElement4={onMoveToElement4}
-          onMoveToElement5={onMoveToElement5}
-          onMoveToElement6={onMoveToElement6}
+          // onMoveToElement5={onMoveToElement5}
+          // onMoveToElement6={onMoveToElement6}
         />
         <div className='mx-auto w-full max-w-[420px]'>
           {/* {router?.pathname === "/date/profile" ? <Main />
@@ -41,8 +41,8 @@ const index = () => {
             element2={element2}
             element3={element3}
             element4={element4}
-            element5={element5}
-            element6={element6}
+            // element5={element5}
+            // element6={element6}
           />
           {/* : null} */}
         </div>

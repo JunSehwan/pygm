@@ -2,6 +2,8 @@ import { combineReducers } from '@reduxjs/toolkit';
 
 import { HYDRATE } from 'next-redux-wrapper';
 import userReducer from './user';
+import coupleReducer from './couple';
+import dateratingReducer from './daterating';
 // import userSettingsReducer from './userSettings';
 // import sectionSettingsReducer from './sectionSettings';
 // import categoryReducer from './category';
@@ -21,8 +23,9 @@ import userReducer from './user';
 
 const rootReducer = combineReducers({
   userReducer,
+  coupleReducer,
+  dateratingReducer,
   // userSettingsReducer,
-  // categoryReducer,
   // educationReducer,
   // careerReducer,
   // mystyleReducer,

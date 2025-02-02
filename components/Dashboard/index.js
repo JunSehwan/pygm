@@ -16,7 +16,7 @@ const index = () => {
     <div className='pt-[--navbar-height]'>
       <div className="max-w-[32rem] container mx-auto">
         <div className="flex justify-center my-3 flex-col">
-          <h1 class="mb-4 text-3xl font-extrabold leading-none tracking-tight text-center text-gray-900 md:text-4xl lg:text-4xl dark:text-white">원하는 게임을 선택하세요!</h1>
+          <h1 className="mb-4 text-3xl font-extrabold leading-none tracking-tight text-center text-gray-900 md:text-4xl lg:text-4xl dark:text-white">원하는 게임을 선택하세요!</h1>
 
           <div className='my-2 w-full'>
             <button href="#" className="w-full" onClick={onClickDating}>

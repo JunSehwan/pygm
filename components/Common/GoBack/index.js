@@ -7,7 +7,7 @@ const index = ({ title }) => {
   const router = useRouter();
 
   return (
-    <div className='w-max'>
+    <div className='w-full'>
       <div className='flex justify-start items-center'>
         <button className="text-gray-600 p-3 rounded-full hover:bg-gray-100"
           onClick={() => router.back()}

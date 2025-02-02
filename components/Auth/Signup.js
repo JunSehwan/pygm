@@ -54,7 +54,7 @@ const Signup = () => {
 
 
   // 입력폼
-  
+
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState(false);
   const onChangeUsername = useCallback((e) => {
@@ -211,7 +211,7 @@ const Signup = () => {
   const onSubmit = useCallback(async (e) => {
     e.preventDefault();
 
-  
+
     if (username?.length === 0) {
       return setUsernameError(true);
     }
@@ -239,8 +239,8 @@ const Signup = () => {
     }
     await emailDubCheck(email).then(async (dubCheck) => {
       if (dubCheck?.length !== 0) {
+        alert("중복된 메일주소입니다.")
         return setEmailDubError(true);
-        // alert("중복된 메일주소입니다.")
         // return setEmailDubError(true);
         // return setEmailDubError(true);
       } else {
@@ -371,7 +371,7 @@ const Signup = () => {
                         <div className='w-full flex justify-items-end items-center'>
                           <GoBack />
                         </div>
-                        <h3 className='text-2xl text-gray-600 my-2 ml-2 w-full'>피그말리온 회원가입</h3>
+                        <h3 className='text-2xl text-blue-600 my-2 ml-2 w-full'>피그말리온 회원가입</h3>
                       </div>
                     </div>
                     <div className='pt-[66px] px-2 '>
@@ -384,16 +384,16 @@ const Signup = () => {
                       >
 
                         <>
-                          <div className="mb-4">
+                          <div className="mb-2">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="name">
                               이름
                             </label>
                             <input
                               ref={inputElement}
                               className={usernameError ?
-                                'w-full px-3 py-2 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                                 :
-                                'w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                               }
                               id="name"
                               type="text"
@@ -407,15 +407,15 @@ const Signup = () => {
                             ) : null}
                           </div>
 
-                          <div className="mb-4">
+                          <div className="mb-2">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="nickname">
                               닉네임
                             </label>
                             <input
                               className={nicknameError ?
-                                'w-full px-3 py-2 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                                 :
-                                'w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                               }
                               id="nickname"
                               type="text"
@@ -429,15 +429,15 @@ const Signup = () => {
                             ) : null}
                           </div>
 
-                          <div className="mb-4">
+                          <div className="mb-2">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="e-mail">
                               이메일
                             </label>
                             <input
                               className={emailError || emailDubError ?
-                                'w-full px-3 py-2 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                                 :
-                                'w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                               }
                               id="e-mail"
                               type="email"
@@ -453,16 +453,16 @@ const Signup = () => {
                             ) : null}
                           </div>
 
-                          <div className="mb-4">
+                          <div className="mb-2">
                             <div className="mb-4 md:mr-2 md:mb-0 w-[100%]">
                               <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="birthday">
                                 생년월일
                               </label>
                               <div className="flex gap-2">
                                 <select
-                                  className={birthError ? "w-full px-3 py-2 mb-2 border-red-500 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                                  className={birthError ? "w-full px-3 py-4 mb-2 border-red-500 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
                                     :
-                                    "w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                                    "w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
                                   }
                                   id="birthyear"
                                   type="text"
@@ -475,7 +475,7 @@ const Signup = () => {
                                 <select
                                   className={birthError ? "md:ml-2 w-full border-red-500 px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
                                     :
-                                    "md:ml-2 w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                                    "md:ml-2 w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
                                   }
                                   id="birthmonth"
                                   type="text"
@@ -486,9 +486,9 @@ const Signup = () => {
                                   {months()}
                                 </select>
                                 <select
-                                  className={birthError ? "border-red-500 md:ml-2 w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                                  className={birthError ? "border-red-500 md:ml-2 w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
                                     :
-                                    "md:ml-2 w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+                                    "md:ml-2 w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
                                   }
                                   value={form?.day}
                                   onChange={onChangeDay
@@ -510,15 +510,15 @@ const Signup = () => {
                             ) : null}
                           </div>
 
-                          <div className="mb-4">
+                          <div className="mb-2">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="phone">
                               연락처
                             </label>
                             <input
                               className={telError ?
-                                'w-full px-3 py-2 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                                 :
-                                'w-full px-3 py-2 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                               }
                               id="phone"
                               type="tel"
@@ -532,15 +532,15 @@ const Signup = () => {
                             ) : null}
                           </div>
 
-                          <div className="mb-4 relative">
+                          <div className="mb-2 relative">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="password">
                               비밀번호(8자이상)
                             </label>
                             <input
                               className={passwordLengthError ?
-                                'w-full px-3 py-2 mb-3 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-3 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                                 :
-                                'w-full px-3 py-2 mb-3 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-3 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                               }
                               id="password"
                               type={showPswd ? "text" : "password"}
@@ -549,7 +549,7 @@ const Signup = () => {
                               value={password}
                             >
                             </input>
-                            <div className="inline cursor-pointer absolute top-[33px] right-[8px] sm:right-[14px] text-gray-400">
+                            <div className="inline cursor-pointer absolute top-[42px] right-[8px] sm:right-[14px] text-gray-400">
                               {showPswd ? (
                                 <BiHide onClick={toggleShowPswd} />
                               ) : (
@@ -562,15 +562,15 @@ const Signup = () => {
                             ) : null}
                           </div>
 
-                          <div className="mb-4 relative">
+                          <div className="mb-2 relative">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="c_password">
                               비밀번호 확인
                             </label>
                             <input
                               className={passwordError ?
-                                'w-full px-3 py-2 mb-3 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-3 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                                 :
-                                'w-full px-3 py-2 mb-3 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                'w-full px-3 py-4 mb-3 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                               }
                               onChange={onChangePasswordCheck}
                               value={passwordCheck}
@@ -578,7 +578,7 @@ const Signup = () => {
                               type={showPswd ? "text" : "password"}
                               placeholder="********"
                             />
-                            <div className="inline cursor-pointer absolute top-[33px] right-[8px] sm:right-[14px] text-gray-400">
+                            <div className="inline cursor-pointer absolute top-[42px] right-[8px] sm:right-[14px] text-gray-400">
                               {showPswd ? (
                                 <BiHide onClick={toggleShowPswd} />
                               ) : (

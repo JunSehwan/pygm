@@ -154,7 +154,7 @@ const index = ({ imageModalOpened, closeImageModal }) => {
       visible={imageModalOpened}
       widths="460px"
     >
-      <div className="flex w-full h-full top-[24px] mb-2 pt-2 justify-center">
+      <div className="flex w-full h-full top-[24px] my-2 pt-2 justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}

@@ -89,7 +89,7 @@ const Login = () => {
           const loginResult = userCredential.user;
           if (!loginResult) {
             throw new Error(
-              "Email is not verified. We have sent the verification link again. Please check your inbox/spam."
+              "이메일주소가 유효하지 않습니다. 메일을 통해 인증 링크를 다시 보냈습니다. 받은 편지함/스팸을 확인해 주세요."
             );
           }
           return loginResult;
@@ -104,7 +104,7 @@ const Login = () => {
       console.error(e);
       const errorCode = e.code;
       const errorMessage = e.message;
-      alert(errorCode, "에러")
+      // alert(errorCode, "에러")
     }
 
   }, [password, email, auth, results, dispatch])
@@ -119,8 +119,8 @@ const Login = () => {
 
 
   const handlePasswordForgot = useCallback(() => {
-    router.push("/auth/forgotpassword");
-  }, [router,])
+    router.push("/forgotpassword");
+  }, [router])
 
   // autoFocus 관련
   const inputElement = useRef(null);
@@ -151,9 +151,9 @@ const Login = () => {
                     </label>
                     <input
                       className={emailError || emailDubError ?
-                        'w-full px-3 py-2 mb-2 text-md border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                        'w-full px-3 py-3 mb-2 text-md border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                         :
-                        'w-full px-3 py-2 mb-2 text-md leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                        'w-full px-3 py-3 mb-2 text-md leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                       }
                       ref={inputElement}
                       id="login_email"
@@ -177,7 +177,7 @@ const Login = () => {
                     </label>
                     <input
                       className=
-                      'w-full px-3 py-2 mb-3 text-md leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                      'w-full px-3 py-3 mb-3 text-md leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
                       id="login_password"
                       type="password"
                       autoComplete="current-password"
@@ -207,7 +207,7 @@ const Login = () => {
                 </form>
 
                 {/* 구분선 */}
-                <div className="w-[90%] mx-auto h-[4px] py-2 my-2 border-b-[1px] border-solid border-slate-200"></div>
+                <div className="w-[90%] mx-auto h-[4px] py-3 my-2 border-b-[1px] border-solid border-slate-200"></div>
                 <div className="w-fit bg-white mt-[-18px] px-8 mx-auto text-md text-gray-500">아직 회원이 아니신가요?</div>
 
                 <div className='my-2'>
@@ -219,12 +219,12 @@ const Login = () => {
                     </Link>
                   </div>
                   <div className="text-center text-[14px] text-gray-500">
-                    비밀번호를 잊어버렸나요?
+                    비밀번호를 잊어버렸나요?&nbsp;
                     <a
-                      className="inline-block text-[0.88rem] text-blue-500 align-baseline hover:text-blue-800"
+                      className="inline-block underline text-[0.88rem] text-blue-500 align-baseline hover:text-blue-800"
                       onClick={handlePasswordForgot}
                     >
-                      &nbsp;비밀번호를 재설정
+                      비밀번호를 재설정
                     </a>
                     해주세요.
                   </div>

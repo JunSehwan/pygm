@@ -5,6 +5,7 @@ import Document, {
   NextScript,
 } from "next/document";
 import { ServerStyleSheet } from "styled-components";
+import { hydrateRoot } from 'react-dom/client';
 
 class MyDocument extends Document {
   static async getInitialProps(ctx) {
@@ -14,7 +15,10 @@ class MyDocument extends Document {
       ctx.renderPage = () =>
         originalRenderPage({
           enhanceApp: (App) => (props) =>
-            sheet.collectStyles(<App {...props} />),
+            sheet.collectStyles(
+            <App {...props} />
+          
+          ),
         });
 
       const initialProps = await Document.getInitialProps(ctx);

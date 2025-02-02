@@ -146,6 +146,14 @@ h4, .h4 {
 :root {
   /* 메인컬러   */
     --myblue-color: #1890FF;
+
+    --pygm-one: #222839; // 가장 짙음 (2advanced)
+    --pygm-two: #1F2A40;
+    --pygm-three: #2A3753;
+    --pygm-four: #344464;
+    --pygm-five: #7183A5;
+    --pygm-six: #E5E7EB; // 가장 옅음
+
     --purple-strong: #5c16c5;
     --purple-normal: #7136b5;
     --blue-weak: #4c5ace;
@@ -182,10 +190,10 @@ h4, .h4 {
     --light: #f8f9fa;
     --dark: #343a40;
      @media screen and (max-width: 640px) {
-        --navbar-height: 76px;
+        --navbar-height: 68px;
     }
     @media screen and (min-width: 641px) and (max-width: 768px) {
-        --navbar-height: 76px;
+        --navbar-height: 70px;
     }
     --navbar-height: 76px;
     --breakpoint-xs: 0;

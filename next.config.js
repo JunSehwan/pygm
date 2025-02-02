@@ -12,14 +12,14 @@ module.exports = withBundleAnalyzer({
   images: {
     loader: 'akamai',
     path: '',
-    domains: ['pygm.co.kr', 'localhost:3060', 'firebasestorage.googleapis.com', 'upload.wikimedia.org', 'lh3.googleusercontent.com', 'cdn.jsdelivr.net'],
+    domains: ['pygm.co.kr', 'localhost:3060', 'firebasestorage.googleapis.com', 'upload.wikimedia.org', 'lh3.googleusercontent.com', 'cdn.jsdelivr.net','loremflickr.com'],
     formats: ['image/avif', 'image/webp'],
   },
   distDir: 'build',
   compress: true,
   // swcMinify: true,
   compiler: {
-    styledComponents: true | {
+      styledComponents: true | {
       // Enabled by default in development, disabled in production to reduce file size,
       // setting this withBundleAnalyzer override the default for all environments.
       displayName: true,

@@ -9,15 +9,14 @@ import AlertModal from 'components/Common/Modal/AlertModal';
 import { signOut } from 'slices/user';
 import profilePic from '/public/image/icon/avatar.png';
 import { useRouter } from 'next/router';
+import { BsFillPostcardHeartFill } from "react-icons/bs";
 
-import { RiNewspaperFill, RiUserSearchFill } from "react-icons/ri";
-import { AiFillMessage, AiFillSetting, AiOutlineMessage } from "react-icons/ai";
-import { BsFillArrowThroughHeartFill, BsFillCaretDownFill, BsFillHouseFill, BsFillPersonBadgeFill, BsMegaphoneFill } from "react-icons/bs";
+import { AiFillSetting } from "react-icons/ai";
+import { BsFillCaretDownFill, BsFillHouseFill, BsFillPersonBadgeFill, BsMegaphoneFill } from "react-icons/bs";
 import { FaStore, FaUserCircle } from "react-icons/fa";
-import { BsFillBellFill, BsQuestionCircleFill } from "react-icons/bs";
-import { MdMessage, MdDashboard } from "react-icons/md";
+import { BsQuestionCircleFill } from "react-icons/bs";
 import { IoLogOut } from "react-icons/io5";
-import { BiNews } from 'react-icons/bi';
+import { FaGamepad } from "react-icons/fa6";
 
 const index = ({ children }) => {
   const router = useRouter();
@@ -101,7 +100,6 @@ const index = ({ children }) => {
     setToggle(false);
     setOpen(false);
   }, [])
-  console.log(router?.pathname);
   const logoutConfirm = useCallback(async () => {
     const res = await logOut();
     dispatch(signOut({
@@ -168,6 +166,12 @@ const index = ({ children }) => {
     setToggle(false);
     setOpen(false);
   }, [])
+  const onClickQuestion = useCallback(() => {
+    window?.open('https://open.kakao.com/o/sAJwMNCe', '_blank')
+    // router.push("https://open.kakao.com/o/sAJwMNCe");
+    setToggle(false);
+    setOpen(false);
+  }, [])
 
   const [data, setData] = useState();
   useEffect(() => {
@@ -208,7 +212,7 @@ const index = ({ children }) => {
 
   return (
     <>
-      <nav className={`${display === true && "hidden"} top-0 transition-all fixed z-10 bg-white w-full ${ScrollActive === true && "bg-opacity-70 shadow-md backdrop-blur-sm"} `}>
+      <nav className={`${display === true && "hidden"} top-0 transition-all fixed z-50 bg-white w-full ${ScrollActive === true && "bg-opacity-70 shadow-md backdrop-blur-sm"} `}>
         <div className="mx-auto px-2 sm:px-6">
           <div className={`flex justify-between items-center border-b-1 border-gray-100 py-2 ${ScrollActive === true && "border-0"} justify-start md:space-x-10`}>
             <div className="flex justify-start">
@@ -217,9 +221,10 @@ const index = ({ children }) => {
                   <span className="sr-only">PYGM</span>
                   <Image
                     src={logo}
-                    width={60}
+                    width={52}
                     alt="logo"
-                    height={60}
+                    height={52}
+                    priority
                     unoptimized
                   />
                 </div>
@@ -228,11 +233,11 @@ const index = ({ children }) => {
             <>
               <div className="flex items-center justify-center md:flex">
                 <button
-                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.7vw] transition-all ${router?.pathname === "/date/home" || router?.pathname?.includes("/date/home") ? "text-[#4979f5]" : "text-gray-400"}`}
+                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/home" || router?.pathname?.includes("/date/home") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickHome}>
                   <div className='flex flex-col items-center'>
                     <BsFillHouseFill className='w-7 h-7' />
-                    <span className='mt-[2px] text-sm hidden md:inline'>홈</span>
+                    <span className='mt-[2px] text-xs hidden md:inline'>홈</span>
                   </div>
                   {findNotRead && findNotRead?.length !== 0 &&
                     <div className='top-[17px] p-0.5 text-white bg-red-500 flex mr-[-41px] mt-[-20px] shadow text-center text-xs rounded-full w-[18px] h-[18px] items-center justify-center z-5 absolute'>
@@ -241,30 +246,30 @@ const index = ({ children }) => {
                   }
                 </button>
                 <button
-                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.7vw] transition-all ${router?.pathname === "/date/cards" || router?.pathname?.includes("/date/cards") ? "text-[#4979f5]" : "text-gray-400"}`}
+                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/cards" || router?.pathname?.includes("/date/cards") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickDatecards}>
                   <div className='flex flex-col items-center'>
                     <BsFillPersonBadgeFill className='w-7 h-7' />
-                    <span className='mt-[2px] text-sm hidden md:inline'>소개카드</span>
+                    <span className='mt-[2px] text-xs hidden md:inline'>소개카드</span>
                   </div>
                 </button>
                 {/* FaBuilding
                   TiNews */}
                 <button
-                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.7vw] transition-all ${router?.pathname === "/date/board" || router?.pathname?.includes("/date/board") ? "text-[#4979f5]" : "text-gray-400"}`}
+                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/board" || router?.pathname?.includes("/date/board") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickDateboard}>
                   <div className='flex flex-col items-center'>
-                    <BsFillArrowThroughHeartFill className='w-7 h-7' />
-                    <span className='mt-[2px] text-sm hidden md:inline'>윙크</span>
+                    <BsFillPostcardHeartFill className='w-7 h-7' />
+                    <span className='mt-[2px] text-xs hidden md:inline'>현황판</span>
                   </div>
                 </button>
 
                 <button
-                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.7vw] transition-all ${router?.pathname === "/date/store" || router?.pathname?.includes("/date/store") ? "text-[#4979f5]" : "text-gray-400"}`}
+                  className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/store" || router?.pathname?.includes("/date/store") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickStore}>
                   <div className='flex flex-col items-center'>
                     <FaStore className='w-7 h-7' />
-                    <span className='mt-[2px] text-sm hidden md:inline'>스토어</span>
+                    <span className='mt-[2px] text-xs hidden md:inline'>스토어</span>
                   </div>
                   {/* {findNotReadConversation && findNotReadConversation?.length !== 0 &&
                     <div className='top-[17px] p-0.5 text-white bg-red-500 flex mr-[-41px] mt-[-20px] shadow text-center text-xs rounded-full w-[18px] h-[18px] items-center justify-center z-5 absolute'>
@@ -272,45 +277,63 @@ const index = ({ children }) => {
                     </div>
                   } */}
                 </button>
-
               </div>
 
-              {/* 햄버거 버튼 */}
-              <div className="-mr-2 -my-2 sm:hidden">
-                <button type="button" onClick={handleOpen} className="rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" aria-expanded="false">
-                  <span className="sr-only">Open menu</span>
-                  <svg className="h-9 w-9" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
+              <div className='flex items-center justify-center flex-row gap-2'>
+                <button
+                  className='flex flex-col items-center justify-center rounded-md bg-pink-100 py-1 px-3 shadow-sm'
+                  onClick={onClickStore}
+                >
+                  <Image
+                    alt="wink_image"
+                    className="object-cover"
+                    unoptimized
+                    width={24}
+                    height={24}
+                    src="/image/icon/wink.png" />
+                  <span className=''>
+                    {/* <span className='text-sm text-pink-600'>윙크&nbsp;</span> */}
+                    <span className='text-xs text-pink-600'>{user?.wink ? user?.wink : 0}개</span>
+                  </span>
+                </button>
+
+                {/* 햄버거 버튼 */}
+                <div className="-mr-2 -my-2 sm:hidden">
+                  <button type="button" onClick={handleOpen} className="rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" aria-expanded="false">
+                    <span className="sr-only">Open menu</span>
+                    <svg className="h-9 w-9" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                </div>
+
+                <button className="hidden sm:flex flex-col ml-[12px] items-center justify-center group-transition-all text-gray-500 hover:text-gray-600"
+                  onClick={toggleDropdown}
+                >
+                  {user?.thumbimage?.length !== 0 && user?.thumbimage?.[0] ? (
+                    <Image
+                      alt="thumbimage[0]_user"
+                      className="thumbimage[0] w-7 h-7 rounded-md object-cover"
+                      unoptimized
+                      width={60}
+                      height={60}
+                      src={user?.thumbimage?.[0]} />
+
+                  ) : (
+                    <Image
+                      alt="thumbimage[0]_user"
+                      className="shadow-inner thumbimage[0] w-7 h-7 rounded-md object-cover"
+                      src={profilePic}
+                      width={60}
+                      height={60}
+                      unoptimized
+                    />
+                  )}
+                  <span className="text-xs flex items-center w-full mt-[3px] dark:text-gray-200">
+                    <span className='whitespace-nowrap overflow-hidden overflow-ellipsis break-all  max-w-[3rem]'>{user?.nickname}</span><BsFillCaretDownFill />
+                  </span>
                 </button>
               </div>
-
-              <button className="hidden sm:flex flex-col ml-[12px] items-center justify-center group-transition-all text-gray-500 hover:text-gray-600"
-                onClick={toggleDropdown}
-              >
-                {user?.thumbimage?.length !== 0 && user?.thumbimage?.[0] ? (
-                  <Image
-                    alt="thumbimage[0]_user"
-                    className="thumbimage[0] w-7 h-7 rounded-md object-cover"
-                    unoptimized
-                    width={60}
-                    height={60}
-                    src={user?.thumbimage?.[0]} />
-
-                ) : (
-                  <Image
-                    alt="thumbimage[0]_user"
-                    className="shadow-inner thumbimage[0] w-7 h-7 rounded-md object-cover"
-                    src={profilePic}
-                    width={60}
-                    height={60}
-                    unoptimized
-                  />
-                )}
-                <span className="text-xs flex items-center w-full mt-[3px] dark:text-gray-200">
-                  <span className='whitespace-nowrap overflow-hidden overflow-ellipsis break-all  max-w-[3rem]'>{user?.username}</span><BsFillCaretDownFill />
-                </span>
-              </button>
 
               {/* <!-- Dropdown menu --> */}
               {toggle &&
@@ -325,12 +348,14 @@ const index = ({ children }) => {
                             src={user?.thumbimage?.[0]}
                             loader={() => user?.thumbimage?.[0] || profilePic}
                             unoptimized
+                            priority
                             alt="thumbimage[0]" width={40} height={40} />
                           :
                           <Image
                             className="flex-shrink-0 object-cover mx-1 rounded-lg w-9 h-9"
                             src={profilePic}
                             unoptimized
+                            priority
                             alt="thumbimage[0]" width={40} height={40} />
                         }
                         <div className="mx-1 w-full ml-3">
@@ -357,7 +382,13 @@ const index = ({ children }) => {
                         onClick={onClickDashboard}
                         className="text-left w-full font-bold block px-4 py-3 text-sm text-gray-600 capitalize transition-colors duration-200 transform dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white"
                       >
-                        다른 게임
+                        다른 게임
+                      </button>
+                      <button
+                        onClick={onClickQuestion}
+                        className="text-left w-full font-bold block px-4 py-3 text-sm text-gray-600 capitalize transition-colors duration-200 transform dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white"
+                      >
+                        문의하기
                       </button>
                       <hr className="border-gray-200 dark:border-gray-700 " />
                       <button
@@ -371,6 +402,7 @@ const index = ({ children }) => {
                 </div>
               }
             </>
+
 
 
 
@@ -390,6 +422,7 @@ const index = ({ children }) => {
                       alt="PYGM_LOGO"
                       height={60}
                       unoptimized
+                      priority
                     />
                   </div>
                   <div className="-mr-2">
@@ -409,21 +442,27 @@ const index = ({ children }) => {
                 <div>
                   <ul className="mt-2 mb-2 space-y-2 tracking-wide">
                     <li className="min-w-max" key="profile">
-                      <button onClick={onClickProfile} className="group flex items-center space-x-4 rounded-md px-4 py-3 text-gray-400 w-full">
-                        <FaUserCircle className='w-7 h-7' />
+                      <button onClick={onClickProfile} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
+                        <FaUserCircle className='w-6 h-6' />
                         <span className="group-hover:text-gray-700">프로필</span>
                       </button>
                     </li>
                     <li className="min-w-max" key="setting">
-                      <button onClick={onClickSetting} className="group flex items-center space-x-4 rounded-md px-4 py-3 text-gray-400 w-full">
-                        <AiFillSetting className='w-7 h-7' />
+                      <button onClick={onClickSetting} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
+                        <AiFillSetting className='w-6 h-6' />
                         <span className="group-hover:text-gray-700">계정 설정</span>
                       </button>
                     </li>
-                    <li className="min-w-max" key="guide">
-                      <button onClick={onClickDashboard} className="group flex items-center space-x-4 rounded-md px-4 py-3 text-gray-400 w-full">
-                        <BsQuestionCircleFill className='w-7 h-7' />
+                    <li className="min-w-max" key="anothergame">
+                      <button onClick={onClickDashboard} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
+                        <FaGamepad className='w-6 h-6' />
                         <span className="group-hover:text-gray-700">다른 게임</span>
+                      </button>
+                    </li>
+                    <li className="min-w-max" key="question">
+                      <button onClick={onClickQuestion} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
+                        <BsQuestionCircleFill className='w-6 h-6' />
+                        <span className="group-hover:text-gray-700">문의하기</span>
                       </button>
                     </li>
                   </ul>

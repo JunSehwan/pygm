@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Head from 'next/head'
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import { setUser, resetUserState, userLoadingStart, userLoadingEnd, userLoadingEndwithNoone } from "slices/user";
+import { setRatingToMe } from 'slices/daterating';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db } from "firebaseConfig";
+import { db, getRatingsToMe } from "firebaseConfig";
 import LoadingPage from 'components/Common/Loading';
 import Router from 'next/router';
 import DateProfile from 'components/Date/DateProfile'
@@ -17,6 +18,26 @@ const index = () => {
   const dispatch = useDispatch();
   const router = useRouter();
   const { user, loading } = useSelector(state => state.user);
+
+
+  //로딩을 위한
+  const [nowLoading, setNowLoading] = useState(false);
+  useEffect(() => {
+    const start = () => {
+      setNowLoading(true);
+    };
+    const end = () => {
+      setNowLoading(false);
+    };
+    Router.events.on("routeChangeStart", start);
+    Router.events.on("routeChangeComplete", end);
+    Router.events.on("routeChangeError", end);
+    return () => {
+      Router.events.off("routeChangeStart", start);
+      Router.events.off("routeChangeComplete", end);
+      Router.events.off("routeChangeError", end);
+    };
+  }, []);
 
   useEffect(() => {
     const authStateListener = onAuthStateChanged(auth, async (user) => {
@@ -86,10 +107,42 @@ const index = () => {
         prefer_age_min: docData.prefer_age_min,
         prefer_age_max: docData.prefer_age_max,
 
-   
+        career_goal: docData.career_goal,
+        living_weekend: docData.living_weekend,
+        living_consume: docData.living_consume,
+        living_pet: docData.living_pet,
+        living_tatoo: docData.living_tatoo,
+        living_smoke: docData.living_smoke,
+        living_charming: docData.living_charming,
+
+        religion_important: docData.religion_important,
+        religion_visit: docData.religion_visit,
+        religion_accept: docData.religion_accept,
+        food_taste: docData.food_taste,
+        food_like: docData.food_like,
+        food_dislike: docData.food_dislike,
+        food_vegetarian: docData.food_vegetarian,
+        food_spicy: docData.food_spicy,
+        food_diet: docData.food_diet,
+
+        infoseen: docData.infoseen,
+        likes: docData.likes,
+        liked: docData.liked,
+        dislikes: docData.dislikes,
+        disliked: docData.disliked,
+
+        wink: docData.wink,
+        date_sleep: docData.date_sleep,
+        withdraw: docData.withdraw,
+        date_lastIntroduce: docData.date_lastIntroduce,
+        timestamp: docData.timestamp,
+        datecard: docData.datecard,
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
+      await getRatingsToMe().then((result) => {
+        dispatch(setRatingToMe(result));
+      })
     });
     return () => {
       authStateListener();
@@ -156,7 +209,36 @@ const index = () => {
         prefer_age_min: docData.prefer_age_min,
         prefer_age_max: docData.prefer_age_max,
 
+        career_goal: docData.career_goal,
+        living_weekend: docData.living_weekend,
+        living_consume: docData.living_consume,
+        living_pet: docData.living_pet,
+        living_tatoo: docData.living_tatoo,
+        living_smoke: docData.living_smoke,
+        living_charming: docData.living_charming,
 
+        religion_important: docData.religion_important,
+        religion_visit: docData.religion_visit,
+        religion_accept: docData.religion_accept,
+        food_taste: docData.food_taste,
+        food_like: docData.food_like,
+        food_dislike: docData.food_dislike,
+        food_vegetarian: docData.food_vegetarian,
+        food_spicy: docData.food_spicy,
+        food_diet: docData.food_diet,
+
+        infoseen: docData.infoseen,
+        likes: docData.likes,
+        liked: docData.liked,
+        dislikes: docData.dislikes,
+        disliked: docData.disliked,
+
+        wink: docData.wink,
+        date_sleep: docData.date_sleep,
+        withdraw: docData.withdraw,
+        date_lastIntroduce: docData.date_lastIntroduce,
+        timestamp: docData.timestamp,
+        datecard: docData.datecard,
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
@@ -189,7 +271,7 @@ const index = () => {
         <meta name="twitter:domain" content="https://pygm.co.kr" />
       </Head>
 
-      {loading ?
+      {nowLoading || loading ?
         <LoadingPage />
         :
         <>

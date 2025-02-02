@@ -218,7 +218,7 @@ const index = () => {
       return setThumbimageError(true);
     }
     if (religion == '') {
-      document.getElementById('religion').focus();
+      document.getElementById('religion 1').focus();
       return setReligionError(true);
     }
     if (gender == '') {
@@ -250,6 +250,9 @@ const index = () => {
     tel, gender, address_sido, address_sigugun, dispatch])
 
   // const writeFinish = username && nickname && religion && form?.year && form?.month && form?.day && gender && tel && address_sigugun && address_sido;
+  const religionArr = ["무교", "기독교", "천주교", "불교", "원불교", "유교",
+    "대종교", "천도교", "대순리진회", "이슬람교", "힌두교", "유대교", "기타"
+  ]
 
   return (
     <>
@@ -430,7 +433,7 @@ const index = () => {
 
         <div className="py-4">
           <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="tel">
-            연락처(매칭시 상대방에게 전달됩니다.)
+            연락처('-'없이 숫자만 입력, 매칭성사시 상대에게 전달)
           </label>
           <input
             className={telError ?
@@ -517,19 +520,30 @@ const index = () => {
           <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="religion">
             종교(종교가 없을 경우 '무교'입력)
           </label>
-          <input
-            className={religionError ?
-              "block w-full p-3 text-gray-900 border border-red-300 rounded-lg bg-red-50 sm:text-md focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-red-500 dark:focus:border-red-500"
-              :
-              "block w-full p-3 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 sm:text-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            }
-            id="religion"
-            type="religion"
-
-            placeholder="종교"
-            onChange={onChangeReligion}
-            defaultValue={user?.religion || ""}
-          />
+          <ul className="flex w-full gap-2 items-start flex-wrap">
+            {religionArr?.map((v, index) => (
+              <li key={index + 1}>
+                <input type="radio"
+                  id={`religion ${index + 1}`}
+                  onChange={onChangeReligion}
+                  checked={religion == index + 1}
+                  name="religion"
+                  value={index + 1}
+                  className="opacity-0 w-0 h-0 absolute peer" />
+                <label htmlFor={`religion ${index + 1}`}
+                  className="peer-checked:bg-slate-100 peer-checked:text-blue-600 peer-checked:border peer-checked:border-blue-600 inline-flex transition-all transform items-center justify-between py-2 px-3 text-gray-500
+                         border border-solid rounded-full
+                           bg-white border-gray-200 cursor-pointer 
+                          dark:hover:text-gray-300 dark:border-gray-700 dark:active:text-blue-500 
+                          active:border active:border-solid target:border-solid target:border-2 target:border-blue-600 active:border-blue-600 hover:border-blue-600 checked:border-solid checked:border-blue-600 focus:border-blue-600 active:text-blue-600 checked:text-blue-600 focus:text-blue-600 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-800 dark:hover:bg-gray-700 shadow-md">
+                  <div className="block">
+                    {/* <div className="w-full text-lg font-semibold"></div> */}
+                    <div className="w-full text-sm">{v}</div>
+                  </div>
+                </label>
+              </li>
+            ))}
+          </ul>
           {religionError ? (
             <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
               <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
@@ -537,7 +551,7 @@ const index = () => {
               </svg>
               <span className="sr-only">Info</span>
               <div>
-                <span className="font-medium">종교를 입력해주세요.</span>
+                <span className="font-medium">종교를 선택해주세요.</span>
               </div>
             </div>
           ) : null}

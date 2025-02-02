@@ -5,15 +5,39 @@ import { HYDRATE } from 'next-redux-wrapper';
 export const initialState = {
   user: null,
   friend: null,
-  users: [],
-
+  // wink: 0,
+  friends: [],
+  likesArr: [],
+  likedArr: [],
+  allFriends: [],
+  allFriendsLoading: false,
+  friendSleepLoading: false,
+  // nowLoading: false,
   loading: false,
+  friendsLoading: false,
+  otherFriendLoading: false,
+  likesLoading: false,
+  likedLoading: false,
   isLoggedIn: false,
   signUpSuccess: false,
   updateBasicProfileSuccess: false,
   updateStyleDone: false,
   updateSurveyDone: false,
+  addLikeDone: false,
+  addDislikeDone: false,
 
+  patchMycompanyInfoDone: false,
+  patchMycompanyAdditionalInfoDone: false,
+  patchThinkMbtiInfoDone: false,
+  patchHobbyDone: false,
+  patchRomanceDone: false,
+  patchCareerLivingDone: false,
+  patchEtcDone: false,
+  patchThumbimageDone: false,
+  uploadJobDocumentDone: false,
+  patchDate_lastIntroduceDone: false,
+  updateUserSleepDone: false,
+  setWithdrawDone: false,
   // 권한
   // isExpert: false,
   // isAdmin: false,
@@ -23,30 +47,22 @@ export const initialState = {
   // updateInfoSeen: false,
   // updatePurposeDone: false,
   // updateCliptypeDone: false,
-  patchMycompanyInfoDone: false,
-  patchMycompanyAdditionalInfoDone: false,
-  patchThinkMbtiInfoDone: false,
-  patchHobbyDone: false,
-  patchRomanceDone: false,
   // patchCategoryDone: false,
   // patchCompanylogoDone: false,
   // companylogoPreview: "",
   // avatarPreview: "",
-  updateAvatarDone: false,
-  updateAdditionalInfoDone: false,
-  patchThumbimageDone: false,
-  uploadJobDocumentDone: false,
-  addLikeDone: false,
-  addUnlikeDone: false,
-  addAdviceDone: false,
-  deleteAdviceDone: false,
-  addCoccocDone: false,
-  deleteCoccocDone: false,
-  addJobofferDone: false,
-  deleteJobofferDone: false,
-  scrollPosition: 0,
-  scrolling: false,
-  categoryFilter: null,
+  // updateAvatarDone: false,
+  // updateAdditionalInfoDone: false,
+  // addAdviceDone: false,
+  // deleteAdviceDone: false,
+  // addCoccocDone: false,
+  // deleteCoccocDone: false,
+  // addJobofferDone: false,
+  // deleteJobofferDone: false,
+  // scrollPosition: 0,
+  // scrolling: false,
+  // categoryFilter: null,
+
 };
 
 export const user = createSlice({
@@ -78,6 +94,18 @@ export const user = createSlice({
     userLoadingEnd(state) {
       state.loading = false;
     },
+    friendSleepLoadingStart(state) {
+      state.friendSleepLoading = true;
+    },
+    friendSleepLoadingEnd(state) {
+      state.friendSleepLoading = false;
+    },
+    // pageLoadingStart(state) {
+    //   state.nowLoading = true;
+    // },
+    // pageLoadingEnd(state) {
+    //   state.nowLoading = false;
+    // },
     userLoadingEndwithNoone(state) {
       state.loading = false;
       state.user = null;
@@ -180,19 +208,126 @@ export const user = createSlice({
     patchRomanceFalse(state, action) {
       state.patchRomanceDone = false;
     },
+    patchCareerLiving(state, action) {
+      state.user.career_goal = action.payload.career_goal;
+      state.user.living_weekend = action.payload.living_weekend;
+      state.user.living_consume = action.payload.living_consume;
+      state.user.living_pet = action.payload.living_pet;
+      state.user.living_tatoo = action.payload.living_tatoo;
+      state.user.living_smoke = action.payload.living_smoke;
+      state.user.living_charming = action.payload.living_charming;
+
+      state.patchCareerLivingDone = true;
+    },
+    patchCareerLivingFalse(state, action) {
+      state.patchCareerLivingDone = false;
+    },
+    patchEtc(state, action) {
+      state.user.religion_important = action.payload.religion_important;
+      state.user.religion_visit = action.payload.religion_visit;
+      state.user.religion_accept = action.payload.religion_accept;
+      state.user.food_taste = action.payload.food_taste;
+      state.user.food_like = action.payload.food_like;
+      state.user.food_dislike = action.payload.food_dislike;
+      state.user.food_vegetarian = action.payload.food_vegetarian;
+      state.user.food_spicy = action.payload.food_spicy;
+      state.user.food_diet = action.payload.food_diet;
+
+      state.patchEtcDone = true;
+    },
+    patchEtcFalse(state, action) {
+      state.patchEtcDone = false;
+    },
+
+    setFriends(state, action) {
+      state.friendsLoading = true;
+      state.friends = action.payload;
+    },
+    setFriendsDoneFalse(state, action) {
+      state.friendsLoading = false;
+    },
+    setAllFriends(state, action) {
+      state.allFriendsLoading = true;
+      state.allFriends = action.payload;
+    },
+    setAllFriendsDoneFalse(state, action) {
+      state.allFriendsLoading = false;
+    },
+    setOtherUser(state, action) {
+      state.friend = action.payload;
+      state.otherFriendLoading = true;
+    },
+    setOtherUserDoneFalse(state) {
+      state.otherFriendLoading = false;
+    },
+    likeToUser(state, action) {
+      const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
+      target?.liked?.unshift({ userId: action.payload.userId, username: action.payload.username, startAt: action.payload.startAt });
+      state.wink = state.wink - 1;
+      state.addLikeDone = true;
+    },
+    addLikeDoneFalse(state) {
+      state.addLikeDone = false;
+    },
+    dislikeToUser(state, action) {
+      const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
+      target?.disliked?.unshift({ userId: action.payload.userId, username: action.payload.username, startAt: action.payload.startAt });
+      state.addDislikeDone = true;
+    },
+    addDislikeDoneFalse(state) {
+      state.addDislikeDone = false;
+    },
+
+    setLikesArr(state, action) {
+      state.likesLoading = true;
+      state.likesArr = action.payload;
+    },
+    setLikesArrDone(state, action) {
+      state.likesLoading = false;
+    },
+    setLikedArr(state, action) {
+      state.likedLoading = true;
+      state.likedArr = action.payload;
+    },
+    setLikedArrDone(state, action) {
+      state.likedLoading = false;
+    },
+    updateUserSleep(state, action) {
+      state.user.date_sleep = action.payload.date_sleep;
+      state.updateUserSleepDone = true;
+    },
+    updateUserSleepDoneFalse(state, action) {
+      state.updateUserSleepDone = false;
+    },
+    setWithdraw(state, action) {
+      state.setWithdrawDone = true;
+    },
+    setWithdrawDoneFalse(state, action) {
+      state.setWithdrawDone = false;
+    },
+    patchDate_lastIntroduce(state, action) {
+      state.user.date_lastIntroduce = action.payload.date_lastIntroduce;
+      state.patchDate_lastIntroduceDone = true;
+    },
+    setFriendSleep(state, action) {
+      const targeting = state.friends.find((v) => v.userID === action.payload?.id)
+      targeting.date_sleep = action.payload.date_sleep;
+    },
+    setFriendWithdraw(state, action) {
+      const targeting = state.friends.find((v) => v.userID === action.payload?.id)
+      targeting.withdraw = action.payload.withdraw;
+      // state.setFriendSleepDone = true;
+    },
+    // extraReducers: {
+    //   // The HYDRATE function is what manages the state between client and server
+    //   [HYDRATE]: (state, action) => {
+    //     return {
+    //       ...state,
+    //       ...action.payload.user,
+    //     };
+    //   },
+    // }
   },
-
-
-  // extraReducers: {
-  //   // The HYDRATE function is what manages the state between client and server
-  //   [HYDRATE]: (state, action) => {
-  //     return {
-  //       ...state,
-  //       ...action.payload.user,
-  //     };
-  //   },
-  // }
-
   extraReducers: (builder) => {
     builder
     // .addCase((state, action) => {
@@ -228,6 +363,36 @@ export const {
   patchHobbyFalse,
   patchRomance,
   patchRomanceFalse,
+  patchCareerLiving,
+  patchCareerLivingFalse,
+  patchEtc,
+  patchEtcFalse,
+  setFriends,
+  setFriendsDoneFalse,
+  setOtherUser,
+  setOtherUserDoneFalse,
+  likeToUser,
+  addLikeDoneFalse,
+  dislikeToUser,
+  addDislikeDoneFalse,
+  setLikesArr,
+  setLikesArrDone,
+  setLikedArr,
+  setLikedArrDone,
+  updateUserSleep,
+  updateUserSleepDoneFalse,
+  setWithdraw,
+  setWithdrawDoneFalse,
+  patchDate_lastIntroduce,
+  setAllFriends,
+  setAllFriendsDoneFalse,
+  setFriendSleep,
+  setFriendWithdraw,
+  friendSleepLoadingStart,
+friendSleepLoadingEnd,
+
+  // pageLoadingStart,
+  // pageLoadingEnd
 } = user.actions;
 
 export const useUserState = () => useAppSelector((state) => state.user);

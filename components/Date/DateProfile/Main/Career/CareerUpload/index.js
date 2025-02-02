@@ -106,7 +106,6 @@ const index = ({
 
 
   const onSubmit = useCallback(async () => {
-    console.log(URLs, "urls"),
       setLoading(true);
     await updateDoc(doc(db, "users", user?.userID), {
       jobdocument: URLs,

@@ -61,7 +61,7 @@ const index = (
   const writeThumbImage = user?.thumbimage?.length >= 2;
   const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
   const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun && user?.jobdocument?.length !== 0;
-
+  const writeThinkInfo = user?.mbti_ei && user?.hobby && user?.drink && user?.health && user?.interest && user?.career_goal && user?.living_weekend && user?.living_consume && user?.opfriend && user?.friendmeeting && user?.longdistance && user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
   const goGroup = useCallback(() => {
     router.push('/date/profile/group')
   }, [router])
@@ -148,9 +148,12 @@ const index = (
               </li>
               <li className='flex w-full justify-center min-w-[60px]'>
                 <button
-                  className={`flex items-center justify-center w-full py-[4px] rounded-lg
-                     my-1 text-[12px] font-normal text-gray-600 dark:text-white
-                      hover:bg-blue-100 dark:hover:bg-gray-600`}
+                  className={`flex items-center justify-center w-full py-[4px] rounded-lg 
+                    my-1 text-[12px] font-normal
+                    ${writeThinkInfo ? `text-blue-600 dark:text-white shadow-inner` :
+                      `text-gray-600 dark:text-white`
+                    }
+                     hover:bg-blue-100 dark:hover:bg-gray-600`}
                   onClick={onMoveToElement4}
                 >
                   <div className='flex-shrink-0 ' >
@@ -164,7 +167,7 @@ const index = (
                   </div>
                 </button>
               </li>
-              <li className='flex w-full justify-center min-w-[60px]'>
+              {/* <li className='flex w-full justify-center min-w-[60px]'>
                 <div className={`flex items-center justify-center w-full py-[4px] rounded-lg my-1 text-[12px] font-normal text-gray-600 dark:text-white hover:bg-blue-100 dark:hover:bg-gray-600`}>
                   <div className='flex-shrink-0 ' >
                     <button
@@ -177,7 +180,7 @@ const index = (
                     </button>
                   </div>
                 </div>
-              </li>
+              </li> */}
 
               {/* {!user?.companycomplete ?
                 <div className='w-full my-1 text-gray-500 text-base'>

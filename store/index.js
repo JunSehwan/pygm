@@ -5,7 +5,8 @@ import { applyMiddleware, compose, legacy_createStore as createStore } from "red
 // import userSettingsReducer from "slices/userSettings";
 // import sectionSettingsReducer from "slices/sectionSettings";
 import userReducer from "slices/user";
-// import categoryReducer from "slices/category";
+import coupleReducer from "slices/couple";
+import dateratingReducer from "slices/daterating";
 // import educationReducer from "slices/education";
 // import careerReducer from "slices/career";
 // import mystyleReducer from "slices/mystyle";
@@ -27,9 +28,10 @@ const makeStore =
 
       reducer: {
         user: userReducer,
+        couple: coupleReducer,
+        daterating: dateratingReducer,
         // userSettings: userSettingsReducer,
         // sectionSettings: sectionSettingsReducer,
-        // category: categoryReducer,
         // education: educationReducer,
         // career: careerReducer,
         // mystyle: mystyleReducer,
