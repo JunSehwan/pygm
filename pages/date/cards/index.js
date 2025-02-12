@@ -54,9 +54,6 @@ const index = () => {
         // dispatch(resetUserState());
         return router.push("/");
       }
-
-
-
       const docRef = doc(db, "users", user?.uid);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists())
@@ -151,6 +148,23 @@ const index = () => {
         date_pending: docData.date_pending,
       };
       dispatch(setUser(currentUser));
+      if (!currentUser?.date_profile_finished) {
+        router.push("/date/profile")
+      }
+      if (currentUser?.date_pending) {
+        router.push("/date/pending")
+      }
+      if (currentUser?.date_sleep == true) {
+        // dispatch(resetUserState());
+        alert("휴면상태에서는 이성소개가 불가합니다.")
+        return router.push("/setting/sleep");
+      }
+      if (currentUser?.withdraw == true) {
+        alert("탈퇴한 회원입니다..")
+        // dispatch(resetUserState());
+        return router.push("/");
+      }
+
       await getFriends().then((result) => {
         dispatch(setAllFriends(result));
       })
@@ -170,12 +184,7 @@ const index = () => {
       // }
       dispatch(userLoadingEnd());
       dispatch(setFriendsDoneFalse());
-      if (!currentUser?.date_profile_finished) {
-        router.push("/date/profile")
-      }
-      if (currentUser?.date_pending) {
-        router.push("/date/pending")
-      }
+      
     });
     return () => {
       authStateListener();
@@ -285,22 +294,13 @@ const index = () => {
 
   useEffect(() => {
     if (!user?.userID) return;
-    if (user?.date_sleep == true) {
-      // dispatch(resetUserState());
-      alert("휴면상태에서는 이성소개가 불가합니다.")
-      return router.push("/setting/sleep");
-    }
-    if (user?.withdraw == true) {
-      alert("탈퇴한 회원입니다..")
-      // dispatch(resetUserState());
-      return router.push("/");
-    }
+    
     if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
       alert("모든 정보를 입력해주세요!")
       router.push("/date/profile");
       return
     }
-  }, [user, user?.date_sleep, user?.withdraw, router, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
+  }, [user, router, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
 
 
 

@@ -149,6 +149,26 @@ const index = () => {
 
       };
       dispatch(setUser(currentUser));
+
+      if (currentUser?.date_sleep == true) {
+        // dispatch(resetUserState());
+        alert("휴면상태에서는 이성소개가 불가합니다.")
+        return router.push("/setting/sleep");
+      }
+      if (currentUser?.withdraw == true) {
+        alert("탈퇴한 회원입니다..")
+        // dispatch(resetUserState());
+        return router.push("/");
+      }
+      if (!currentUser?.date_profile_finished) {
+        alert("프로필을 먼저 입력해주세요.")
+        return router.push("/date/profile")
+      }
+      if (currentUser?.date_pending) {
+        alert("곧 승인되오니 잠시만 기다려주시기 바랍니다.")
+        return router.push("/date/pending")
+      }
+
       await getFriends().then((result) => {
         dispatch(setFriends(result));
       })
@@ -279,30 +299,15 @@ const index = () => {
 
   useEffect(() => {
     if (!user?.userID) return;
-    if (user?.date_sleep == true) {
-      // dispatch(resetUserState());
-      alert("휴면상태에서는 이성소개가 불가합니다.")
-      return router.push("/setting/sleep");
-    }
-    if (user?.withdraw == true) {
-      alert("탈퇴한 회원입니다..")
-      // dispatch(resetUserState());
-      return router.push("/");
-    }
-    if (!currentUser?.date_profile_finished) {
-      alert("프로필을 먼저 입력해주세요.")
-      return router.push("/date/profile")
-    }
-    if (currentUser?.date_pending) {
-      alert("곧 승인되오니 잠시만 기다려주시기 바랍니다.")
-      return router.push("/date/pending")
-    }
+    
     if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
       alert("모든 정보를 입력해주세요!")
-      router.push("/date/profile");
-      return
+      return router.push("/date/profile");
     }
-  }, [user, router, writeBasicInfo, writeCareerInfo, writeThinkInfo, writeThumbImage])
+  }, [user, router, writeBasicInfo,
+    writeCareerInfo, writeThinkInfo, writeThumbImage,
+    // user?.date_sleep, user?.withdraw, user?.date_profile_finished, user?.date_pending
+  ])
 
   return (
     <>

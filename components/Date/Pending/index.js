@@ -1,6 +1,6 @@
 import React from 'react';
-import UpperImage from './UpperImage';
-import UnderSection from './UnderSection';
+import UnderImage from './UnderImage';
+import UpperSection from './UpperSection';
 import { Toaster } from 'react-hot-toast';
 
 const index = () => {
@@ -10,8 +10,8 @@ const index = () => {
       <div className='flex h-[100vh] w-full'>
         <div className='mx-auto w-full max-w-[420px]'>
           <div className='w-full pb-[24px] md:pb-auto'>
-            <UpperImage />
-            <UnderSection />
+            <UpperSection />
+            <UnderImage />
           </div>
         </div>
       </div>

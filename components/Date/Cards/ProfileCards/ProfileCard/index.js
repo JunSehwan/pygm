@@ -96,11 +96,8 @@ const index = ({ friend }) => {
     <>
       {sleeping && !withdrawing &&
         <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-pink-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
+          <div
+          className="my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-pink-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm  transition-transform duration-300 transform hover:scale-110">
             <div className='w-full text-left relative '>
               <div className='w-full relative h-[420px] flex flex-col items-center justify-center gap-4'>
                 <Image
@@ -114,7 +111,7 @@ const index = ({ friend }) => {
                 <span className='text-lg text-slate-500'>휴면중인 회원입니다.</span>
               </div>
             </div>
-          </motion.div>
+          </div>
         </>
       }
       {withdrawing && !sleeping &&

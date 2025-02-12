@@ -169,7 +169,8 @@ const index = () => {
       if (currentUser) {
         if (currentUser?.date_profile_finished == true && (!currentUser?.date_sleep || currentUser?.date_sleep == false)) {
           router.push("/date/cards")
-        } else {
+        } if (currentUser?.date_pending == true) { router.push("/date/pending") }
+        else {
           router.push("/dashboard")
         }
         // await getEducationsByUserId().then((result) => {

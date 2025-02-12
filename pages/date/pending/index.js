@@ -156,6 +156,9 @@ const index = () => {
         alert("프로필을 먼저 입력해주세요.")
         return router.push("/date/profile")
       }
+      if (!currentUser?.date_pending) {
+        return router.push("/date/cards")
+      }
     });
     return () => {
       authStateListener();

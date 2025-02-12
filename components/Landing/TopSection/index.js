@@ -3,7 +3,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import React, { useState } from 'react';
 // import Modal from '../utils/Modal';
-import logo from '/public/logo/pygm.png';
 
 
 const TopSection = () => {
@@ -34,13 +33,13 @@ const TopSection = () => {
         <div className="pb-3 md:pt-4 md:pb-2">
 
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-extrabold leading-snug mb-4" >
-              가장 자연스럽고<br />
+            <h1 className="text-4xl font-extrabold mb-3" >
+              
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">
-                재밌는 만남
+                자연스럽고 재밌는 만남
               </span></h1>
             <div className="max-w-3xl mx-auto">
-              <p className="text-l text-gray-600 mb-2" >
+              <p className="text-md text-gray-500 mb-2" >
                 피그말리온과 함께<br />
                 새롭고 소중한 인연을 가장 빠르게 만나보세요
               </p>
@@ -48,13 +47,16 @@ const TopSection = () => {
                 <div className="flex justify-center w-auto">
                   <div className='flex justify-center'>
                     <span className="sr-only">PYGM</span>
-                    <Image
-                      src={logo}
-                      width={120}
-                      alt="logo"
-                      height={120}
-                      unoptimized
-                    />
+                    <div className='w-full flex items-center overflow-hidden justify-center h-[160px] rounded-full'>
+                      <Image
+                        src="/image/love.jpg"
+                        width={160}
+                        className='shadow-inner'
+                        alt="landing"
+                        height={160}
+                        unoptimized
+                      />
+                    </div>
                   </div>
                 </div>
                 {/* <div>

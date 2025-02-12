@@ -137,11 +137,6 @@ const index = ({ children }) => {
     setOpen(false);
   }, [router])
 
-  const onClickAddBoard = useCallback(() => {
-    router.push("/board/add");
-    setToggle(false);
-    setOpen(false);
-  }, [router])
 
   const onClickDatecards = useCallback(() => {
     router.push("/date/cards");
@@ -154,7 +149,6 @@ const index = ({ children }) => {
     setToggle(false);
     setOpen(false);
   }, [router])
-
 
   const onClickHome = useCallback(() => {
     router.push("/date/home");
@@ -239,6 +233,7 @@ const index = ({ children }) => {
             </div>
             <>
               <div className="flex items-center justify-center md:flex">
+                {/* <>
                 <button
                   className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/home" || router?.pathname?.includes("/date/home") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickHome}>
@@ -252,6 +247,7 @@ const index = ({ children }) => {
                     </div>
                   }
                 </button>
+                </> */}
                 <button
                   className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/cards" || router?.pathname?.includes("/date/cards") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickDatecards}>

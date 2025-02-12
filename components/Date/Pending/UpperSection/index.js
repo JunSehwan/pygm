@@ -1,21 +1,22 @@
-import { useRouter } from 'next/router';
-import React, { useCallback } from 'react';
+// import { useRouter } from 'next/router';
+import React from 'react';
 
 const index = () => {
 
-  const router = useRouter();
+  // const router = useRouter();
 
-  const goProfile = useCallback(() => {
-    router.push("/date/profile")
-  }, [router])
+  // const goProfile = useCallback(() => {
+  //   router.push("/date/profile")
+  // }, [router])
 
   return (
     <section className="bg-white dark:bg-gray-900 bg-[url('https://flowbite.s3.amazonaws.com/docs/jumbotron/hero-pattern.svg')] dark:bg-[url('https://flowbite.s3.amazonaws.com/docs/jumbotron/hero-pattern-dark.svg')] py-6">
-      <div className="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16 z-10 relative">
-        <h1 className="mb-4 text-2xl font-extrabold tracking-tight leading-none text-gray-900 md:text-3xl dark:text-white">승인 대기중입니다.</h1>
+      <div className="py-6 px-4 mx-auto max-w-screen-xl text-center lg:py-16 z-10 relative">
+        <h1 className="mb-4 text-3xl font-extrabold tracking-tight leading-none text-gray-900 md:text-3xl dark:text-white">
+          승인 대기중입니다.</h1>
         <p className="mb-8 text-lg font-normal text-gray-500 px-3 dark:text-gray-200">프로필을 검토 후,<br/> 12시간내 승인이 진행됩니다.</p>
         <form className="w-full max-w-md mx-auto">
-          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">조금만 기다리시면 승인문자가 발송됩니다.</div>
+          <div className="mb-2 text-sm font-medium text-blue-600 dark:text-white">조금만 기다리시면 승인문자가 발송됩니다.</div>
           <div className="flex w-full items-center justify-center">
             {/* <button
               type="button"

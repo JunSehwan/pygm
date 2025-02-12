@@ -237,7 +237,7 @@ const Login = () => {
                   </div>
                   <div className="mb-6 text-center">
                     <button
-                      className="w-full px-4 text-md py-4 font-bold text-white bg-purple-600 rounded-lg hover:bg-purple-700 focus:outline-none focus:shadow-outline"
+                      className="w-full px-4 text-md py-4 font-bold text-white bg-pink-600 rounded-lg hover:bg-pink-700 focus:outline-none focus:shadow-outline"
                       type="onSubmit"
                     >
                       로그인
