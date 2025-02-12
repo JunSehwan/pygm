@@ -5,7 +5,7 @@ import { updateUserInfos } from 'firebaseConfig';
 const index = () => {
   const setUsers = useCallback(async () => {
     const res = await updateUserInfos(fake_friends);
-  }, [fake_friends])
+  }, [])
 
   return (
     <div className='w-full flex'>
@@ -18,7 +18,7 @@ const index = () => {
           <span className="font-medium">매칭이 실패할 경우, 윙크를 다시 돌려드립니다. </span>
         </div>
       </div>
-      <button onClick={setUsers}>유저등록</button>
+      {/* <button onClick={setUsers}>유저등록</button> */}
     </div>
   );
 };

@@ -34,7 +34,7 @@ const index = () => {
     return () => {
       authStateListener();
     };
-  }, [dispatch, user?.uid, user?.userID, user?.likes])
+  }, [router, auth, user?.liked, dispatch, user?.uid, user?.userID, user?.likes])
 
   return (
     <>
@@ -55,7 +55,7 @@ const index = () => {
             />
           }
           <ul className='w-full grid grid-flow-row grid-cols-2 gap-2 overflow-hidden'>
-          {/* <ul className='w-full gap-2 overflow-x-auto flex whitespace-nowrap'> */}
+            {/* <ul className='w-full gap-2 overflow-x-auto flex whitespace-nowrap'> */}
             {likesArr?.map((v, index) => (
               <WinksCard
                 friend={v}

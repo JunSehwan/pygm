@@ -1,4 +1,4 @@
-import React, { useEffect , useRef} from 'react';
+import React, { useEffect, useRef } from 'react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getLikesFriendsByUserId } from 'firebaseConfig'
 import { useDispatch, useSelector } from 'react-redux';
@@ -34,7 +34,7 @@ const index = () => {
     return () => {
       authStateListener();
     };
-  }, [dispatch, user?.uid, user?.userID, user?.likes])
+  }, [dispatch, auth, router, user?.uid, user?.userID, user?.likes])
 
   return (
     <>

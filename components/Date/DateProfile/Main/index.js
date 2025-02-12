@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from './Avatar';
 import Basic from './Basic';
 import Career from './Career';
@@ -7,6 +7,7 @@ import Status from './Status';
 // import Keyword from './Keyword';
 // import Additional from './Additional';
 import { motion } from "framer-motion";
+import { useSelector } from 'react-redux';
 
 const index = (
   {
@@ -20,8 +21,17 @@ const index = (
 ) => {
 
 
+  const { user } = useSelector(state => state.user);
+
+  const [display, setDisplay] = useState(false);
+  useEffect(() => {
+    if (user?.date_profile_finished) {
+      setDisplay(true)
+    }
+  }, [user?.date_profile_finished, display])
+
   return (
-    <div className='w-full pt-[var(--navbar-height)] pb-[70px] md:pb-auto'>
+    <div className={`w-full ${display ? "mt-[--navbar-height]" : "mt-0"} pb-[70px] md:pb-auto`}>
       <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}

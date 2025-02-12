@@ -186,7 +186,30 @@ const index = () => {
       }
     }
 
-  }, [otherFriendLoading])
+  }, [otherFriendLoading, friend?.career_goal, friend?.contact, friend?.contactcycle,
+    friend?.datecycle, friend?.dateromance, friend?.drink, friend?.food_diet,
+    friend?.food_dislike, friend?.food_like, friend?.food_spicy,
+    friend?.food_taste, friend?.food_vegetarian, friend?.friendmeeting,
+    friend?.health, friend?.hobbyshare, friend?.hotplace,
+    friend?.living_charming, friend?.living_consume, friend?.living_pet,
+    friend?.living_smoke, friend?.living_tatoo, friend?.living_weekend,
+    friend?.longdistance, friend?.mbti_ei, friend?.mbti_jp,
+    friend?.mbti_sn, friend?.mbti_tf, friend?.opfriend,
+    friend?.passwordshare, friend?.religion, friend?.religion_accept,
+    friend?.religion_important, friend?.religion_visit, friend?.tour,
+    friend?.tourlike, friend?.tourpurpose, friend?.wedding,
+    friend?.wedding_dating, user?.career_goal, user?.contact,
+    user?.contactcycle, user?.datecycle, user?.dateromance, user?.drink,
+    user?.food_diet, user?.food_dislike, user?.food_like,
+    user?.food_spicy, user?.food_taste, user?.food_vegetarian,
+    user?.friendmeeting, user?.health, user?.hobbyshare, user?.hotplace,
+    user?.living_charming, user?.living_consume, user?.living_pet,
+    user?.living_smoke, user?.living_tatoo, user?.living_weekend,
+    user?.longdistance, user?.mbti_ei, user?.mbti_jp, user?.mbti_sn,
+    user?.mbti_tf, user?.opfriend, user?.passwordshare, user?.religion,
+    user?.religion_accept, user?.religion_important,
+    user?.religion_visit, user?.tour, user?.tourlike,
+    user?.tourpurpose, user?.wedding, user?.wedding_dating])
 
   return (
     <>

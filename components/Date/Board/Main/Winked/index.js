@@ -34,7 +34,7 @@ const index = () => {
     return () => {
       authStateListener();
     };
-  }, [dispatch, user?.uid, user?.userID, user?.likes])
+  }, [auth, router, user?.liked, dispatch, user?.uid, user?.userID, user?.likes])
 
   // const newArr = [];
   // likedArr?.map(v => (

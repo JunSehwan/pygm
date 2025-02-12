@@ -27,7 +27,7 @@ const WinkedCard = ({ friend, sido, sigugunList }) => {
     } else {
       router.push("/")
     }
-  }, [])
+  }, [friend?.userID, router, user])
 
   let today = dayjs();
   let expiredDay = dayjs(friend?.startAt).add(7, 'day');

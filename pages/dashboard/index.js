@@ -139,6 +139,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
@@ -146,7 +148,7 @@ const index = () => {
     return () => {
       authStateListener();
     };
-  }, [auth, dispatch, user?.uid, user?.userID]);
+  }, [router, auth, dispatch, user?.uid, user?.userID]);
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -238,6 +240,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
 
       };
       dispatch(setUser(currentUser));

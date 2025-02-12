@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import WinkBuyModal from './WinkBuyModal';
+import { send_message } from 'firebaseConfig';
 
 const index = () => {
 
@@ -12,27 +13,32 @@ const index = () => {
   const [openBuyModal, setOpenBuyModal] = useState(false);
   const BuyModalOpen = useCallback(() => {
     setOpenBuyModal(true)
-  }, [openBuyModal])
+  }, [])
   const BuyModalClose = useCallback(() => {
     setOpenBuyModal(false)
-  }, [openBuyModal])
-  const goBuyFive = useCallback(() => {
+  }, [])
+
+  const goBuyFive = useCallback(async () => {
+
     setWinks(5);
     BuyModalOpen();
-  }, [winks])
+  }, [BuyModalOpen])
+
   const goBuyThree = useCallback(() => {
     setWinks(3);
     BuyModalOpen();
-  }, [winks])
+  }, [BuyModalOpen])
   const goBuyOne = useCallback(() => {
     setWinks(1);
     BuyModalOpen();
-  }, [winks])
+  }, [BuyModalOpen])
 
-  const onLike = useCallback(() => {
+  const onLike = useCallback(async () => {
     if (winks === 5) {
       // 파이어베이스 5개 문자보내기
       // 그 다음에 모달 닫기
+      const result = await send_message("01075781252");
+      console.log(result, "결과값");
       return
     } if (winks === 3) {
       // 파이어베이스 3개 문자보내기

@@ -17,7 +17,7 @@ const index = () => {
   }, [current, length])
   const onNumberImage = useCallback((index) => {
     setCurrent(index);
-  }, [current, index])
+  }, [])
 
   let today = dayjs();
   let expiredDay = dayjs(friend?.expired);

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import hangjungdong from 'components/Common/Address';
 import { motion } from "framer-motion";
@@ -16,7 +16,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 
 const index = ({ friend }) => {
-  const { user, loading } = useSelector(state => state.user);
+  const { user, allFriends, loading } = useSelector(state => state.user);
   const { sido, sigugun, dong } = hangjungdong;
   const router = useRouter();
   const dispatch = useDispatch();
@@ -48,7 +48,7 @@ const index = ({ friend }) => {
     } else {
       router.push("/")
     }
-  }, [])
+  }, [friend?.userID, router, user])
 
   let today = dayjs();
   let expiredDay = dayjs(friend?.expired);
@@ -56,7 +56,7 @@ const index = ({ friend }) => {
   const friendID = friend?.userID
   useEffect(() => {
     const authStateListener = onAuthStateChanged(auth, async (mine) => {
-      dispatch(friendSleepLoadingStart())
+      // dispatch(friendSleepLoadingStart())
       await getFriendSleep(friend?.userID).then((result) => {
         dispatch(setFriendSleep({ ...result, id: friendID }));
       })
@@ -64,14 +64,33 @@ const index = ({ friend }) => {
         dispatch(setFriendWithdraw({ ...result, id: friendID }));
       })
     })
-    dispatch(friendSleepLoadingEnd())
+    // dispatch(friendSleepLoadingEnd())
     return () => {
       authStateListener();
     };
-  }, [dispatch, friend?.userID, user?.userID, friend?.date_sleep, friend?.withdraw])
+  }, [dispatch, friendID, friend?.userID, user?.userID, friend?.date_sleep, friend?.withdraw])
 
   const sleeping = friend?.date_sleep == true;
   const withdrawing = friend?.withdraw == true;
+
+
+  // const [dislikes, setDislikes] = useState(false);
+  // const [disliked, setDisliked] = useState(false);
+
+  // useEffect(() => {
+  //   const dislikesResults = friend?.disliked?.find((v) => v?.userId === user?.userID) !== undefined
+  //   setDislikes(dislikesResults)
+  //   const dislikedResults = friend?.dislikes?.find((v) => v?.userId === user?.userID) !== undefined
+  //   setDisliked(dislikedResults)
+  // }, [friend?.disliked, friend?.dislikes])
+
+  const [refreshedFriend, setRefreshedFriend] = useState("");
+  useEffect(() => {
+    allFriends?.map((v) => (
+      friend?.userID === v?.userID ? setRefreshedFriend(v) : null
+    ))
+
+  }, [allFriends, friend, friend?.userID])
 
   return (
     <>
@@ -84,7 +103,14 @@ const index = ({ friend }) => {
             className="my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-pink-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
             <div className='w-full text-left relative '>
               <div className='w-full relative h-[420px] flex flex-col items-center justify-center gap-4'>
-                <img className='w-[70px]' src="/image/icon/empty.png"></img>
+                <Image
+                  alt="empty"
+                  width="0"
+                  height="0"
+                  sizes="100vw"
+                  unoptimized
+                  className='w-[70px]'
+                  src="/image/icon/empty.png" />
                 <span className='text-lg text-slate-500'>휴면중인 회원입니다.</span>
               </div>
             </div>
@@ -99,13 +125,20 @@ const index = ({ friend }) => {
           className="my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-slate-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
           <div className='w-full text-left relative '>
             <div className='w-full relative h-[420px] flex flex-col items-center justify-center gap-4'>
-              <img className='w-[70px]' src="/image/icon/empty.png"></img>
+              <Image
+                alt="empty"
+                width="0"
+                height="0"
+                sizes="100vw"
+                unoptimized
+                className='w-[70px]'
+                src="/image/icon/empty.png" />
               <span className='text-lg text-slate-500'>탈퇴한 회원입니다.</span>
             </div>
           </div>
         </motion.div>
       }
-      {(!sleeping || sleeping == "") && (!withdrawing || withdrawing == "") &&
+      {(refreshedFriend?.disliked?.length == 0 || !refreshedFriend?.disliked) && (!sleeping || sleeping == "") && (!withdrawing || withdrawing == "") &&
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -146,7 +179,9 @@ const index = ({ friend }) => {
               }
               <span className='absolute top-4 right-4 rounded-full px-4 py-2 shadow-md bg-black/50 text-md font-semibold text-white'>D-{Math.ceil(expiredDay?.diff(today, "day", true))}일</span>
             </div>
-            <div className="absolute bottom-0 rounded-b-lg right-0 left-0  p-4 bg-gradient-to-r from-white/30 to-white/50">
+            <div className="absolute bottom-0 rounded-b-lg right-0 left-0  p-4 
+            
+            ">
               <div className='w-full flex justify-between flow-row items-center gap-2'>
                 <div className="text-2xl font-bold tracking-tight text-white dark:text-white">{friend?.nickname}
                 </div>

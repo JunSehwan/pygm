@@ -16,7 +16,7 @@ const index = () => {
     e.preventDefault();
     setEmail(e.target.value);
     setEmailError(false);
-  }, [email])
+  }, [])
 
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState(false);
@@ -25,7 +25,7 @@ const index = () => {
     e.preventDefault();
     setUsername(e.target.value);
     setUsernameError(false);
-  }, [username])
+  }, [])
 
   // if (!!user) return router.push("/dashboard");
 
@@ -50,7 +50,7 @@ const index = () => {
     } else {
       alert("이메일이 맞지 않습니다.")
     }
-  }, [email, username, user?.email, user?.username])
+  }, [email, username, emailError, usernameError, user?.email, user?.username])
 
   return (
     <div className='pt-2 pb-[30px] mx-auto px-2 w-full'>

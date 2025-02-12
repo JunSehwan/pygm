@@ -20,6 +20,7 @@ import MatchModal from './MatchModal';
 import { FaGrinWink } from "react-icons/fa";
 import { IoBackspace } from "react-icons/io5";
 import { FcLike } from "react-icons/fc";
+import { IoSad } from "react-icons/io5";
 
 
 const BottomBar = styled.div`
@@ -46,7 +47,7 @@ const index = (
       router.push("/date/cards")
 
     }
-  }, [router, addDislikeDone, user?.dislikes])
+  }, [dispatch, router, addDislikeDone, user?.dislikes])
 
   useEffect(() => {
     if (addLikeDone) {
@@ -55,7 +56,7 @@ const index = (
       setOpenLikeModal(false);
       setLikes(true);
     }
-  }, [addLikeDone, user?.likes])
+  }, [dispatch, addLikeDone, user?.likes])
 
   useEffect(() => {
     if (loadCouplesDone) {
@@ -64,7 +65,7 @@ const index = (
       setOpenMatchModal(false);
       setLikes(true);
     }
-  }, [loadCouplesDone, user?.likes])
+  }, [dispatch, loadCouplesDone, user?.likes])
 
   const [openLikeModal, setOpenLikeModal] = useState(false);
   const [openDislikeModal, setOpenDislikeModal] = useState(false);
@@ -73,31 +74,31 @@ const index = (
 
   const onClickLikeModal = useCallback(() => {
     setOpenLikeModal(true);
-  }, [openLikeModal])
+  }, [])
   const onClickLikeModalClose = useCallback(() => {
     setOpenLikeModal(false);
-  }, [openLikeModal])
+  }, [])
 
   const onClickBuyWinkModal = useCallback(() => {
     setOpenBuyWinkModal(true);
-  }, [openBuyWinkModal])
+  }, [])
   const onClickBuyWinkModalClose = useCallback(() => {
     setOpenBuyWinkModal(false);
-  }, [openBuyWinkModal])
+  }, [])
 
   const onClickDislikeModal = useCallback(() => {
     setOpenDislikeModal(true);
-  }, [openDislikeModal])
+  }, [])
   const onClickDislikeModalClose = useCallback(() => {
     setOpenDislikeModal(false);
-  }, [openDislikeModal])
+  }, [])
 
   const onClickMatchModal = useCallback(() => {
     setOpenMatchModal(true);
-  }, [openMatchModal])
+  }, [])
   const onClickMatchModalClose = useCallback(() => {
     setOpenMatchModal(false);
-  }, [openMatchModal])
+  }, [])
 
   const onLike = useCallback(async () => {
     if (!user?.userID) {
@@ -112,8 +113,8 @@ const index = (
       username: user?.username,
       // thumbimage: user?.thumbimage,
     }));
-  }, [dispatch, friend?.thumbimage, friend?.userID, friend?.username,
-    user?.thumbimage, user?.userID, user?.username]);
+  }, [dispatch, friend?.userID, friend?.username,
+    user?.userID, user?.username]);
 
   const onDislike = useCallback(async () => {
     if (!user?.userID) {
@@ -123,14 +124,12 @@ const index = (
     dispatch(dislikeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
-      // targetThumbimage: friend?.thumbimage,
       userId: user?.userID,
       username: user?.username,
-      // thumbimage: user?.thumbimage,
     }));
 
-  }, [dispatch, friend?.thumbimage, friend?.userID, friend?.username,
-    user?.thumbimage, user?.userID, user?.username]);
+  }, [dispatch, friend?.userID, friend?.username,
+    user?.userID, user?.username]);
 
   const onBuy = useCallback(async () => {
     if (!user?.userID) {
@@ -138,7 +137,7 @@ const index = (
     }
     router.push("/date/store")
     setOpenBuyWinkModal();
-  }, [user?.wink]);
+  }, [router, user?.userID]);
 
   const onMatch = useCallback(async () => {
     if (!user?.userID) {
@@ -161,7 +160,7 @@ const index = (
     }
     // } else {
     // }
-  }, [friend?.userID, friend?.username])
+  }, [dispatch, user?.userID, user?.username, friend?.userID, friend?.username])
 
   // const liked = friend?.liked?.find((v) => v?.userId === user?.userID);
   const [likes, setLikes] = useState(false);
@@ -172,11 +171,23 @@ const index = (
     setLikes(likesResults)
     const likedResults = friend?.likes?.find((v) => v?.userId === user?.userID) !== undefined
     setLiked(likedResults)
-  }, [friend?.liked])
+  }, [user?.userID, friend?.liked, friend?.likes])
+
+  const [dislikes, setDislikes] = useState(false);
+  const [disliked, setDisliked] = useState(false);
+
+  useEffect(() => {
+    const dislikesResults = friend?.disliked?.find((v) => v?.userId === user?.userID) !== undefined
+    setDislikes(dislikesResults)
+    const dislikedResults = friend?.dislikes?.find((v) => v?.userId === user?.userID) !== undefined
+    setDisliked(dislikedResults)
+  }, [user?.userID, friend?.disliked, friend?.dislikes])
+
 
 
   return (
     <>
+      {/* 아무것도 선택 안했을 경우 */}
       {!likes && !liked ?
         (<BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
@@ -250,6 +261,8 @@ const index = (
           </div>
         </BottomBar>) : null}
 
+
+      {/* 상대가 나를 좋아했을 때 */}
       {!likes && liked ?
         user?.wink >= 1 ?
           (<BottomBar aria-label="Bottombar"
@@ -356,6 +369,8 @@ const index = (
           </BottomBar>)
         : null}
 
+      {/* 둘다 매칭이 됐을 때 */}
+
       {likes && liked ?
         <BottomBar aria-label="Bottombar"
           className='max-w-[420px] block w-full overflow-y-hidden transition-transform 
@@ -392,6 +407,9 @@ const index = (
 
         </BottomBar>
         : null}
+
+      {/* 내가 좋아요 보내고 상대방은 아직 안보냈을 때 */}
+
       {likes && !liked ?
         <BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
@@ -400,7 +418,7 @@ const index = (
       '>
           <div className="overflow-y-auto w-full mx-auto">
             <div className='w-full flex justify-center items-center mx-0'>
-              <div className="w-full flex items-center justify-center gap-1 p-3 mx-0 text-sm text-green-800 border border-green-300 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 dark:border-green-800" role="alert">
+              <div className="w-full flex items-center justify-center gap-1 p-3 mx-0 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-800" role="alert">
                 <div className='w-8 h-8 mr-2'>
                   <FaGrinWink
                     className='w-8 h-8'
@@ -424,6 +442,71 @@ const index = (
 
         </BottomBar>
         : null
+      }
+
+
+      {dislikes &&
+        <BottomBar aria-label="Bottombar"
+          className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
+      duration-300 ease-in-out z-10 bg-slate-100
+      fixed bottom-2 shadow-md rounded-md mr-2 ml-2
+      '>
+          <div className="overflow-y-auto w-full mx-auto">
+            <div className='w-full flex justify-center items-center mx-0'>
+              <div className="w-full flex items-center justify-center gap-1 p-3 mx-0 text-sm text-gray-800 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-800" role="alert">
+                <div className='w-8 h-8 mr-2'>
+                  <IoSad
+                    className='w-8 h-8'
+                  />
+                </div>
+                <div className='w-full flex items-center'>
+                  <span className="font-medium">패스한 상대방입니다!</span>
+                </div>
+                <div className='flex items-center'>
+                  <button
+                    className='flex flex-col w-full rounded-lg bg-slate-100 shadow-inner hover:bg-slate-200 active:bg-slate-300 hover:shadow-none p-2 items-center'
+                    onClick={() => router.back()}
+                  >
+                    <IoBackspace className='w-5 h-5' />
+                    <span className="font-medium text-xs">BACK</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </BottomBar>
+      }
+
+      {disliked &&
+        <BottomBar aria-label="Bottombar"
+          className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
+      duration-300 ease-in-out z-10 bg-slate-100
+      fixed bottom-2 shadow-md rounded-md mr-2 ml-2
+      '>
+          <div className="overflow-y-auto w-full mx-auto">
+            <div className='w-full flex justify-center items-center mx-0'>
+              <div className="w-full flex items-center justify-center gap-1 p-3 mx-0 text-sm text-green-800 border border-green-300 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 dark:border-green-800" role="alert">
+                <div className='w-8 h-8 mr-2'>
+                  <IoSad
+                    className='w-8 h-8'
+                  />
+                </div>
+                <div className='w-full flex items-center'>
+                  <span className="font-medium">아쉽지만 상대가 윙크를 거절하였습니다.</span>
+                </div>
+                <div className='flex items-center'>
+                  <button
+                    className='flex flex-col w-full rounded-lg bg-slate-100 shadow-inner hover:bg-slate-200 active:bg-slate-300 hover:shadow-none p-2 items-center'
+                    onClick={() => router.back()}
+                  >
+                    <IoBackspace className='w-5 h-5' />
+                    <span className="font-medium text-xs">BACK</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </BottomBar>
       }
 
       <LikeModal

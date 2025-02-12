@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid'
 import { useDispatch, useSelector } from "react-redux";
 import InfoModal from './InfoModal';
 import Empty from 'components/Common/Empty';
+import LoadingPage from "components/Common/Loading";
 
 const index = () => {
 
@@ -11,6 +12,12 @@ const index = () => {
 
   return (
     <>
+      {loading &&
+        <div>
+          <LoadingPage
+          />
+        </div>
+      }
       {!loading && friends?.length !== 0 &&
         <div className="scroll-smooth"
         >
@@ -27,7 +34,7 @@ const index = () => {
           ))}
           <InfoModal />
         </div>}
-      {!loading && friends?.length == 0 ?
+      {friends?.length == 0 ?
         <div>
           <Empty
             title="잠시만요!"
@@ -37,6 +44,8 @@ const index = () => {
         </div>
         : null
       }
+
+
     </>
   );
 };

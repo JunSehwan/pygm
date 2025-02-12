@@ -5,6 +5,7 @@ import { FaStar, FaHeart } from "react-icons/fa";
 import Rating from 'react-rating';
 import { addDateRating } from 'firebaseConfig';
 import { plusDateRating } from 'slices/daterating';
+import Image from 'next/image';
 
 const index = () => {
   const { user, friend } = useSelector((state) => state.user);
@@ -16,17 +17,17 @@ const index = () => {
     if (element?.receiverID === friend?.id) {
       return true;
     }
-  }, [MyRatingList])
+  }, [friend?.id])
 
   const dubCheck = MyRatingList?.some(findReceive);
 
   useEffect(() => {
     setFinish(dubCheck);
-  }, [friend, user, MyRatingList])
+  }, [dubCheck, friend, user, MyRatingList])
 
   const [currentRating, setCurrentRating] = useState(3);
   const [finish, setFinish] = useState(dubCheck);
-  
+
   const handleRatingChange = useCallback(async (event) => {
     setCurrentRating(event); // Update current rating
     const result = await addDateRating(
@@ -34,7 +35,7 @@ const index = () => {
     )
     dispatch(plusDateRating(result));
     setFinish(true);
-  }, [friend?.id, friend?.username, currentRating])
+  }, [dispatch, friend?.id, friend?.username, currentRating])
 
 
 
@@ -53,8 +54,24 @@ const index = () => {
                   // onChange={(rate) => handleRatingChange(rate)}
                   onChange={handleRatingChange}
                   value={currentRating}
-                  emptySymbol={<img className="w-10 h-10 icon" src="/image/icon/gray_star.png" />}
-                  fullSymbol={<img className="w-10 h-10 icon" src="/image/icon/star.png" />}
+                  emptySymbol={
+                    <Image
+                      className="w-10 h-10 icon"
+                      alt="stars"
+                      width="0"
+                      height="0"
+                      sizes="100vw"
+                      unoptimized
+                      src="/image/icon/gray_star.png" />}
+                  fullSymbol={
+                    <Image
+                      className="w-10 h-10 icon"
+                      alt="stars"
+                      width="0"
+                      height="0"
+                      sizes="100vw"
+                      unoptimized
+                      src="/image/icon/star.png" />}
                 />
               </div>
             </div>

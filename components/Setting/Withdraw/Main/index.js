@@ -66,11 +66,11 @@ const index = () => {
       alert("정보를 다시 확인해주세요.")
       return (setPasswordError(true))
     }
-  }, [openModal, email, password, user?.email, user?.password])
+  }, [auth.currentUser, email, password, user?.email])
 
   const onClickCloseModal = useCallback(() => {
     setOpenModal(false);
-  }, [openModal])
+  }, [])
 
   const updateWithdrawToast = () => toast('회원탈퇴가 완료되었습니다! 이용해주셔서 감사합니다.');
 
@@ -90,7 +90,7 @@ const index = () => {
     e.preventDefault();
     setEmail(e.target.value);
     setEmailError(false);
-  }, [email])
+  }, [])
 
   // 이메일
 
@@ -142,7 +142,7 @@ const index = () => {
     } else {
       alert("정보를 다시 확인해주세요.")
     }
-  }, [email, user?.email, password, me, dispatch])
+  }, [router, email, user?.email, password, me, dispatch])
 
 
   return (

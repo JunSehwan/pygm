@@ -26,11 +26,11 @@ function Features() {
   }, [tab])
 
   return (
-    <section className="relative md:h-auto h-[96rem]">
+    <section className="relative md:h-auto h-[76rem]">
 
       {/* Section background (needs .relative class on parent and next sibling elements) */}
-      <div className="absolute inset-0 bg-gray-100 pointer-events-none mb-16" aria-hidden="true"></div>
-      <div className="absolute left-0 right-0 m-auto w-px p-px h-20 bg-gray-200 transform -translate-y-1/2"></div>
+      <div className="absolute inset-0 bg-slate-100 pointer-events-none pb-16" aria-hidden="true"></div>
+      <div className="absolute left-0 right-0 m-auto w-px p-px h-20 bg-slate-200 transform -translate-y-1/2"></div>
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
         <div className="pt-12 md:pt-20">
@@ -49,8 +49,8 @@ function Features() {
 
             {/* Content */}
             <div className="max-w-xl md:max-w-none md:w-full mx-auto md:col-span-7 lg:col-span-6 md:mt-6" data-aos="fade-right">
-              <div className="md:pr-4 lg:pr-12 xl:pr-16 mb-14">
-                <h3 className="text-3xl font-bold leading-tight mb-3">
+              <div className="w-full mb-4">
+                <h3 className="text-2xl w-full text-center font-bold leading-tight bg-gradient-to-r from-pink-400 via-red-500 to-pink-400 inline-block text-transparent bg-clip-text">
                   왜, 피그말리온 소개팅인가요?
                 </h3>
                 {/* <p className="text-xl text-gray-600">
@@ -60,9 +60,9 @@ function Features() {
 
 
               {/* Tabs buttons */}
-              <div className="mb-8 md:mb-0" data-aos="zoom-in-up">
+              <div className="mb-0" data-aos="zoom-in-up">
                 <a
-                  className={`flex items-center text-lg p-5 rounded border transition duration-300 ease-in-out mb-3 ${tab !== 1 ? 'bg-white shadow-md border-gray-200 hover:shadow-lg' : 'bg-gray-200 border-transparent'}`}
+                  className={`flex items-center text-lg w-full p-5 rounded border transition duration-300 ease-in-out mb-3 ${tab !== 1 ? 'bg-white shadow-md border-gray-200 hover:shadow-lg' : 'bg-gray-200 border-transparent'}`}
                   onClick={(e) => { e.preventDefault(); setTab(1); }}
                 >
                   <div>
@@ -75,7 +75,7 @@ function Features() {
                   </div>
                 </a>
                 <a
-                  className={`flex items-center text-lg p-5 rounded border transition duration-300 ease-in-out mb-3 ${tab !== 2 ? 'bg-white shadow-md border-gray-200 hover:shadow-lg' : 'bg-gray-200 border-transparent'}`}
+                  className={`flex items-center text-lg w-full p-5 rounded border transition duration-300 ease-in-out mb-3 ${tab !== 2 ? 'bg-white shadow-md border-gray-200 hover:shadow-lg' : 'bg-gray-200 border-transparent'}`}
                   onClick={(e) => { e.preventDefault(); setTab(2); }}
                 >
                   <div>
@@ -90,7 +90,7 @@ function Features() {
                   </div>
                 </a>
                 <a
-                  className={`flex items-center text-lg p-5 rounded border transition duration-300 ease-in-out mb-3 ${tab !== 3 ? 'bg-white shadow-md border-gray-200 hover:shadow-lg' : 'bg-gray-200 border-transparent'}`}
+                  className={`flex items-center text-lg w-full p-5 rounded border transition duration-300 ease-in-out mb-3 ${tab !== 3 ? 'bg-white shadow-md border-gray-200 hover:shadow-lg' : 'bg-gray-200 border-transparent'}`}
                   onClick={(e) => { e.preventDefault(); setTab(3); }}
                 >
                   <div>
@@ -109,7 +109,7 @@ function Features() {
             </div>
 
             {/* Tabs items */}
-            <div className="max-w-xl md:max-w-none md:w-full mx-auto pb-[200px] md:order-1" data-aos="zoom-y-out" ref={tabs}>
+            <div className="max-w-xl md:max-w-none md:w-full mx-auto pb-[26px] md:order-1" data-aos="zoom-y-out" ref={tabs}>
               <div className="relative flex flex-col text-center lg:text-right">
                 {/* Item 1 */}
                 <Transition
@@ -117,11 +117,11 @@ function Features() {
                   appear={true}
                   className="w-full"
                   enter="transition ease-in-out duration-700 transform order-first"
-                  enterStart="opacity-0 translate-y-16"
+                  enterStart="opacity-0 translate-y-4"
                   enterEnd="opacity-100 translate-y-0"
                   leave="transition ease-in-out duration-300 transform absolute"
                   leaveStart="opacity-100 translate-y-0"
-                  leaveEnd="opacity-0 -translate-y-16"
+                  leaveEnd="opacity-0 -translate-y-4"
                 >
                   <div className="relative inline-flex flex-col">
                     <img className="md:max-w-[100%] mx-auto rounded-2xl" src='/image/date_careers.png' width="600" height="462" alt="date_Careers bg" />
@@ -133,11 +133,11 @@ function Features() {
                   appear={true}
                   className="w-full flex justify-start sm:block"
                   enter="transition ease-in-out duration-700 transform order-first"
-                  enterStart="opacity-0 translate-y-16"
+                  enterStart="opacity-0 translate-y-4"
                   enterEnd="opacity-100 translate-y-0"
                   leave="transition ease-in-out duration-300 transform absolute"
                   leaveStart="opacity-100 translate-y-0"
-                  leaveEnd="opacity-0 -translate-y-16"
+                  leaveEnd="opacity-0 -translate-y-4"
                 >
                   <div className="relative inline-flex flex-col">
                     <img className="md:max-w-[100%] mx-auto rounded-2xl" src='/image/date_identity.jpg' width="600" height="462" alt="date_Identity bg" />
@@ -149,11 +149,11 @@ function Features() {
                   appear={true}
                   className="w-full"
                   enter="transition ease-in-out duration-700 transform order-first"
-                  enterStart="opacity-0 translate-y-16"
+                  enterStart="opacity-0 translate-y-4"
                   enterEnd="opacity-100 translate-y-0"
                   leave="transition ease-in-out duration-300 transform absolute"
                   leaveStart="opacity-100 translate-y-0"
-                  leaveEnd="opacity-0 -translate-y-16"
+                  leaveEnd="opacity-0 -translate-y-4"
                 >
                   <div className="relative inline-flex flex-col">
                     <img className="md:max-w-[100%] mx-auto rounded-2xl" src='/image/date_economy.png' width="600" height="462" alt="date_Economy bg" />

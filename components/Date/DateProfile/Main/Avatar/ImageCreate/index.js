@@ -38,8 +38,8 @@ const index = ({ imageModalOpened, closeImageModal }) => {
     });
     // onSelectFileUpload(selectedFiles)
     setSelectedImages((previousImages) => previousImages?.concat(imagesArray));
-  };
 
+  };
   const changePicture = useCallback((e) => {
     onSelectFile(e)
     for (let i = 0; i < e.target.files.length; i++) {
@@ -47,7 +47,8 @@ const index = ({ imageModalOpened, closeImageModal }) => {
       files["id"] = Math.random();
       setImages((prevState) => [...prevState, files])
     }
-  }, [images])
+  }, [])
+
 
   const removeImg = useCallback((image) => {
     setSelectedImages(prevArr => prevArr?.filter(v => v?.url !== image?.url));
@@ -68,7 +69,7 @@ const index = ({ imageModalOpened, closeImageModal }) => {
 
   const onFirebaseImage = useCallback(async (images) => {
     const storage = getStorage();
-    if (images?.length === 0 || images?.length === 1) {
+    if (images?.length <= 1 || selectedImages?.length <= 1) {
       setLoading(false);
       return alert("이미지를 2장 이상 업로드해주세요!");
     }
@@ -106,13 +107,12 @@ const index = ({ imageModalOpened, closeImageModal }) => {
     } catch (e) {
       console.error(e);
     }
-  }, [time, user?.userID])
+  }, [time, user?.userID, selectedImages?.length])
 
   const uploadImageDB = useCallback(async (e) => {
     e.preventDefault();
     setLoading(true);
     const results = await onFirebaseImage(images);
-
   }, [images, onFirebaseImage])
 
   const onSubmit = useCallback(async () => {
@@ -122,6 +122,16 @@ const index = ({ imageModalOpened, closeImageModal }) => {
     });
     dispatch(patchThumbimage(URLs));
   }, [URLs, dispatch, user?.userID])
+
+  useEffect(() => {
+    async function fetchData() {
+      if (selectedImages?.length === URLs?.length && URLs?.length !== 0) {
+        await onSubmit();
+      }
+    }
+    fetchData();
+  }, [onSubmit, URLs?.length, selectedImages?.length])
+
 
   useEffect(() => {
     async function fetchData() {
@@ -141,9 +151,9 @@ const index = ({ imageModalOpened, closeImageModal }) => {
       setImages([])
       setProgress(0)
       setURLs([])
-      closeImageModal();
       setFinish(false);
       dispatch(patchThumbimageDoneFalse());
+      closeImageModal();
     }
   }, [closeImageModal, dispatch, patchThumbimageDone])
 
@@ -184,7 +194,7 @@ const index = ({ imageModalOpened, closeImageModal }) => {
                 <span className="ml-2">{progress}%</span>
               </div>
               <div>
-                {loading ? (
+                {/* {loading ? (
                   <div className="flex w-full">
                     <button
                       type="button"
@@ -210,30 +220,29 @@ const index = ({ imageModalOpened, closeImageModal }) => {
                       </svg>
                     </button>
                   </div>
-                ) : (
-                  <div className="flex">
+                ) : ( */}
+                <div className="flex">
 
-                    {!finish && selectedImages?.length !== 0 && selectedImages?.length <= 5 &&
-                      <div className='flex flex-col justify-end'>
-                        <button
-                          type="button" onClick={uploadImageDB}
-                          className="text-white font-bold p-4 px-8 text-md bg-[#1890FF]/90
-                   hover:bg-[#1890FF] focus:ring-4 focus:outline-none
-                    focus:ring-blue-200 dark:focus:ring-blue-800 text-lg rounded-xl 
-                    py-2 text-center cursor-pointer flex justify-center
-                     items-center"
-                        >
-                          <span className='ml-1'>업로드</span>
-                        </button>
-                      </div>}
-                  </div>
-                )}
+                  {!finish && selectedImages?.length !== 0 && selectedImages?.length <= 5 &&
+                    <div className='flex flex-col justify-end'>
+                      <button
+                        type="button" onClick={uploadImageDB}
+                        className="text-white font-bold bg-slate-600
+                   hover:bg-slate-700 focus:ring-4 focus:outline-none
+                    focus:ring-blue-200 text-lg rounded-md 
+                    px-8 py-2 text-center cursor-pointer flex justify-center items-center">
+                        <span className=''>업로드</span>
+                      </button>
+                    </div>}
+                </div>
+                {/* )} */}
               </div>
             </div>
+
             <div className="w-full">
-              {loading ? (
+              {loading && (
                 <div>
-                  <div className='mx-auto w-full md:w-[360px] h-[600px] flex flex-col justify-center items-center'>
+                  <div className='mx-auto w-full md:w-[360px] h-[420px] flex flex-col justify-center items-center'>
                     <div className='-ml-[48px] mb-[48px]'>
                       <Spin />
                     </div>
@@ -242,7 +251,8 @@ const index = ({ imageModalOpened, closeImageModal }) => {
                     </p>
                   </div>
                 </div>
-              ) : (
+              )}
+              {/* : (
                 <div>
                   {finish && selectedImages?.length !== 0 ?
                     <div className='flex flex-col justify-end my-2'>
@@ -256,112 +266,112 @@ const index = ({ imageModalOpened, closeImageModal }) => {
                       >
                         <span className=''>저장</span>
                       </button>
-                    </div> : null}
+                    </div> : null} */}
 
-                  {!selectedImages || selectedImages?.length === 0 ? (
-                    <label className="cursor-pointer">
-                      <div
-                        className='border-dashed mx-auto rounded-xl w-ful h-[600px] border-2 border-gray-200 flex flex-col justify-center items-center outline-none'>
-                        <div className="flex flex-col items-center justify-center h-full py-[1rem]">
-                          <div className="flex flex-col justify-center items-center">
-                            <p className="font-bold text-xl">
-                              {/* <FaCloudUploadAlt className='text-gray-300 text-6xl' /> */}
-                            </p>
-                            <p className="text-xl font-semibold">
-                              내 사진 업로드
-                            </p>
-                          </div>
-
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                            className="w-6 h-6 mt-5"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                            />
-                          </svg>
-
-                          <p className="w-full text-gray-400 mt-4 text-sm leading-10 text-left">
-                            ✔️ 파일유형 : png, jpeg, webp<br />
-                            ✔️ 본인의 멋진 얼굴이 나오게 찍어주세요.<br />
-                            ✔️ 이미지는 2장 이상, 5장 이하 <br />
-                            {/* ✔️ 추천 이미지배율: 360x600 <br /> */}
-                          </p>
-                          <p className="text-white bg-gradient-to-br from-blue-500 mt-8 to-purple-400 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-pink-200 dark:focus:ring-pink-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 w-52">
-                            파일 선택
-                          </p>
-                        </div>
-                        <input
-                          type="file"
-                          className='hidden'
-                          multiple={true}
-                          accept="image/png, image/jpeg, image/webp"
-                          id="upload"
-                          onChange={changePicture}
-                        />
+              {!loading && (!selectedImages || selectedImages?.length === 0) &&
+                (<label className="cursor-pointer">
+                  <div
+                    className='border-dashed mx-auto rounded-xl w-ful h-[420px] border-2 border-gray-200 flex flex-col justify-center items-center outline-none'>
+                    <div className="flex flex-col items-center justify-center h-full py-[1rem]">
+                      <div className="flex flex-col justify-center items-center">
+                        <p className="font-bold text-xl">
+                          {/* <FaCloudUploadAlt className='text-gray-300 text-6xl' /> */}
+                        </p>
+                        <p className="text-xl font-semibold">
+                          내 사진 업로드
+                        </p>
                       </div>
-                    </label>
-                  ) : (
-                    <div
-                      className='border-dashed mx-auto rounded-xl w-full h-full border-2 
+
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                        className="w-6 h-6 mt-5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                        />
+                      </svg>
+
+                      <p className="w-full text-gray-400 mt-4 text-sm leading-4 text-left">
+                        ✔️ 파일유형 : png, jpeg, webp<br />
+                        ✔️ 당신의 멋지고 아름다운 외모가 나오게 찍어주세요.<br />
+                        ✔️ 이미지는 2장 이상, 5장 이하로 업로드 해주세요.<br />
+                        {/* ✔️ 추천 이미지배율: 360x600 <br /> */}
+                      </p>
+                      <p className="text-white bg-gradient-to-br from-blue-500 mt-8 to-purple-400 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-pink-200 dark:focus:ring-pink-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 w-52">
+                        파일 선택
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      className='hidden'
+                      multiple={true}
+                      accept="image/png, image/jpeg, image/webp"
+                      id="upload"
+                      onChange={changePicture}
+                    />
+                  </div>
+                </label>
+                )}
+
+              {!loading && (selectedImages && selectedImages?.length !== 0) &&
+                <div
+                  className='border-dashed mx-auto rounded-xl w-full h-full border-2 
                       border-gray-200 flex flex-col items-center outline-none justify-center'>
 
-                      <div className="rounded-3xl w-full p-4 flex flex-col gap-2 items-center justify-evenly ">
-                        {selectedImages?.length > 5 ?
-                          <p className="error mb-4 text-red-500 w-full text-left">
-                            5개를 초과한 이미지를 업로드할 수 없습니다. <br />
-                            <span>
-                              <b> {selectedImages?.length - 5} </b> 장의 사진을 삭제해주세요!
-                            </span>
-                          </p>
-                          : null}
-                        <div className="gap-2 flex flex-col w-full">
-                          {selectedImages &&
-                            selectedImages?.map((image, index) => {
-                              return (
-                                <div key={index} className="image rounded-lg bg-slate-200 shadow-inner">
-                                  <div className='flex justify-between items-center p-1'>
-                                    <p className='p-2 text-gray-600'>{index + 1}</p>
-                                    <button
-                                      type="button"
-                                      className='p-2 hover:bg-slate-300 rounded-full flex justify-center items-center'
-                                      onClick={() => removeImg(image)}
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
+                  <div className="rounded-3xl w-full p-4 flex flex-col gap-2 items-center justify-evenly ">
+                    {selectedImages?.length > 5 ?
+                      <p className="error mb-4 text-red-500 w-full text-left">
+                        5개를 초과한 이미지를 업로드할 수 없습니다. <br />
+                        <span>
+                          <b> {selectedImages?.length - 5} </b> 장의 사진을 삭제해주세요!
+                        </span>
+                      </p>
+                      : null}
+                    <div className="gap-2 flex flex-col w-full">
+                      {selectedImages &&
+                        selectedImages?.map((image, index) => {
+                          return (
+                            <div key={index} className="image rounded-lg bg-slate-200 shadow-inner">
+                              <div className='flex justify-between items-center p-1'>
+                                <p className='p-2 text-gray-600'>{index + 1}</p>
+                                <button
+                                  type="button"
+                                  className='p-2 hover:bg-slate-300 rounded-full flex justify-center items-center'
+                                  onClick={() => removeImg(image)}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
 
-                                  </div>
-                                  <div className="relative min-h-[18.7rem] w-[100%]">
-                                    <Image
-                                      className='shadow rounded-lg autoImage object-contain'
-                                      src={image?.url}
-                                      fill
-                                      alt="upload"
-                                      unoptimized
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-
-                      </div>
+                              </div>
+                              <div className="relative h-64 w-[100%]">
+                                <Image
+                                  className='shadow rounded-lg autoImage object-cover p-2'
+                                  src={image?.url}
+                                  fill
+                                  alt="upload"
+                                  unoptimized
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
-                  )}
 
-
+                  </div>
                 </div>
+              }
 
-              )}
+              {/* </div> */}
+              {/* )} */}
             </div>
           </div>
 

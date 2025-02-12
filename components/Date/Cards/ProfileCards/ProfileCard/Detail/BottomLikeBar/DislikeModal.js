@@ -28,7 +28,7 @@ const Background = styled.div`
   left: 0;
   position: fixed;
   background-color: rgba(0, 0, 0, 0.7);
-  ${(props) => modalSettings(props.seeing)}
+  ${(props) => modalSettings(props.visible)}
 `;
 
 const ModalSection = styled.div`
@@ -42,7 +42,7 @@ const ModalSection = styled.div`
   
   /* background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 90%, rgba(255,255,255,0.6886729691876751) 100%); */
   
-  ${(props) => modalSlideSettings(props.seeing)}
+  ${(props) => modalSlideSettings(props.visible)}
 `;
 
 
@@ -138,11 +138,11 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, onDislike 
       <>
         <>
           <Background className="inset-0 flex items-end sm:items-center justify-center min-h-full text-left sm:p-0"
-            seeing={visible} onClick={onClose}
+            visible={visible} onClick={onClose}
             aria-labelledby="modal-title" role="dialog" aria-modal="true" />
 
           <ModalSection className="fixed mt-8 top-[30%] overflow-y-hidden rounded-lg w-full max-w-[420px]"
-            seeing={visible}
+            visible={visible}
             widths={widths}>
             <div className='relative w-full'>
               <div className='w-full flex items-end p-3'>

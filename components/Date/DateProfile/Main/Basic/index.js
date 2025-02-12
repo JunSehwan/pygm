@@ -36,7 +36,6 @@ const index = () => {
       setReligionError(false);
       setBirthError(false);
       setTelError(false);
-      setGenderError(false);
       setAddressError(false);
       setThumbimageError(false);
       updatenotifyProfile();
@@ -170,13 +169,7 @@ const index = () => {
     }
   }, []);
 
-  // 성별
-  const [gender, setGender] = useState(user?.gender || "male");
-  const [genderError, setGenderError] = useState(false);
-  const onChangeGender = useCallback((e) => {
-    setGender(e.target.value);
-    setGenderError(false);
-  }, []);
+
 
   // 주소
   const [address_sigugun, setAddress_sigugun] = useState(user?.address_sigugun || "");
@@ -221,10 +214,7 @@ const index = () => {
       document.getElementById('religion 1').focus();
       return setReligionError(true);
     }
-    if (gender == '') {
-      document.getElementById('gender').focus();
-      return setGenderError(true);
-    }
+
     if (form?.year?.length === 0 || form?.month?.length === 0 || form?.day?.length === 0) {
       document.getElementById('birthyear').focus();
       return setBirthError(true);
@@ -243,11 +233,11 @@ const index = () => {
     }
     const newForm = { year: parseInt(form?.year), month: parseInt(form?.month), day: parseInt(form?.day) }
     const res = await updateUserBasicInfo(
-      username, nickname, newForm, religion, tel, gender, address_sido, address_sigugun
+      username, nickname, newForm, religion, tel, address_sido, address_sigugun
     );
     dispatch(updateBasicProfile(res))
   }, [thumbimage, username, nickname, religion, form?.year, form?.month, form?.day,
-    tel, gender, address_sido, address_sigugun, dispatch])
+    tel, address_sido, address_sigugun, dispatch])
 
   // const writeFinish = username && nickname && religion && form?.year && form?.month && form?.day && gender && tel && address_sigugun && address_sido;
   const religionArr = ["무교", "기독교", "천주교", "불교", "원불교", "유교",
@@ -264,6 +254,15 @@ const index = () => {
         <div className="py-4">
           <span className="block mb-1 text-sm font-bold text-gray-400">
             이메일계정:&nbsp;{user?.email}</span>
+          <span className="block mb-1 text-sm font-bold text-gray-400">
+            성별:&nbsp;
+            {(() => {
+              switch (user?.gender) {
+                case 'male': return (<span className="">남성</span>)
+                case 'female': return (<span className="">여성</span>)
+                default: null;
+              }
+            })(user?.gender)}</span>
         </div>
         <div className="py-4">
           <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="username">
@@ -326,39 +325,7 @@ const index = () => {
           ) : null}
         </div>
 
-        <div className="py-4">
-          <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="gender">
-            성별
-          </label>
-          <select
-            className={genderError ?
-              "block w-full p-3 text-gray-900 border border-red-300 rounded-lg bg-red-50 sm:text-md focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-red-500 dark:focus:border-red-500"
-              :
-              "block w-full p-3 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 sm:text-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            }
-            id="gender"
-            type="gender"
-            name="gender"
-
-            placeholder="성별"
-            onChange={onChangeGender}
-            defaultValue={user?.gender || gender}
-          >
-            <option value="male" key="man">남자</option>
-            <option value="female" key="woman">여자</option>
-          </select>
-          {genderError ? (
-            <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
-              <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
-              </svg>
-              <span className="sr-only">Info</span>
-              <div>
-                <span className="font-medium">성별을 선택해주세요.</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
+       
 
         <div className="py-4">
           <div className="mb-4 md:mr-2 md:mb-0 w-[100%]">

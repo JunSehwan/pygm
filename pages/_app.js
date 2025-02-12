@@ -33,9 +33,9 @@ const _app = ({ Component, pageProps, ...rest }) => {
   return (
     <>
       <GlobalStyle />
+      <Script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></Script>
       <Head>
         <title>추억과 즐거움으로 이성을 만나다! 피그말리온</title>
-        <Script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></Script>
         <meta charSet="utf-8" />
         <meta name="viewport" content="initial-scale=1.0, width=device-width" />
         <link rel="apple-touch-icon" sizes="57x57" href="/logo/apple-icon-57x57.png" />

@@ -54,7 +54,7 @@ const Footer = styled.div`
 
 const Content = styled.div`
   max-height: -webkit-fill-available;
-  padding-right: 12px;
+  /* padding-right: 12px; */
 
 
   ::-webkit-scrollbar {

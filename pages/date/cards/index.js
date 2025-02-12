@@ -56,6 +56,7 @@ const index = () => {
       }
 
 
+
       const docRef = doc(db, "users", user?.uid);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists())
@@ -146,6 +147,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
       };
       dispatch(setUser(currentUser));
       await getFriends().then((result) => {
@@ -167,11 +170,17 @@ const index = () => {
       // }
       dispatch(userLoadingEnd());
       dispatch(setFriendsDoneFalse());
+      if (!currentUser?.date_profile_finished) {
+        router.push("/date/profile")
+      }
+      if (currentUser?.date_pending) {
+        router.push("/date/pending")
+      }
     });
     return () => {
       authStateListener();
     };
-  }, [auth, dispatch, user?.uid, user?.userID]);
+  }, [auth, dispatch, user?.uid, router]);
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -255,6 +264,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
 
       };
       dispatch(setUser(currentUser));
@@ -289,7 +300,7 @@ const index = () => {
       router.push("/date/profile");
       return
     }
-  }, [user,user?.date_sleep, user?.withdraw, router])
+  }, [user, user?.date_sleep, user?.withdraw, router, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
 
 
 

@@ -69,6 +69,14 @@ const Signup = () => {
     setNicknameError(false);
   }, [])
 
+  // 성별
+  const [gender, setGender] = useState("");
+  const [genderError, setGenderError] = useState(false);
+  const onChangeGender = useCallback((e) => {
+    setGender(e.target.value);
+    setGenderError(false);
+  }, []);
+
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState(false);
   const [emailDubError, setEmailDubError] = useState(false);
@@ -211,12 +219,17 @@ const Signup = () => {
   const onSubmit = useCallback(async (e) => {
     e.preventDefault();
 
-
+    console.log(email)
     if (username?.length === 0) {
       return setUsernameError(true);
     }
     if (nickname?.length === 0) {
       return setNicknameError(true);
+    }
+    
+    if (gender === '') {
+      document.getElementById('gender').focus();
+      return setGenderError(true);
     }
     if (email?.length === 0) {
       return setEmailError(true);
@@ -245,19 +258,19 @@ const Signup = () => {
         // return setEmailDubError(true);
       } else {
         setLoading(true);
-        const res = await createAccount(email, password, username, nickname, form, tel);
+        const res = await createAccount(email, password, gender, username, nickname, form, tel);
         if (res?.uid?.length !== 0) {
           try {
             dispatch(signUp({
-              email, username, nickname,
+              email, username, nickname, gender,
               birthday: form,
               tel,
               id: res?.uid,
               avatar: res?.photoURL
             }));
-            const getMail = await sendMailForSignUp(
-              email, username,
-            );
+            // const getMail = await sendMailForSignUp(
+            //   email, username,
+            // );
           } catch (err) {
             console.error(err);
           }
@@ -270,7 +283,7 @@ const Signup = () => {
     }
 
 
-  }, [username, email, form, tel, password, passwordCheck, emailDubError, dispatch])
+  }, [username, nickname, email, form, gender, tel, password, passwordCheck, emailDubError, dispatch])
 
   const nowForCopy = dayjs(now);
   const time = nowForCopy?.format('YYYY-MM-DD HH:mm:ss');
@@ -403,13 +416,21 @@ const Signup = () => {
                               value={username}
                             />
                             {usernameError ? (
-                              <p className="text-xs mb-[1.5rem] italic text-red-500">이름을 입력해주세요.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">이름을 입력해주세요.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
                           <div className="mb-2">
                             <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="nickname">
-                              닉네임
+                              닉네임(10자이내 입력)
                             </label>
                             <input
                               className={nicknameError ?
@@ -425,7 +446,50 @@ const Signup = () => {
                               value={nickname}
                             />
                             {nicknameError ? (
-                              <p className="text-xs mb-[1.5rem] italic text-red-500">닉네임을 입력해주세요.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">닉네임을 입력해주세요.</span>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="mb-2">
+                            <label className="block mb-1 text-sm font-bold text-gray-700" htmlFor="gender">
+                              성별
+                            </label>
+                            <select
+                              className={genderError ?
+                                'w-full px-3 py-4 mb-2 text-sm border-red-500 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                                :
+                                'w-full px-3 py-4 mb-2 text-sm leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline'
+                              }
+                              id="gender"
+                              type="gender"
+                              name="gender"
+
+                              placeholder="성별"
+                              onChange={onChangeGender}
+                              defaultValue={user?.gender || ""}
+                            >
+                              <option value="" key="select">선택</option>
+                              <option value="male" key="man">남자</option>
+                              <option value="female" key="woman">여자</option>
+                            </select>
+                            {genderError ? (
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">성별을 선택해주세요.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
@@ -446,10 +510,26 @@ const Signup = () => {
                               value={email}
                             />
                             {emailError ? (
-                              <p className="text-xs mb-[1.5rem] italic text-red-500">올바른 이메일 형식이 아닙니다.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">올바른 이메일 형식이 아닙니다.</span>
+                                </div>
+                              </div>
                             ) : null}
                             {emailDubError ? (
-                              <p className="text-xs mb-[1.5rem] italic text-red-500">이미 동일한 이메일 계정이 존재합니다.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">이미 동일한 이메일 계정이 존재합니다.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
@@ -506,7 +586,15 @@ const Signup = () => {
                               </div>
                             </div>
                             {birthError ? (
-                              <p className="text-xs mb-[1.5rem] italic text-red-500">생년월일을 입력해주세요.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">생년월일을 선택해주세요.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
@@ -528,7 +616,15 @@ const Signup = () => {
                               value={tel}
                             />
                             {telError ? (
-                              <p className="text-xs mb-[1.5rem] italic text-red-500">연락처를 입력해주세요.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">연락처를 입력해주세요.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
@@ -544,7 +640,7 @@ const Signup = () => {
                               }
                               id="password"
                               type={showPswd ? "text" : "password"}
-                              placeholder="********"
+                              placeholder="(8자이상 입력)"
                               onChange={onChangePassword}
                               value={password}
                             >
@@ -558,7 +654,15 @@ const Signup = () => {
                             </div>
 
                             {passwordLengthError ? (
-                              <p className="text-xs mb-[1.5rem] mt-[-0.5rem] italic text-red-500">비밀번호는 8자 이상이어야 합니다.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">비밀번호는 8자 이상이어야 합니다.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
@@ -586,12 +690,20 @@ const Signup = () => {
                               )}
                             </div>
                             {passwordError ? (
-                              <p className="text-xs mt-[-0.5rem] mb-[1.5rem] italic text-red-500">비밀번호가 일치하지 않습니다.</p>
+                              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                                </svg>
+                                <span className="sr-only">Info</span>
+                                <div>
+                                  <span className="font-medium">비밀번호가 일치하지 않습니다.</span>
+                                </div>
+                              </div>
                             ) : null}
                           </div>
 
 
-                          <div className="text-center mt-[1rem] mb-[1rem] text-[0.88rem] text-gray-500">
+                          <div className="text-center mt-[2rem] mb-[2rem] text-sm text-gray-500">
                             회원가입을 클릭하면 피그말리온의
                             <a
                               className="inline-block text-blue-500 align-baseline hover:text-blue-800"

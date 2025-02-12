@@ -34,17 +34,17 @@ const TopSection = () => {
         <div className="pb-3 md:pt-4 md:pb-2">
 
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-extrabold leading-snug mb-4" data-aos="zoom-y-out">
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-snug mb-4" >
               가장 자연스럽고<br />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">
                 재밌는 만남
               </span></h1>
             <div className="max-w-3xl mx-auto">
-              <p className="text-l text-gray-600 mb-2" data-aos="zoom-y-out" data-aos-delay="150">
+              <p className="text-l text-gray-600 mb-2" >
                 피그말리온과 함께<br />
                 새롭고 소중한 인연을 가장 빠르게 만나보세요
               </p>
-              <div className="max-w-xs mx-auto mt-6 sm:max-w-none sm:flex sm:justify-center" data-aos="zoom-y-out" data-aos-delay="300">
+              <div className="max-w-xs mx-auto mt-6 sm:max-w-none sm:flex sm:justify-center" >
                 <div className="flex justify-center w-auto">
                   <div className='flex justify-center'>
                     <span className="sr-only">PYGM</span>
@@ -71,7 +71,7 @@ const TopSection = () => {
           </div>
 
           {/* <div>
-            <div className="relative flex justify-center mb-8" data-aos="zoom-y-out" data-aos-delay="450">
+            <div className="relative flex justify-center mb-8" data-aos="zoom-y-out">
               <div className="flex flex-col justify-center">
                 <img className="mx-auto rounded-3xl shadow-2xl" src='/image/screenshot/new_dashboard.png' width="768" height="432" alt="Hero" />
                 <svg className="absolute inset-0 max-w-full mx-auto md:max-w-none h-auto" width="768" height="432" viewBox="0 0 768 432" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">

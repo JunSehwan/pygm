@@ -180,6 +180,8 @@ const index = () => {
         className="px-2 w-full pt-4 pb-2 mb-1"
         onSubmit={onSubmit}
       >
+        <div className='py-4 w-full h-0 border-b border-solid border-gray-300'></div>
+
         <p className='my-4 text-gray-500 text-[1.2rem] font-bold leading-8'>📝 뛰어난스펙</p>
 
         {/* 경력입력 */}
@@ -263,7 +265,7 @@ const index = () => {
             <input id="school_open" type="checkbox"
               onChange={onChangeSchool_open}
               checked={school_open}
-              className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" required />
+              className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" />
           </div>
           <label htmlFor="school_open"
             className="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300"><span className="text-gray-600 hover:underline dark:text-blue-500">
@@ -351,7 +353,7 @@ const index = () => {
           <div className="flex items-center h-5">
             <input id="company_open" type="checkbox"
               onChange={onChangeCompany_open}
-              checked={company_open} className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" required />
+              checked={company_open} className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" />
           </div>
           <label htmlFor="company_open" className="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300"><span className="text-gray-600 hover:underline dark:text-blue-500">
             직장명 공개(능력을 어필할 수 있습니다)</span></label>

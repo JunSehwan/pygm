@@ -10,33 +10,33 @@ import { useSelector } from 'react-redux';
 
 const index = () => {
   //작성 완료시 창 닫음
-  const { patchThinkMbtiInfoDone, patchHobbyDone, patchRomanceDone, 
+  const { patchThinkMbtiInfoDone, patchHobbyDone, patchRomanceDone,
     patchCareerLivingDone } = useSelector(state => state.user);
 
   useEffect(() => {
     if (patchThinkMbtiInfoDone) {
-      setopenMbti(false);
+      // setopenMbti(false);
       setopenHobby(true);
     }
   }, [patchThinkMbtiInfoDone])
 
   useEffect(() => {
     if (patchHobbyDone) {
-      setopenHobby(false);
+      // setopenHobby(false);
       setopenRomance(true);
     }
   }, [patchHobbyDone])
 
   useEffect(() => {
     if (patchRomanceDone) {
-      setopenRomance(false);
+      // setopenRomance(false);
       setopenCareerLiving(true);
     }
   }, [patchRomanceDone])
 
   useEffect(() => {
     if (patchCareerLivingDone) {
-      setopenCareerLiving(false);
+      // setopenCareerLiving(false);
       setopenEtc(true);
     }
   }, [patchCareerLivingDone])
@@ -44,27 +44,27 @@ const index = () => {
   const [openMbti, setopenMbti] = useState(true);
   const onOpenMbti = useCallback(() => {
     setopenMbti(prev => !prev);
-  })
+  }, [])
 
   const [openHobby, setopenHobby] = useState(false);
   const onOpenHobby = useCallback(() => {
     setopenHobby(prev => !prev);
-  })
+  }, [])
 
   const [openRomance, setopenRomance] = useState(false);
   const onOpenRomance = useCallback(() => {
     setopenRomance(prev => !prev);
-  })
+  }, [])
 
   const [openCareerLiving, setopenCareerLiving] = useState(false);
   const onOpenCareerLiving = useCallback(() => {
     setopenCareerLiving(prev => !prev);
-  })
+  }, [])
 
   const [openEtc, setopenEtc] = useState(false);
   const onOpenEtc = useCallback(() => {
     setopenEtc(prev => !prev);
-  })
+  }, [])
 
   return (
     <div className="w-full p-2">

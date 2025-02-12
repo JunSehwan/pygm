@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React from 'react';
 import Hobby from './Hobby';
 import Romance from './Romance';
 import CareerLiving from './CareerLiving';

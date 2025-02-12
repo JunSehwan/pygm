@@ -19,6 +19,9 @@ import dayjs from "dayjs";
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
+import { onAuthStateChanged } from 'firebase/auth';
+import { getDoc } from 'firebase/firestore';
+
 const Login = () => {
   const dispatch = useDispatch();
   const router = useRouter();
@@ -33,7 +36,7 @@ const Login = () => {
     },
     []
   );
-
+  const db = getFirestore();
   // @ 비밀번호 길이 검토
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -57,21 +60,26 @@ const Login = () => {
       setEmailError(false);
       setEmailDubError(false);
       setPasswordError(false);
+      // console.log(user, "유져")
+      // if (user?.date_profile_finished == true && (!user?.date_sleep || user?.date_sleep == false)) {
+      //   router.push("/date/cards")
+      // }
     }
   }, [signUpSuccess, isLoggedIn, user])
 
-  useEffect(() => {
-    if (signUpSuccess && isLoggedIn && !!user) {
-        router.push("/dashboard")
-    }
-  }, [isLoggedIn, router, signUpSuccess, user])
+
 
   const auth = getAuth();
+
+  // useEffect(() => {
+  //   if (signUpSuccess && isLoggedIn && !!user) {
+  //     router.push("/dashboard")
+  //   }
+  // }, [isLoggedIn, router, signUpSuccess, user])
 
   const onSubmit = useCallback(async (e) => {
     e.preventDefault();
     setLoginError(false);
-
     if (password?.length === 0) {
       return setPasswordError(true);
     }
@@ -115,7 +123,7 @@ const Login = () => {
   const nowForCopy = dayjs(now);
   const time = nowForCopy?.format('YYYY-MM-DD HH:mm:ss');
   const [con, setCon] = useState();
-  const db = getFirestore();
+
 
 
   const handlePasswordForgot = useCallback(() => {
@@ -129,6 +137,9 @@ const Login = () => {
       inputElement.current.focus();
     }
   }, []);
+
+
+ 
 
   return (
     <div>
@@ -163,10 +174,26 @@ const Login = () => {
                       value={email}
                     />
                     {emailError ? (
-                      <p className="text-xs mb-[1.5rem] italic text-red-500">이메일을 입력해주세요.</p>
+                      <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                        <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                        </svg>
+                        <span className="sr-only">Info</span>
+                        <div>
+                          <span className="font-medium">이메일을 입력해주세요.</span>
+                        </div>
+                      </div>
                     ) : null}
                     {emailDubError ? (
-                      <p className="text-xs mb-[1.5rem] italic text-red-500">해당하는 이메일 계정은 존재하지 않습니다.</p>
+                      <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                        <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                        </svg>
+                        <span className="sr-only">Info</span>
+                        <div>
+                          <span className="font-medium">해당하는 이메일 계정은 존재하지 않습니다.</span>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
 
@@ -186,10 +213,26 @@ const Login = () => {
                       value={password}
                     />
                     {passwordError ? (
-                      <p className="text-xs mb-[1.5rem] italic text-red-500">비밀번호를 입력해주세요.</p>
+                      <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                        <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                        </svg>
+                        <span className="sr-only">Info</span>
+                        <div>
+                          <span className="font-medium">비밀번호를 입력해주세요.</span>
+                        </div>
+                      </div>
                     ) : null}
                     {loginError ? (
-                      <p className="text-xs mb-[1.5rem] italic text-red-500">로그인 에러 - 비밀번호를 다시 확인해주세요.</p>
+                      <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                        <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                        </svg>
+                        <span className="sr-only">Info</span>
+                        <div>
+                          <span className="font-medium">로그인 에러 - 비밀번호를 다시 확인해주세요.</span>
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                   <div className="mb-6 text-center">
@@ -213,7 +256,7 @@ const Login = () => {
                 <div className='my-2'>
                   <div className="py-6 w-full text-center">
                     <Link href="/signup">
-                      <div className="w-full px-4 text-md py-4 font-bold text-gray-700 shadow-md hover:shadow-none bg-white rounded-lg hover:bg-gray-100 focus:outline-none focus:shadow-outline">
+                      <div className="w-full px-4 text-md py-4 font-bold text-gray-700 shadow-md hover:shadow-none bg-white rounded-lg hover:bg-slate-50 focus:outline-none focus:shadow-outline">
                         회원가입
                       </div>
                     </Link>

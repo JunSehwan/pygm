@@ -1,22 +1,14 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-// import profilePic from 'public/image/icon/happiness.png';
-// import { BiTransfer } from 'react-icons/bi';
 import styled from 'styled-components';
-// import { updatePurpose } from 'firebaseConfig';
-// import { updateUserPurpose, updatePurposeFalse } from 'slices/user';
+import { writeDateprofile, writeDateprofileDoneFalse } from 'slices/user';
 import { FaUserCircle, FaBriefcase } from "react-icons/fa";
 import { BsChatHeartFill, BsFillCreditCard2FrontFill } from "react-icons/bs";
-import { MdBookmarkAdd } from "react-icons/md";
 
 import toast from 'react-hot-toast';
-// import Image from 'next/image';
-// import ProgressBar from './ProgressBar';
 import { useRouter } from 'next/router';
-// import IntroModal from './IntroModal';
-// import { AiFillSafetyCertificate } from 'react-icons/ai';
-// import Expert from '/public/image/icon/expertise.png';
-// import { Tooltip } from 'flowbite-react';
+import { finishDate_Profile } from 'firebaseConfig';
+import FinishedModal from './FinishedModal';
 
 const ImageWrapper = styled.div`
 width: 100%;
@@ -53,7 +45,7 @@ const index = (
   }
   // { moveToResume }
 ) => {
-  const { user } = useSelector((state) => state.user);
+  const { user, writeDateprofileDone } = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const router = useRouter();
   const notify = () => toast("업데이트 성공");
@@ -62,11 +54,43 @@ const index = (
   const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
   const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun && user?.jobdocument?.length !== 0;
   const writeThinkInfo = user?.mbti_ei && user?.hobby && user?.drink && user?.health && user?.interest && user?.career_goal && user?.living_weekend && user?.living_consume && user?.opfriend && user?.friendmeeting && user?.longdistance && user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
-  const goGroup = useCallback(() => {
-    router.push('/date/profile/group')
-  }, [router])
 
-  const isGroupPage = router?.pathname !== "/date/profile/group/";
+  const [onFinishedModal, setOpenFinishedModal] = useState(false);
+
+  const onClickFinishedModal = useCallback(() => {
+    setOpenFinishedModal(true);
+  }, [])
+
+  const onClickFinishedModalClose = useCallback(() => {
+    setOpenFinishedModal(false);
+  }, [])
+
+  useEffect(() => {
+    if (writeThumbImage && writeBasicInfo && writeCareerInfo && writeThinkInfo) {
+      if ((!user?.date_profile_finished || user?.date_profile_finished == false)
+        || (user?.date_profile_finished == true && user?.date_pending == true)
+      ) {
+        onClickFinishedModal()
+
+      }
+    }
+  }, [onClickFinishedModal, writeThumbImage, writeBasicInfo,
+    writeCareerInfo, writeThinkInfo, user?.date_profile_finished, user?.date_pending])
+
+  useEffect(() => {
+    if (writeDateprofileDone) {
+      setOpenFinishedModal(false);
+      dispatch(writeDateprofileDoneFalse());
+    }
+  }, [dispatch, writeDateprofileDone, user?.likes])
+
+
+
+  const onFinish = useCallback(async () => {
+    const result = await finishDate_Profile();
+    dispatch(writeDateprofile(result))
+    router.push('/date/pending')
+  }, [router, dispatch])
 
   return (
     <>
@@ -167,45 +191,18 @@ const index = (
                   </div>
                 </button>
               </li>
-              {/* <li className='flex w-full justify-center min-w-[60px]'>
-                <div className={`flex items-center justify-center w-full py-[4px] rounded-lg my-1 text-[12px] font-normal text-gray-600 dark:text-white hover:bg-blue-100 dark:hover:bg-gray-600`}>
-                  <div className='flex-shrink-0 ' >
-                    <button
-                      onClick={onMoveToElement5}
-                      className={`w-full flex flex-col justify-center items-center `}>
-                      <MdBookmarkAdd
-                        className="flex-shrink-0 w-6 h-6  transition duration-75 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-white"
-                      ></MdBookmarkAdd>
-                      <span className="mt-1 flex-1 whitespace-nowrap">부가정보</span>
-                    </button>
-                  </div>
-                </div>
-              </li> */}
 
-              {/* {!user?.companycomplete ?
-                <div className='w-full my-1 text-gray-500 text-base'>
-                  <button
-                    onClick={openIntroModal}
-                    className='flex flex-row px-3 py-2 border-gray-400 border-[1px] border-solid rounded-full hover:bg-gray-100 mx-auto items-center'
-                  ><BiTransfer className='mr-0.5' />그룹회원으로 변경</button>
-                </div>
-                :
-                <div className='w-full my-1 text-gray-500 text-base'>
-                  <button
-                    onClick={goGroup}
-                    className='flex flex-row px-3 py-2 border-gray-400 border-[1px] border-solid rounded-full hover:bg-gray-100 mx-auto items-center'
-                  ><BiTransfer className='mr-0.5' />그룹페이지</button>
-                </div>
-              } */}
             </ul>
           </div>
         </div>
       </BottomBar>
 
-      {/* <IntroModal
-        introModalOpened={introModalOpened}
-        closeIntroModal={closeIntroModal}
-      /> */}
+      <FinishedModal
+        visible={onFinishedModal}
+        onFinish={onFinish}
+        onClose={onClickFinishedModalClose}
+        title={`프로필 입력을 마쳤습니다!`}
+      />
     </>
   );
 };

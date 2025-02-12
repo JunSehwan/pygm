@@ -46,7 +46,7 @@ const index = () => {
               <div className='w-full border-solid border-0 border-b-[1px] border-gray-300 h-0 my-4'></div>
 
               <div className='mt-5 mb-3 w-full text-gray-500 text-sm text-left'>
-                <img className='w-12 size-12 text-xl h-12' src="/logo/pygm.png"></img>
+                <img className='w-12 size-12 text-xl h-12' src="/logo/pygm.png" alt="pygm_logo"></img>
                 <p>넥스트퍼스(피그말리온)</p>
                 <p>사업자 등록번호 : 755-55-00702</p>
                 <p>대표|개인정보 관리 책임자 : 전세환</p>

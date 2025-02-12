@@ -33,6 +33,7 @@ export const initialState = {
   patchRomanceDone: false,
   patchCareerLivingDone: false,
   patchEtcDone: false,
+  writeDateprofileDone: false,
   patchThumbimageDone: false,
   uploadJobDocumentDone: false,
   patchDate_lastIntroduceDone: false,
@@ -131,7 +132,7 @@ export const user = createSlice({
       state.user.nickname = action.payload.nickname;
       state.user.religion = action.payload.religion;
       state.user.birthday = action.payload.newForm;
-      state.user.gender = action.payload.gender;
+      // state.user.gender = action.payload.gender;
       state.user.phonenumber = action.payload.tel;
       state.user.address_sigugun = action.payload.address_sigugun;
       state.user.address_sido = action.payload.address_sido;
@@ -238,6 +239,14 @@ export const user = createSlice({
     patchEtcFalse(state, action) {
       state.patchEtcDone = false;
     },
+    writeDateprofile(state, action) {
+      state.user.date_profile_finished = action.payload.date_profile_finished;
+      state.user.date_pending = action.payload.date_pending;
+      state.writeDateprofileDone = true;
+    },
+    writeDateprofileDoneFalse(state, action) {
+      state.writeDateprofileDone = false;
+    },
 
     setFriends(state, action) {
       state.friendsLoading = true;
@@ -310,12 +319,18 @@ export const user = createSlice({
       state.patchDate_lastIntroduceDone = true;
     },
     setFriendSleep(state, action) {
-      const targeting = state.friends.find((v) => v.userID === action.payload?.id)
-      targeting.date_sleep = action.payload.date_sleep;
+      state.friends.find((v) => v?.userID === action.payload?.id).date_sleep = action.payload.date_sleep;
+      // if (!!targeting?.date_sleep) {
+      // targeting.date_sleep = action.payload.date_sleep;
+      // }
+      // targeting.date_sleep = action.payload.date_sleep;
     },
     setFriendWithdraw(state, action) {
-      const targeting = state.friends.find((v) => v.userID === action.payload?.id)
-      targeting.withdraw = action.payload.withdraw;
+      state.friends.find((v) => v?.userID === action.payload?.id).withdraw = action.payload.withdraw;
+      // state.friends.find((v) => v?.userID === action.payload?.id)?.withdraw = action.payload.withdraw
+      // if (!!targeting?.withdraw) {
+      // targeting?.withdraw = action.payload.withdraw;
+      // }
       // state.setFriendSleepDone = true;
     },
     // extraReducers: {
@@ -389,8 +404,9 @@ export const {
   setFriendSleep,
   setFriendWithdraw,
   friendSleepLoadingStart,
-friendSleepLoadingEnd,
-
+  friendSleepLoadingEnd,
+  writeDateprofile,
+  writeDateprofileDoneFalse,
   // pageLoadingStart,
   // pageLoadingEnd
 } = user.actions;

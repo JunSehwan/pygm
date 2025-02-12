@@ -31,7 +31,7 @@ const index = () => {
     e.preventDefault();
     setEmail(e.target.value);
     setEmailError(false);
-  }, [email])
+  }, [])
 
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState(false);
@@ -40,7 +40,7 @@ const index = () => {
     e.preventDefault();
     setUsername(e.target.value);
     setUsernameError(false);
-  }, [username])
+  }, [])
 
   // if (!!user) return router.push("/dashboard");
 

@@ -11,7 +11,7 @@ const index = () => {
   const router = useRouter();
   const goNotice = useCallback(() => {
     window.open("https://delightful-quokka-ae8.notion.site/188fb004cc25802b9f81d82447c039eb?pvs=4");
-  }, [router])
+  }, [])
   const onClickQuestion = useCallback(() => {
     window?.open('https://open.kakao.com/o/sAJwMNCe', '_blank')
   }, [])
@@ -29,7 +29,7 @@ const index = () => {
   const [openTab, setOpenTab] = useState(false);
   const onToggleTab = useCallback(() => {
     setOpenTab(prev => !prev);
-  })
+  },[])
   //매니저 문의하기 / 공지사항 / 내 상태 변경 (잠시 휴식 / 회원탈퇴)
 
   return (

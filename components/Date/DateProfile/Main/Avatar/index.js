@@ -65,7 +65,7 @@ const index = () => {
           </div>
         </div>
 
-        <div className='flex w-full'>
+        <div className='flex w-full mx-auto px-3'>
           {user?.thumbimage && user?.thumbimage?.length >= 1 ?
             <button type="button" onClick={openImageModal}
               className="text-gray-900 bg-white hover:bg-gray-100 border-solid border-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 w-full flex flex-col font-medium rounded-xl  px-4 py-2 text-center items-center dark:focus:ring-[#3b5998]/55 mb-2">

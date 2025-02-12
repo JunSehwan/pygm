@@ -26,7 +26,7 @@ const CoupleCard = ({ friend, sido, sigugunList }) => {
     } else {
       router.push("/")
     }
-  }, [])
+  }, [friend?.userID, router, user])
 
 
   return (

@@ -144,6 +144,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
 
       };
       dispatch(setUser(currentUser));
@@ -258,6 +260,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
@@ -285,13 +289,20 @@ const index = () => {
       // dispatch(resetUserState());
       return router.push("/");
     }
-
+    if (!currentUser?.date_profile_finished) {
+      alert("프로필을 먼저 입력해주세요.")
+      return router.push("/date/profile")
+    }
+    if (currentUser?.date_pending) {
+      alert("곧 승인되오니 잠시만 기다려주시기 바랍니다.")
+      return router.push("/date/pending")
+    }
     if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
       alert("모든 정보를 입력해주세요!")
       router.push("/date/profile");
       return
     }
-  }, [user, router])
+  }, [user, router, writeBasicInfo, writeCareerInfo, writeThinkInfo, writeThumbImage])
 
   return (
     <>

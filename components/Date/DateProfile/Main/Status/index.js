@@ -65,7 +65,7 @@ const index = () => {
               {/* <p className="text-sm font-medium text-gray-500 dark:text-gray-400">1,745 global ratings</p> */}
               <div className="flex items-center mt-4">
                 <div className="text-sm font-medium text-blue-600 dark:text-blue-500 hover:underline">5 star</div>
-                <div className="w-2/4 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
+                <div className="w-3/5 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
                   <ProgressBar width={`${widthLength(5)}%`} className={`h-5 bg-yellow-300 rounded-sm w-[${widthLength(5)}%]`}></ProgressBar>
                 </div>
                 <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -73,7 +73,7 @@ const index = () => {
               </div>
               <div className="flex items-center mt-4">
                 <div className="text-sm font-medium text-blue-600 dark:text-blue-500 hover:underline">4 star</div>
-                <div className="w-2/4 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
+                <div className="w-3/5 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
                   <ProgressBar width={`${widthLength(4)}%`} className={`h-5 bg-yellow-300 rounded-sm w-[${widthLength(4)}%]`}></ProgressBar>
                 </div>
                 <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -81,7 +81,7 @@ const index = () => {
               </div>
               <div className="flex items-center mt-4">
                 <div className="text-sm font-medium text-blue-600 dark:text-blue-500 hover:underline">3 star</div>
-                <div className="w-2/4 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
+                <div className="w-3/5 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
                   <ProgressBar width={`${widthLength(3)}%`} className={`h-5 bg-yellow-300 rounded-sm w-[${(results?.filter(element => 3 == element)?.length) * 100 / results?.length || 0}%]`}></ProgressBar>
                 </div>
                 <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -89,7 +89,7 @@ const index = () => {
               </div>
               <div className="flex items-center mt-4">
                 <div className="text-sm font-medium text-blue-600 dark:text-blue-500 hover:underline">2 star</div>
-                <div className="w-2/4 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
+                <div className="w-3/5 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
                   <ProgressBar width={`${widthLength(2)}%`} className={`h-5 bg-yellow-300 rounded-sm w-[${(results?.filter(element => 2 == element)?.length) * 100 / results?.length || 0}%]`}></ProgressBar>
                 </div>
                 <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -97,7 +97,7 @@ const index = () => {
               </div>
               <div className="flex items-center mt-4">
                 <div className="text-sm font-medium text-blue-600 dark:text-blue-500 hover:underline">1 star</div>
-                <div className="w-2/4 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
+                <div className="w-3/5 h-5 mx-4 bg-gray-200 rounded-sm dark:bg-gray-700">
                   <ProgressBar width={`${widthLength(1)}%`} className={`h-5 bg-yellow-300 rounded-sm w-[${(results?.filter(element => 1 == element)?.length) * 100 / results?.length || 0}%]`}></ProgressBar>
                 </div>
                 <span className="text-sm font-medium text-gray-500 dark:text-gray-400">

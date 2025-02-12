@@ -57,7 +57,7 @@ const index = ({
       files["id"] = Math.random();
       setImages((prevState) => [...prevState, files])
     }
-  }, [images])
+  }, [])
 
   const removeImg = useCallback((image) => {
     setSelectedImages(prevArr => prevArr?.filter(v => v?.url !== image?.url));
@@ -106,7 +106,7 @@ const index = ({
 
 
   const onSubmit = useCallback(async () => {
-      setLoading(true);
+    setLoading(true);
     await updateDoc(doc(db, "users", user?.userID), {
       jobdocument: URLs,
     });
@@ -152,9 +152,13 @@ const index = ({
         <div className='w-full my-4 flex flex-col justify-center relative'>
           <>
             {user?.jobdocument?.length >= 1 &&
-              <img
+              <Image
                 className="rounded-xl h-[566px] w-full bg-black object-contain"
                 alt="thumbimg"
+                unoptimized
+                width="0"
+                height="0"
+                sizes="100vw"
                 src={user?.jobdocument[0] || ""}
               />
             }

@@ -25,7 +25,14 @@ const index = ({ children }) => {
   const { user,
     // signUpSuccess 
   } = useSelector(state => state.user);
+
   const [display, setDisplay] = useState(false);
+  useEffect(() => {
+    if (user?.date_profile_finished) {
+      setDisplay(true)
+    }
+  }, [user?.date_profile_finished, display])
+
   // 스크롤 인식, 스타일링
   const [ScrollY, setScrollY] = useState(0); // window? 의 pageYOffset값을 저장 
   const [ScrollActive, setScrollActive] = useState(false);
@@ -165,7 +172,7 @@ const index = ({ children }) => {
     router.push("/dashboard");
     setToggle(false);
     setOpen(false);
-  }, [])
+  }, [router])
   const onClickQuestion = useCallback(() => {
     window?.open('https://open.kakao.com/o/sAJwMNCe', '_blank')
     // router.push("https://open.kakao.com/o/sAJwMNCe");
@@ -212,7 +219,7 @@ const index = ({ children }) => {
 
   return (
     <>
-      <nav className={`${display === true && "hidden"} top-0 transition-all fixed z-50 bg-white w-full ${ScrollActive === true && "bg-opacity-70 shadow-md backdrop-blur-sm"} `}>
+      <nav className={`${!display === true && "hidden"} top-0 transition-all fixed z-50 bg-white w-full ${ScrollActive === true && "bg-opacity-70 shadow-md backdrop-blur-sm"} `}>
         <div className="mx-auto px-2 sm:px-6">
           <div className={`flex justify-between items-center border-b-1 border-gray-100 py-2 ${ScrollActive === true && "border-0"} justify-start md:space-x-10`}>
             <div className="flex justify-start">
@@ -279,9 +286,9 @@ const index = ({ children }) => {
                 </button>
               </div>
 
-              <div className='flex items-center justify-center flex-row gap-2'>
+              <div className='relative flex items-center justify-center flex-row gap-2'>
                 <button
-                  className='flex flex-col items-center justify-center rounded-md bg-pink-100 py-1 px-3 shadow-sm'
+                  className='sm:absolute sm:left-[-60px] flex flex-col items-center justify-center rounded-md bg-pink-100 py-1 px-3 shadow-sm'
                   onClick={onClickStore}
                 >
                   <Image
@@ -307,7 +314,7 @@ const index = ({ children }) => {
                   </button>
                 </div>
 
-                <button className="hidden sm:flex flex-col ml-[12px] items-center justify-center group-transition-all text-gray-500 hover:text-gray-600"
+                <button className="hidden sm:flex flex-col items-center justify-center group-transition-all text-gray-500 hover:text-gray-600"
                   onClick={toggleDropdown}
                 >
                   {user?.thumbimage?.length !== 0 && user?.thumbimage?.[0] ? (

@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 
 const index = () => {
   const router = useRouter();
@@ -13,22 +14,29 @@ const index = () => {
 
 
   return (
-    <div className='pt-[--navbar-height]'>
-      <div className="max-w-[32rem] container mx-auto">
-        <div className="flex justify-center my-3 flex-col">
-          <h1 className="mb-4 text-3xl font-extrabold leading-none tracking-tight text-center text-gray-900 md:text-4xl lg:text-4xl dark:text-white">원하는 게임을 선택하세요!</h1>
+    <div className='pt-6'>
+      <div className="max-w-[32rem] container mx-auto px-2">
+        <div className="flex justify-center mt-6 flex-col">
+          <h1 className="mb-6 text-3xl font-extrabold leading-none tracking-tight text-center text-blue-700 dark:text-white">원하는 게임을 선택하세요!</h1>
 
           <div className='my-2 w-full'>
             <button href="#" className="w-full" onClick={onClickDating}>
-              <div className="flex flex-col items-center bg-white border border-gray-200 rounded-lg shadow md:flex-row md:max-w-xl hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700">
-                <img className="object-cover w-full rounded-t-lg h-48 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg" src="/image/dashboard_dating.png" alt="" />
+              <div className="flex flex-col items-center bg-white border border-gray-200 rounded-lg shadow-lg md:flex-row md:max-w-xl hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700">
+                <Image
+                  className="object-contain w-full rounded-t-lg h-64 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg"
+                  width="0"
+                  height="0"
+                  unoptimized
+                  size="100vw"
+                  src="/image/dashboard_dating.png"
+                  alt="dashboard_dating" />
                 <div className="flex flex-col justify-between w-full p-4 leading-normal text-left">
-                  <h5 className="mb-2 text-2xl font-bold tracking-tight text-blue-700 dark:text-white">
-                    미러링 소개팅
+                  <h5 className="mb-2 text-2xl font-bold tracking-tight bg-gradient-to-r from-red-400 to-pink-500 text-transparent bg-clip-text dark:text-white">
+                    올인원 소개팅
                   </h5>
                   <p className="mb-3 font-normal text-gray-700 dark:text-gray-400">
-                    능력과 가치관을 동시에 검증하는
-                    <br />핀셋형 소개팅!<br />
+                    외모와 능력, 가치관을 동시에 검증하는
+                    <br />다면 소개팅!<br />
 
                     프로필만 성의있게 등록해주신다면,<br />
                     나에게 맞는 최고의 이성을 소개해드립니다!<br />
@@ -42,13 +50,23 @@ const index = () => {
           </div>
 
           <div className='my-2 w-full'>
-            <button href="#" className="w-full" onClick={onClickNeighbor}>
-              <div className="flex flex-col items-center bg-white border border-gray-200 rounded-lg shadow md:flex-row md:max-w-xl hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700">
-                <img className="object-cover w-full rounded-t-lg h-48 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg" src="/image/dashboard_neighbor.png" alt="" />
+            <button className="w-full cursor-default" 
+            // onClick={onClickNeighbor}
+            >
+              <div className="flex flex-col items-center bg-slate-50 border border-gray-200 rounded-lg shadow-lg md:flex-row md:max-w-xl hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700">
+                <Image
+                  className="object-contain grayscale w-full rounded-t-lg h-64 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg"
+                  src="/image/dashboard_neighbor.png"
+                  width="0"
+                  height="0"
+                  unoptimized
+                  size="100vw"
+                  alt="dashboard_neighbor" />
                 <div className="flex flex-col justify-between w-full p-4 leading-normal text-left">
-                  <h5 className="mb-2 text-2xl font-bold tracking-tight text-blue-700 dark:text-white">
+                  <h5 className="text-2xl font-bold tracking-tight text-gray-700 dark:text-white">
                     일대일 반상회
                   </h5>
+                  <p className='text-lg text-gray-400 pb-2 w-full'>(곧 찾아뵐께요!)</p>
                   <p className="mb-3 font-normal text-gray-700 dark:text-gray-400">
                     진실한 동네친구를 사귀어보세요!<br />
                     내성적(i)성향의 분들께 추천드립니다.<br />

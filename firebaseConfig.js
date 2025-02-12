@@ -202,7 +202,7 @@ export async function getOtherUser(otherid) {
       disliked: result2.data().disliked || [],
       userID: otherid,
       expired: newArr[0]?.expired,
-      card_timestamp: newArr[0]?.expicard_timestampred,
+      card_timestamp: newArr[0]?.card_timestamp,
     }
     return friend
   } catch (e) {
@@ -211,7 +211,7 @@ export async function getOtherUser(otherid) {
 }
 
 export async function createAccount(
-  email, password, username, nickname, form, tel
+  email, password, gender, username, nickname, form, tel
 ) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
@@ -235,6 +235,7 @@ export async function createAccount(
     await setDoc(doc(db, "users", user.uid), {
       id: user.uid,
       username: username,
+      gender : gender,
       nickname: nickname,
       thumbimage: "",
       birthday: form,
@@ -379,7 +380,7 @@ async function updateUserDatabase(property, newValue) {
 }
 
 export async function updateUserBasicInfo(
-  username, nickname, newForm, religion, tel, gender,
+  username, nickname, newForm, religion, tel,
   address_sido, address_sigugun) {
 
   const user = auth.currentUser;
@@ -394,7 +395,7 @@ export async function updateUserBasicInfo(
     await updateUserDatabase("religion", religion);
     await updateUserDatabase("username", user.displayName);
     await updateUserDatabase("nickname", nickname);
-    await updateUserDatabase("gender", gender);
+    // await updateUserDatabase("gender", gender);
     await updateUserDatabase("birthday", newForm);
     await updateUserDatabase("address_sido", address_sido);
     await updateUserDatabase("address_sigugun", address_sigugun);
@@ -402,7 +403,7 @@ export async function updateUserBasicInfo(
     return ({
       username: username, nickname: nickname,
       newForm: newForm, religion: religion, tel: tel,
-      gender: gender, address_sido: address_sido,
+      address_sido: address_sido,
       address_sigugun: address_sigugun,
     })
   } catch (error) {
@@ -1551,6 +1552,10 @@ export async function getNewFriends() {
         dislikes: doc.data().dislikes || [],
         disliked: doc.data().disliked || [],
 
+        date_profile_finished: doc.data().date_profile_finished || [],
+        date_pending: doc.data().date_pending || [],
+
+
         location_distance: Math.abs(parseInt(doc.data().address_sido) - parseInt(me?.address_sido)) || "",
         age_gap: Math.abs(parseInt(doc.data().birthday.year) - parseInt(me?.birthday.year)) || "",
         age_prefer: me?.prefer_age_max - (parseInt(nowForCopy.format('YYYY')) - doc.data()?.birthday?.year) || ""
@@ -1565,7 +1570,8 @@ export async function getNewFriends() {
     // age_prefer : 0보다 커아햐며 높을수록 좋음
     const newArr = [];
     people?.map((v) => (
-      (!v?.date_sleep || v?.date_sleep == false) && (!v?.withdraw || v?.withdraw == false) ? newArr?.push(v) : null
+      (!v?.date_sleep || v?.date_sleep == false) && (!v?.withdraw || v?.withdraw == false) && v?.date_pending == false && v?.date_profile_finished == true
+      ? newArr?.push(v) : null
     ))
 
     const result1 = newArr?.sort((a, b) => b?.age_prefer - a?.age_prefer);
@@ -1645,11 +1651,11 @@ export async function getNewFriends() {
     const resultMy = await getDoc(api.userByIdRef(user.uid));
     const my = {
       ...resultMy.data(),
-      likes: resultMy.data().likes || [],
-      liked: resultMy.data().liked || [],
-      dislikes: resultMy.data().dislikes || [],
-      disliked: resultMy.data().disliked || [],
-      datecard: resultMy.data().datecard || [],
+      likes: resultMy.data().likes,
+      liked: resultMy.data().liked,
+      dislikes: resultMy.data().dislikes,
+      disliked: resultMy.data().disliked,
+      datecard: resultMy.data().datecard,
       userID: user.uid
     };
 
@@ -1658,6 +1664,9 @@ export async function getNewFriends() {
         finalArr?.push(v)
         : null
     ))
+
+
+
 
     return finalArr;
 
@@ -1716,5 +1725,139 @@ export async function getFriendWithdraw(friendId) {
     }
   } catch (e) {
     console.error(e);
+  }
+}
+
+// import axios from 'axios';
+
+// export function send_message(phone) {
+//   const accessKey = process.env.NCP_KEY;
+//   const date = Date.now().toString();
+//   axios({
+//     method: "POST",
+//     // request는 uri였지만 axios는 url이다
+//     url: process.env.SERVICE_ID,
+//     headers: {
+//       "Contenc-type": "application/json; charset=utf-8",
+//       "x-ncp-iam-access-key": accessKey,
+//       "x-ncp-apigw-timestamp": date,
+//       // "x-ncp-apigw-signature-v2": signature,
+//     },
+//     // request는 body였지만 axios는 data다
+//     data: {
+//       type: "SMS",
+//       countryCode: "82",
+//       from: phone,
+//       // 원하는 메세지 내용
+//       content: `세환님 가격 예약을 신청해주셔서 감사합니다.`,
+//       messages: [
+//         // 신청자의 전화번호
+//         { to: `${phone}`, },],
+//     },
+//   }).then(res => {
+//     console.log(res.data);
+//   })
+//     .catch(err => {
+//       console.log(err);
+//     })
+//   return ;
+// }
+
+// const request = require('request')
+// import CryptoJS from "crypto-js";
+// export async function send_message(phone) {
+//   try {
+//     const user_phone_number = phone;//수신 전화번호 기입
+//     let resultCode = 404;
+//     const date = Date.now().toString();
+//     const uri = process.env.NEXT_PUBLIC_SERVICE_ID; //서비스 ID
+//     console.log("어디",)
+//     const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;// Secret Key
+//     console.log("어디",)
+//     const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;//Access Key
+//     console.log("어디", accessKey)
+//     const method = "POST";
+//     console.log("어디",)
+//     const space = " ";
+//     console.log("어디",)
+//     const newLine = "\n";
+//     console.log("어디",)
+//     const url = `https://sens.apigw.ntruss.com/sms/v2/services/${uri}/messages`;
+//     console.log("어디",)
+//     const url2 = `/sms/v2/services/${uri}/messages`;
+//     console.log("어디", secretKey)
+//     const hmac = CryptoJS.algo.HMAC.create(CryptoJS?.algo.SHA256, secretKey);
+//     console.log("어디",)
+//     console.log(user_phone_number,
+//       date,
+//       uri,
+//       secretKey,
+//       accessKey,
+//       method,
+//       space,
+//       newLine,
+//       url,
+//       url2,
+//       hmac, "fuck")
+//     hmac.update(method);
+//     hmac.update(space);
+//     hmac.update(url2);
+//     hmac.update(newLine);
+//     hmac.update(date);
+//     hmac.update(newLine);
+//     hmac.update(accessKey);
+//     const hash = hmac?.finalize();
+//     const signature = hash?.toString(CryptoJS.enc.Base64);
+//     console.log(signature, "시그니쳐")
+//     request({
+//       method: method,
+//       json: true,
+//       uri: url,
+//       headers: {
+//         "Contenc-type": "application/json; charset=utf-8",
+//         "x-ncp-iam-access-key": accessKey,
+//         "x-ncp-apigw-timestamp": date,
+//         "x-ncp-apigw-signature-v2": signature,
+//       },
+//       body: {
+//         type: "SMS",
+//         countryCode: "82",
+//         from: "01075781252",
+//         content: "방갑습네다",
+//         messages: [
+//           { to: `${user_phone_number}`, },],
+//       },
+//     },
+//       function (err, res, html) {
+//         if (err) console.error(err);
+//         else { resultCode = 200; }
+//       }
+//     );
+//     return resultCode;
+//   } catch (e) {
+//     console.error(e);
+//   }
+// }
+
+export async function finishDate_Profile() {
+  const user = auth.currentUser;
+  const messageRef = collection(db, "messages");
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+
+  try {
+    await updateUserDatabase("date_profile_finished", true);
+    await updateUserDatabase("date_pending", true);
+    await addDoc(messageRef, {
+      body: `${user?.displayName}님이 가입했습니다.(ID: ${user?.uid})`,
+      to: "+821075781252",
+      // or to: "someone@example.com
+      
+    })
+    return { date_profile_finished: true, date_pending: true }
+  } catch (error) {
+    console.error(error);
+    alert("update에 문제가 있습니다.");
   }
 }

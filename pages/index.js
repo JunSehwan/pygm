@@ -37,11 +37,33 @@ const index = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if ((user || user?.userID)) {
-      router.push('/dashboard')
-    }
-  }, [router, user]);
+  // useEffect(() => {
+  //   if ((user || user?.userID)) {
+  //     router.push('/dashboard')
+  //   }
+  // }, [router, user]);
+
+  // // 로그인/아웃에 따라서 user값이 변경됨(기본설정함수)
+  // onAuthStateChanged(auth, (user) => {
+  //   if (user) {
+  //     const querySnapshot = getDoc(db, "users", `${user.uid}`);
+  //     if (querySnapshot.exists()) {
+  //       const result = {
+  //         ...docSnap.data(),
+  //       }
+  //       console.log(result, "리절트")
+  //       if (result?.date_profile_finished == true && (!result?.date_sleep || result?.date_sleep == false)) {
+  //         router.push("/date/cards")
+  //       }
+  //       return result;
+  //     }
+  //     // ...
+  //   } else {
+  //     // User is signed out
+  //     return user;
+  //     // ...
+  //   }
+  // });
 
   useEffect(() => {
     const authStateListener = onAuthStateChanged(auth, async (user) => {
@@ -138,21 +160,30 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
       };
 
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
-      // await getEducationsByUserId().then((result) => {
-      //   dispatch(loadEducations(result));
-      // })
-      // await getCareersByUserId().then((result) => {
-      //   dispatch(loadCareers(result));
-      // })
+      if (currentUser) {
+        if (currentUser?.date_profile_finished == true && (!currentUser?.date_sleep || currentUser?.date_sleep == false)) {
+          router.push("/date/cards")
+        } else {
+          router.push("/dashboard")
+        }
+        // await getEducationsByUserId().then((result) => {
+        //   dispatch(loadEducations(result));
+        // })
+        // await getCareersByUserId().then((result) => {
+        //   dispatch(loadCareers(result));
+        // })
+      }
     });
     return () => {
       authStateListener();
     };
-  }, [auth, dispatch, user?.uid, user?.userID]);
+  }, [auth, router, dispatch, user?.uid, user?.userID]);
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -244,6 +275,8 @@ const index = () => {
         date_lastIntroduce: docData.date_lastIntroduce,
         timestamp: docData.timestamp,
         datecard: docData.datecard,
+        date_profile_finished: docData.date_profile_finished,
+        date_pending: docData.date_pending,
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
