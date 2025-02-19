@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { doc, updateDoc, } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable, getStorage, deleteObject } from "firebase/storage";
 import { motion } from "framer-motion";
-import { db, storage } from 'firebaseConfig';
+import { db } from 'firebaseConfig';
 import { BsFillCloudUploadFill } from 'react-icons/bs';
 import { patchThumbimage, patchThumbimageDoneFalse } from 'slices/user';
 import Image from 'next/image';

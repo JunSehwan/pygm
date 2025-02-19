@@ -20,7 +20,7 @@ const index = () => {
           <h1 className="mb-6 text-3xl font-extrabold leading-none tracking-tight text-center text-blue-700 dark:text-white">원하는 게임을 선택하세요!</h1>
 
           <div className='my-2 w-full'>
-            <button href="#" className="w-full" onClick={onClickDating}>
+            <button className="w-full" onClick={onClickDating}>
               <div className="flex flex-col items-center bg-white border border-gray-200 rounded-lg shadow-lg md:flex-row md:max-w-xl hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700">
                 <Image
                   className="object-contain w-full rounded-t-lg h-64 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg"

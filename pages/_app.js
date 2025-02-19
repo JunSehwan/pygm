@@ -17,6 +17,14 @@ const _app = ({ Component, pageProps, ...rest }) => {
   const router = useRouter()
   const { store, props } = wrapper.useWrappedStore(rest);
 
+  //우클릭 방지
+  useEffect(() => {
+    document.oncontextmenu = function () {
+      return false;
+    }
+  }, [])
+
+
   useEffect(() => {
     AOS.init({
       delay: 400,

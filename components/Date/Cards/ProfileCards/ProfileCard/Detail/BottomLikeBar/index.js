@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import styled from 'styled-components';
 import { FaKissWinkHeart } from "react-icons/fa";
 import { MdPlaylistRemove } from "react-icons/md";
-import { likeUser, dislikeUser, getDateMatching } from 'firebaseConfig';
+import {
+  likeUser, dislikeUser, getDateMatching,
+  sendMailForLike, sendMailForMatch, sendMailForDecline, passUser
+} from 'firebaseConfig';
 import {
   likeToUser, dislikeToUser,
   addLikeDoneFalse, addDislikeDoneFalse,
@@ -17,6 +20,7 @@ import LikeModal from './LikeModal';
 import DislikeModal from './DislikeModal';
 import BuyWinkModal from './BuyWinkModal';
 import MatchModal from './MatchModal';
+import PassModal from './PassModal';
 import { FaGrinWink } from "react-icons/fa";
 import { IoBackspace } from "react-icons/io5";
 import { FcLike } from "react-icons/fc";
@@ -69,6 +73,7 @@ const index = (
 
   const [openLikeModal, setOpenLikeModal] = useState(false);
   const [openDislikeModal, setOpenDislikeModal] = useState(false);
+  const [openPassModal, setOpenPassModal] = useState(false);
   const [openMatchModal, setOpenMatchModal] = useState(false);
   const [openBuyWinkModal, setOpenBuyWinkModal] = useState(false);
 
@@ -93,6 +98,13 @@ const index = (
     setOpenDislikeModal(false);
   }, [])
 
+  const onClickPassModal = useCallback(() => {
+    setOpenPassModal(true);
+  }, [])
+  const onClickPassModalClose = useCallback(() => {
+    setOpenPassModal(false);
+  }, [])
+
   const onClickMatchModal = useCallback(() => {
     setOpenMatchModal(true);
   }, [])
@@ -105,6 +117,7 @@ const index = (
       return alert('로그인이 필요합니다.');
     }
     await likeUser(friend?.userID, friend?.username)
+    await sendMailForLike(friend?.email, friend?.username, user?.nickname)
     dispatch(likeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
@@ -112,6 +125,20 @@ const index = (
       userId: user?.userID,
       username: user?.username,
       // thumbimage: user?.thumbimage,
+    }));
+  }, [dispatch, friend?.userID, friend?.username, friend?.email, user?.nickname,
+    user?.userID, user?.username]);
+
+  const onPass = useCallback(async () => {
+    if (!user?.userID) {
+      return alert('로그인이 필요합니다.');
+    }
+    await passUser(friend?.userID, friend?.username)
+    dispatch(dislikeToUser({
+      targetId: friend?.userID,
+      targetName: friend?.username,
+      userId: user?.userID,
+      username: user?.username,
     }));
   }, [dispatch, friend?.userID, friend?.username,
     user?.userID, user?.username]);
@@ -121,14 +148,14 @@ const index = (
       return alert('로그인이 필요합니다.');
     }
     await dislikeUser(friend?.userID, friend?.username)
+    await sendMailForDecline(friend?.email, friend?.username, user?.nickname)
     dispatch(dislikeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
       userId: user?.userID,
       username: user?.username,
     }));
-
-  }, [dispatch, friend?.userID, friend?.username,
+  }, [dispatch, friend?.userID, friend?.username, friend?.email, user?.nickname,
     user?.userID, user?.username]);
 
   const onBuy = useCallback(async () => {
@@ -144,6 +171,7 @@ const index = (
       return alert('로그인이 필요합니다.');
     }
     await likeUser(friend?.userID, friend?.username)
+    await sendMailForMatch(friend?.email, friend?.username, user?.nickname)
     dispatch(likeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
@@ -160,7 +188,7 @@ const index = (
     }
     // } else {
     // }
-  }, [dispatch, user?.userID, user?.username, friend?.userID, friend?.username])
+  }, [dispatch, user?.userID, user?.nickname, user?.username, friend?.userID, friend?.username, friend?.email])
 
   // const liked = friend?.liked?.find((v) => v?.userId === user?.userID);
   const [likes, setLikes] = useState(false);
@@ -188,7 +216,7 @@ const index = (
   return (
     <>
       {/* 아무것도 선택 안했을 경우 */}
-      {!likes && !liked ?
+      {!likes && !liked && !dislikes && !disliked ?
         (<BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
       duration-300 ease-in-out z-10 bg-slate-100
@@ -204,7 +232,7 @@ const index = (
                     className={`flex items-center justify-center w-full py-[8px] rounded-md 
                     my-1 mx-1 text-[12px] font-normal text-gray-600 dark:text-white
                      hover:bg-blue-100 dark:hover:bg-gray-600`}
-                    onClick={onClickDislikeModal}
+                    onClick={onClickPassModal}
                   >
                     <div className='flex-shrink-0' >
                       <div
@@ -288,7 +316,7 @@ const index = (
                           <MdPlaylistRemove
                             className="flex-shrink-0 w-6 h-6  transition duration-75 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-white"
                           ></MdPlaylistRemove>
-                          <span className="mt-1 flex-1 whitespace-nowrap">패스하기</span>
+                          <span className="mt-1 flex-1 whitespace-nowrap">거절하기</span>
                         </div>
                       </div>
                     </button>
@@ -371,7 +399,7 @@ const index = (
 
       {/* 둘다 매칭이 됐을 때 */}
 
-      {likes && liked ?
+      {likes && liked && !dislikes && !disliked ?
         <BottomBar aria-label="Bottombar"
           className='max-w-[420px] block w-full overflow-y-hidden transition-transform 
       duration-300 ease-in-out z-10 bg-slate-100 opacity-90
@@ -410,7 +438,7 @@ const index = (
 
       {/* 내가 좋아요 보내고 상대방은 아직 안보냈을 때 */}
 
-      {likes && !liked ?
+      {likes && !liked && !dislikes && !disliked ?
         <BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
       duration-300 ease-in-out z-10 bg-slate-100
@@ -531,6 +559,12 @@ const index = (
         visible={openDislikeModal}
         onDislike={onDislike}
         onClose={onClickDislikeModalClose}
+        title={`${friend?.nickname}님의 윙크를 거절하시겠습니까?`}
+      />
+      <PassModal
+        visible={openPassModal}
+        onPass={onPass}
+        onClose={onClickPassModalClose}
         title={`${friend?.nickname}님은 패스하시겠습니까?`}
       />
     </>

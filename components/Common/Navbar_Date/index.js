@@ -9,14 +9,16 @@ import AlertModal from 'components/Common/Modal/AlertModal';
 import { signOut } from 'slices/user';
 import profilePic from '/public/image/icon/avatar.png';
 import { useRouter } from 'next/router';
-import { BsFillPostcardHeartFill } from "react-icons/bs";
-
-import { AiFillSetting } from "react-icons/ai";
-import { BsFillCaretDownFill, BsFillHouseFill, BsFillPersonBadgeFill, BsMegaphoneFill } from "react-icons/bs";
-import { FaStore, FaUserCircle } from "react-icons/fa";
-import { BsQuestionCircleFill } from "react-icons/bs";
+import { PiClipboardTextDuotone } from "react-icons/pi";
+import { PiIdentificationBadgeDuotone } from "react-icons/pi";
+import { BsFillCaretDownFill } from "react-icons/bs";
 import { IoLogOut } from "react-icons/io5";
-import { FaGamepad } from "react-icons/fa6";
+import { PiShoppingCartDuotone } from "react-icons/pi";
+import { PiUserCircleDuotone } from "react-icons/pi";
+import { PiGearSixDuotone } from "react-icons/pi";
+import { PiPlayCircleDuotone } from "react-icons/pi";
+import { PiQuestionDuotone } from "react-icons/pi";
+
 
 const index = ({ children }) => {
   const router = useRouter();
@@ -252,7 +254,7 @@ const index = ({ children }) => {
                   className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/cards" || router?.pathname?.includes("/date/cards") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickDatecards}>
                   <div className='flex flex-col items-center'>
-                    <BsFillPersonBadgeFill className='w-7 h-7' />
+                    <PiIdentificationBadgeDuotone className='w-7 h-7' />
                     <span className='mt-[2px] text-xs hidden md:inline'>소개카드</span>
                   </div>
                 </button>
@@ -262,7 +264,7 @@ const index = ({ children }) => {
                   className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/board" || router?.pathname?.includes("/date/board") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickDateboard}>
                   <div className='flex flex-col items-center'>
-                    <BsFillPostcardHeartFill className='w-7 h-7' />
+                    <PiClipboardTextDuotone className='w-7 h-7' />
                     <span className='mt-[2px] text-xs hidden md:inline'>현황판</span>
                   </div>
                 </button>
@@ -271,7 +273,7 @@ const index = ({ children }) => {
                   className={`relative md:min-w-[89.33px] hover:bg-gray-100 py-1 rounded-md hover:text-gray-700 px-[2.4vw] transition-all ${router?.pathname === "/date/store" || router?.pathname?.includes("/date/store") ? "text-[#4979f5]" : "text-gray-400"}`}
                   onClick={onClickStore}>
                   <div className='flex flex-col items-center'>
-                    <FaStore className='w-7 h-7' />
+                    <PiShoppingCartDuotone className='w-7 h-7' />
                     <span className='mt-[2px] text-xs hidden md:inline'>스토어</span>
                   </div>
                   {/* {findNotReadConversation && findNotReadConversation?.length !== 0 &&
@@ -445,27 +447,35 @@ const index = ({ children }) => {
                 <div>
                   <ul className="mt-2 mb-2 space-y-2 tracking-wide">
                     <li className="min-w-max" key="profile">
-                      <button onClick={onClickProfile} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
-                        <FaUserCircle className='w-6 h-6' />
-                        <span className="group-hover:text-gray-700">프로필</span>
+                      <button onClick={onClickProfile} className="group flex items-center space-x-2 rounded-md px-2 py-3 text-gray-500 w-full">
+                        <PiUserCircleDuotone className='w-6 h-6' />
+                        <span className="group-hover:text-gray-700">
+                          프로필
+                        </span>
                       </button>
                     </li>
                     <li className="min-w-max" key="setting">
-                      <button onClick={onClickSetting} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
-                        <AiFillSetting className='w-6 h-6' />
-                        <span className="group-hover:text-gray-700">계정 설정</span>
+                      <button onClick={onClickSetting} className="group flex items-center space-x-2 rounded-md px-2 py-3 text-gray-500 w-full">
+                        <PiGearSixDuotone className='w-6 h-6' />
+                        <span className="group-hover:text-gray-700">
+                          계정 설정
+                        </span>
                       </button>
                     </li>
                     <li className="min-w-max" key="anothergame">
-                      <button onClick={onClickDashboard} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
-                        <FaGamepad className='w-6 h-6' />
-                        <span className="group-hover:text-gray-700">다른 게임</span>
+                      <button onClick={onClickDashboard} className="group flex items-center space-x-2 rounded-md px-2 py-3 text-gray-500 w-full">
+                        <PiPlayCircleDuotone className='w-6 h-6' />
+                        <span className="group-hover:text-gray-700">
+                          다른 게임
+                        </span>
                       </button>
                     </li>
                     <li className="min-w-max" key="question">
-                      <button onClick={onClickQuestion} className="group flex items-center space-x-2 rounded-md px-2 py-2 text-gray-400 w-full">
-                        <BsQuestionCircleFill className='w-6 h-6' />
-                        <span className="group-hover:text-gray-700">문의하기</span>
+                      <button onClick={onClickQuestion} className="group flex items-center space-x-2 rounded-md px-2 py-3 text-gray-500 w-full">
+                        <PiQuestionDuotone className='w-6 h-6' />
+                        <span className="group-hover:text-gray-700">
+                          문의하기
+                        </span>
                       </button>
                     </li>
                   </ul>

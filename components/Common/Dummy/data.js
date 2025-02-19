@@ -89,6 +89,11 @@ export function createRandomUser() {
     dislikes: [],
     disliked: [],
     wink: 3,
+    date_sleep: false,
+    withdraw: false,
+    timestamp: "2025-02-01 10:29:51",
+    date_profile_finished: true,
+    date_pending: false,
     // registeredAt: faker.date.past(),
     // registeredAt: faker.number.int(4), // 4를 넘기지 않는 숫자
     // wrong: faker.datatype.boolean(), // true

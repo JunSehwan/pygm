@@ -1,16 +1,30 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import WinkBuyModal from './WinkBuyModal';
-import { send_message } from 'firebaseConfig';
+import { send_message, onBuyWink } from 'firebaseConfig';
+import toast from 'react-hot-toast';
+import { buyWink, buyWinkDoneFalse } from 'slices/user';
 
 const index = () => {
 
   const router = useRouter();
-  const { user } = useSelector(state => state.user);
+  const { user, buyWinkDone } = useSelector(state => state.user);
   const [winks, setWinks] = useState(0);
+  const dispatch = useDispatch();
+  const BuyNotify = () => toast("구매관련 내용을 메일로 전달하였습니다.");
+
+  useEffect(() => {
+    if (buyWinkDone) {
+      BuyNotify();
+      dispatch(buyWinkDoneFalse());
+      setOpenBuyModal(false);
+    }
+  }, [dispatch, buyWinkDone, user?.wink])
+
   const [openBuyModal, setOpenBuyModal] = useState(false);
+
   const BuyModalOpen = useCallback(() => {
     setOpenBuyModal(true)
   }, [])
@@ -19,36 +33,43 @@ const index = () => {
   }, [])
 
   const goBuyFive = useCallback(async () => {
-
     setWinks(5);
+    // await onBuyWink(5)
     BuyModalOpen();
   }, [BuyModalOpen])
 
-  const goBuyThree = useCallback(() => {
+  const goBuyThree = useCallback(async () => {
     setWinks(3);
+    // await onBuyWink(3)
     BuyModalOpen();
   }, [BuyModalOpen])
-  const goBuyOne = useCallback(() => {
+  const goBuyOne = useCallback(async () => {
     setWinks(1);
+    // await onBuyWink(1)
     BuyModalOpen();
   }, [BuyModalOpen])
 
   const onLike = useCallback(async () => {
     if (winks === 5) {
+      await onBuyWink(user?.nickname, user?.email, 5, 125000);
+      dispatch(buyWink())
       // 파이어베이스 5개 문자보내기
       // 그 다음에 모달 닫기
-      const result = await send_message("01075781252");
-      console.log(result, "결과값");
+      // const result = await send_message("01075781252");
+      // console.log(result, "결과값");
       return
     } if (winks === 3) {
+      await onBuyWink(user?.nickname, user?.email, 3, 90000);
+      dispatch(buyWink())
       // 파이어베이스 3개 문자보내기
       // 그 다음에 모달 닫기
       return
     } if (winks === 1) {
-
+      await onBuyWink(user?.nickname, user?.email, 1, 35000);
+      dispatch(buyWink())
       return
     }
-  }, [winks])
+  }, [dispatch, user?.nickname, user?.email, winks])
 
   return (
     <>

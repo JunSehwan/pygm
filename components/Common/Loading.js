@@ -1,240 +1,43 @@
 import React from 'react';
 import styled, { css } from 'styled-components';
 import { motion } from "framer-motion";
+import { GiHeartStake } from "react-icons/gi";
 
 
 
 function LoadingPage() {
   return (
     // Npm install framer-motion
+    <section className="relative place-items-center grid h-screen w-screen gap-4">
+      <div className="bg-pink-500 w-48 h-48  absolute animate-ping rounded-full delay-5s shadow-xl"></div>
+      <div className="bg-pink-400 w-32 h-32 absolute animate-ping rounded-full shadow-xl"></div>
+      <div className="bg-white w-24 h-24 absolute animate-pulse rounded-full shadow-xl"></div>
+      <GiHeartStake
+        className="text-pink-900 filter mix-blend-overlay h-16 w-16" 
+        />
+      {/* <svg xmlns="http://www.w3.org/2000/svg" className="text-pink-900 filter mix-blend-overlay h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+      </svg> */}
+    </section>
 
-
-    <div className="fixed inset-0 z-50 flex items-center justify-center space-x-3">
-      <motion.div
-        className="w-6 h-6 bg-[--pygm-one] rounded-full"
-        animate={{ y: [-10, 0, -10], opacity: [50, 100, 50] }}
-        transition={{ duration: 1.5, repeat: Infinity }}
-      />
-      <motion.div
-        className="w-6 h-6 bg-[--pygm-three] rounded-full"
-        animate={{ y: [0, -10, 0], opacity: [50, 100, 50] }}
-        transition={{ duration: 1.5, repeat: Infinity }}
-      />
-      <motion.div
-        className="w-6 h-6 bg-[--pygm-five] rounded-full"
-        animate={{ y: [-10, 0, -10], opacity: [50, 100, 50] }}
-        transition={{ duration: 1.5, repeat: Infinity }}
-      />
-    </div>
+    // <div className="fixed inset-0 z-50 flex items-center justify-center space-x-3">
+    //   <motion.div
+    //     className="w-6 h-6 bg-[--pygm-one] rounded-full"
+    //     animate={{ y: [-10, 0, -10], opacity: [50, 100, 50] }}
+    //     transition={{ duration: 1.5, repeat: Infinity }}
+    //   />
+    //   <motion.div
+    //     className="w-6 h-6 bg-[--pygm-three] rounded-full"
+    //     animate={{ y: [0, -10, 0], opacity: [50, 100, 50] }}
+    //     transition={{ duration: 1.5, repeat: Infinity }}
+    //   />
+    //   <motion.div
+    //     className="w-6 h-6 bg-[--pygm-five] rounded-full"
+    //     animate={{ y: [-10, 0, -10], opacity: [50, 100, 50] }}
+    //     transition={{ duration: 1.5, repeat: Infinity }}
+    //   />
+    // </div>
   );
 };
-//     <LoadingBoxS>
-//       <div id="loading">
-//         <div className="loading_text">Loading...</div>
-//         <div className="loading_icon"></div>
-//       </div>
-//     </LoadingBoxS>
-//   );
-// }
-
-// const LoadingBoxS = styled.div`
-//   #loading {
-//     height: 100%;
-//     width: 100%;
-//     z-index: 1;
-//     margin-top: 0px;
-//     top: 0px;
-//     z-index: 999999;
-//     display: block;
-//   }
-//   .loading_text {
-//     width: 120px;
-//     height: 0px;
-//     margin: auto;
-//     position: absolute;
-//     left: 0;
-//     right: 0;
-//     top: 0;
-//     bottom: 0;
-//     color: #454c53;
-//     font-size: 20px;
-//   }
-//   .loading_icon {
-//     width: 49px;
-//     height: 140px;
-//     margin: auto;
-//     position: absolute;
-//     left: 0;
-//     right: 0;
-//     top: 0;
-//     bottom: 0;
-//   }
-//   .loading_icon:before {
-//     content: '';
-//     width: 49px;
-//     height: 5px;
-//     background: #000000;
-//     opacity: 0.1;
-//     position: absolute;
-//     top: 58px;
-//     left: 0;
-//     border-radius: 50%;
-//     animation: shadow 0.58s linear infinite;
-//     -o-animation: shadow 0.58s linear infinite;
-//     -ms-animation: shadow 0.58s linear infinite;
-//     -webkit-animation: shadow 0.58s linear infinite;
-//     -moz-animation: shadow 0.58s linear infinite;
-//   }
-//   .loading_icon:after {
-//     content: '';
-//     width: 49px;
-//     height: 49px;
-//     background: #fdd245;
-//     position: absolute;
-//     top: 0;
-//     left: 0;
-//     border-radius: 3px;
-//     animation: cssload-animate 0.58s linear infinite;
-//     -o-animation: cssload-animate 0.58s linear infinite;
-//     -ms-animation: cssload-animate 0.58s linear infinite;
-//     -webkit-animation: cssload-animate 0.58s linear infinite;
-//     -moz-animation: cssload-animate 0.58s linear infinite;
-//   }
-//   @keyframes cssload-animate {
-//     17% {
-//       border-bottom-right-radius: 3px;
-//     }
-//     25% {
-//       transform: translateY(9px) rotate(22.5deg);
-//     }
-//     50% {
-//       transform: translateY(18px) scale(1, 0.9) rotate(45deg);
-//       border-bottom-right-radius: 39px;
-//     }
-//     75% {
-//       transform: translateY(9px) rotate(67.5deg);
-//     }
-//     100% {
-//       transform: translateY(0) rotate(90deg);
-//     }
-//   }
-//   @-o-keyframes cssload-animate {
-//     17% {
-//       border-bottom-right-radius: 3px;
-//     }
-//     25% {
-//       -o-transform: translateY(9px) rotate(22.5deg);
-//     }
-//     50% {
-//       -o-transform: translateY(18px) scale(1, 0.9) rotate(45deg);
-//       border-bottom-right-radius: 39px;
-//     }
-//     75% {
-//       -o-transform: translateY(9px) rotate(67.5deg);
-//     }
-//     100% {
-//       -o-transform: translateY(0) rotate(90deg);
-//     }
-//   }
-//   @-ms-keyframes cssload-animate {
-//     17% {
-//       border-bottom-right-radius: 3px;
-//     }
-//     25% {
-//       -ms-transform: translateY(9px) rotate(22.5deg);
-//     }
-//     50% {
-//       -ms-transform: translateY(18px) scale(1, 0.9) rotate(45deg);
-//       border-bottom-right-radius: 39px;
-//     }
-//     75% {
-//       -ms-transform: translateY(9px) rotate(67.5deg);
-//     }
-//     100% {
-//       -ms-transform: translateY(0) rotate(90deg);
-//     }
-//   }
-//   @-webkit-keyframes cssload-animate {
-//     17% {
-//       border-bottom-right-radius: 3px;
-//     }
-//     25% {
-//       -webkit-transform: translateY(9px) rotate(22.5deg);
-//     }
-//     50% {
-//       -webkit-transform: translateY(18px) scale(1, 0.9) rotate(45deg);
-//       border-bottom-right-radius: 39px;
-//     }
-//     75% {
-//       -webkit-transform: translateY(9px) rotate(67.5deg);
-//     }
-//     100% {
-//       -webkit-transform: translateY(0) rotate(90deg);
-//     }
-//   }
-//   @-moz-keyframes cssload-animate {
-//     17% {
-//       border-bottom-right-radius: 3px;
-//     }
-//     25% {
-//       -moz-transform: translateY(9px) rotate(22.5deg);
-//     }
-//     50% {
-//       -moz-transform: translateY(18px) scale(1, 0.9) rotate(45deg);
-//       border-bottom-right-radius: 39px;
-//     }
-//     75% {
-//       -moz-transform: translateY(9px) rotate(67.5deg);
-//     }
-//     100% {
-//       -moz-transform: translateY(0) rotate(90deg);
-//     }
-//   }
-//   @keyframes shadow {
-//     0%,
-//     100% {
-//       transform: scale(1, 1);
-//     }
-//     50% {
-//       transform: scale(1.2, 1);
-//     }
-//   }
-//   @-o-keyframes shadow {
-//     0%,
-//     100% {
-//       -o-transform: scale(1, 1);
-//     }
-//     50% {
-//       -o-transform: scale(1.2, 1);
-//     }
-//   }
-//   @-ms-keyframes shadow {
-//     0%,
-//     100% {
-//       -ms-transform: scale(1, 1);
-//     }
-//     50% {
-//       -ms-transform: scale(1.2, 1);
-//     }
-//   }
-//   @-webkit-keyframes shadow {
-//     0%,
-//     100% {
-//       -webkit-transform: scale(1, 1);
-//     }
-//     50% {
-//       -webkit-transform: scale(1.2, 1);
-//     }
-//   }
-//   @-moz-keyframes shadow {
-//     0%,
-//     100% {
-//       -moz-transform: scale(1, 1);
-//     }
-//     50% {
-//       -moz-transform: scale(1.2, 1);
-//     }
-//   }
-// `;
 
 export default LoadingPage;

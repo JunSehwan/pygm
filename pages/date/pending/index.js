@@ -142,12 +142,12 @@ const index = () => {
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
-      if (user?.date_sleep == true) {
+      if (currentUser?.date_sleep == true) {
         // dispatch(resetUserState());
         alert("휴면상태에서는 이성소개가 불가합니다.")
         return router.push("/setting/sleep");
       }
-      if (user?.withdraw == true) {
+      if (currentUser?.withdraw == true) {
         alert("탈퇴한 회원입니다..")
         // dispatch(resetUserState());
         return router.push("/");

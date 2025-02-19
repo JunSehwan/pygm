@@ -12,8 +12,9 @@ export const initialState = {
   allFriends: [],
   allFriendsLoading: false,
   friendSleepLoading: false,
+  friendsIntroduceStart: false,
   // nowLoading: false,
-  loading: false,
+  loading: true,
   friendsLoading: false,
   otherFriendLoading: false,
   likesLoading: false,
@@ -39,6 +40,10 @@ export const initialState = {
   patchDate_lastIntroduceDone: false,
   updateUserSleepDone: false,
   setWithdrawDone: false,
+
+  getCardsReady: false,
+
+  buyWinkDone: false,
   // 권한
   // isExpert: false,
   // isAdmin: false,
@@ -251,6 +256,7 @@ export const user = createSlice({
     setFriends(state, action) {
       state.friendsLoading = true;
       state.friends = action.payload;
+      // state.getCardsReady = true;
     },
     setFriendsDoneFalse(state, action) {
       state.friendsLoading = false;
@@ -281,6 +287,7 @@ export const user = createSlice({
     dislikeToUser(state, action) {
       const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
       target?.disliked?.unshift({ userId: action.payload.userId, username: action.payload.username, startAt: action.payload.startAt });
+      target.wink = target.wink - 1;
       state.addDislikeDone = true;
     },
     addDislikeDoneFalse(state) {
@@ -319,19 +326,21 @@ export const user = createSlice({
       state.patchDate_lastIntroduceDone = true;
     },
     setFriendSleep(state, action) {
-      state.friends.find((v) => v?.userID === action.payload?.id).date_sleep = action.payload.date_sleep;
-      // if (!!targeting?.date_sleep) {
-      // targeting.date_sleep = action.payload.date_sleep;
-      // }
+      const targeting = state.friends?.find((v) => v?.userID === action.payload?.id)
+      // target?.date_sleep = action.payload.date_sleep;
+      if (!!targeting?.date_sleep) {
+        targeting.date_sleep = action.payload.date_sleep;
+      }
       // targeting.date_sleep = action.payload.date_sleep;
     },
     setFriendWithdraw(state, action) {
-      state.friends.find((v) => v?.userID === action.payload?.id).withdraw = action.payload.withdraw;
+      const targeting = state.friends?.find((v) => v?.userID === action.payload?.id)
+      // target?.withdraw = action.payload.withdraw;
       // state.friends.find((v) => v?.userID === action.payload?.id)?.withdraw = action.payload.withdraw
-      // if (!!targeting?.withdraw) {
-      // targeting?.withdraw = action.payload.withdraw;
-      // }
-      // state.setFriendSleepDone = true;
+      if (!!targeting?.withdraw) {
+      targeting.withdraw = action.payload.withdraw;
+      }
+      // targeting.withdraw = action.payload.withdraw;
     },
     // extraReducers: {
     //   // The HYDRATE function is what manages the state between client and server
@@ -342,6 +351,19 @@ export const user = createSlice({
     //     };
     //   },
     // }
+    setGetCardsReadyTrue(state, action) {
+      state.getCardsReady = true;
+    },
+    setIntroduceStart(state, action) {
+      state.friendsIntroduceStart = true;
+    },
+
+    buyWink(state) {
+      state.buyWinkDone = true;
+    },
+    buyWinkDoneFalse(state) {
+      state.buyWinkDone = false;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -407,8 +429,12 @@ export const {
   friendSleepLoadingEnd,
   writeDateprofile,
   writeDateprofileDoneFalse,
+  setGetCardsReadyTrue,
+  setIntroduceStart,
   // pageLoadingStart,
   // pageLoadingEnd
+  buyWink,
+  buyWinkDoneFalse,
 } = user.actions;
 
 export const useUserState = () => useAppSelector((state) => state.user);

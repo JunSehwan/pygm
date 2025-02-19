@@ -167,9 +167,12 @@ const index = () => {
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
       if (currentUser) {
-        if (currentUser?.date_profile_finished == true && (!currentUser?.date_sleep || currentUser?.date_sleep == false)) {
+        if (currentUser?.date_profile_finished == true && (currentUser?.date_sleep == false)) {
           router.push("/date/cards")
-        } if (currentUser?.date_pending == true) { router.push("/date/pending") }
+        }
+        if (currentUser?.date_pending == true) { router.push("/date/pending") }
+        // if (currentUser?.date_pending == true) { router.push("/date/pending") }
+
         else {
           router.push("/dashboard")
         }

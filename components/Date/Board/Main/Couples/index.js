@@ -24,17 +24,17 @@ const index = () => {
   const { sido, sigugun, dong } = hangjungdong;
   const sigugunList = hangjungdong?.sigugun;
 
-  useEffect(() => {
-    const authStateListener = onAuthStateChanged(auth, async (mine) => {
-      if (!mine) {
-        // dispatch(resetUserState());
-        return router.push("/");
-      }
-    })
-    return () => {
-      authStateListener();
-    };
-  }, [dispatch, auth, router, user?.uid, user?.userID, user?.likes])
+  // useEffect(() => {
+  //   const authStateListener = onAuthStateChanged(auth, async (mine) => {
+  //     if (!mine) {
+  //       // dispatch(resetUserState());
+  //       return router.push("/");
+  //     }
+  //   })
+  //   return () => {
+  //     authStateListener();
+  //   };
+  // }, [dispatch, auth, router, user?.uid, user?.userID, user?.likes])
 
   return (
     <>

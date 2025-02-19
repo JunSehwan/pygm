@@ -3,8 +3,9 @@ import { TbHandClick } from 'react-icons/tb';
 import { FaRegKissWinkHeart } from "react-icons/fa";
 import styled, { keyframes } from 'styled-components';
 import { updateServiceInfoSeen } from 'firebaseConfig';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
+import { userLoadingEnd } from 'slices/user';
 
 const animate = keyframes`
  from {
@@ -71,15 +72,18 @@ const Container = styled(motion.div)`
 
 
 const index = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector(state => state.user);
   const [open, setOpen] = useState(true);
   const closeModal = useCallback(() => {
     setOpen(false);
-  }, [])
+    dispatch(userLoadingEnd())
+  }, [dispatch])
   const noMoreSee = useCallback(async () => {
     await updateServiceInfoSeen(99);
     setOpen(false);
-  }, [])
+    dispatch(userLoadingEnd())
+  }, [dispatch])
 
   const modalEl = createRef();
   const handleClickOutside = (event) => {

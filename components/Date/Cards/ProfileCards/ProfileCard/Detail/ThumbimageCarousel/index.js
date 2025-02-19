@@ -2,10 +2,25 @@ import Image from 'next/image';
 import React, { useCallback, useState } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from "dayjs";
+import { useEffect } from 'react';
+import styled from 'styled-components';
+
+const ProtectiveImage = styled(Image)`
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+`;
+
 
 const index = () => {
 
-  const { friend } = useSelector(state => state.user);
+  const { user, friend } = useSelector(state => state.user);
   const [current, setCurrent] = useState(0);
   const length = friend?.thumbimage?.length;
   const onNext = useCallback(() => {
@@ -22,6 +37,16 @@ const index = () => {
   let today = dayjs();
   let expiredDay = dayjs(friend?.expired);
 
+  const [likes, setLikes] = useState(false);
+  const [liked, setLiked] = useState(false);
+
+  useEffect(() => {
+    const likesResults = friend?.liked?.find((v) => v?.userId === user?.userID) !== undefined
+    setLikes(likesResults)
+    const likedResults = friend?.likes?.find((v) => v?.userId === user?.userID) !== undefined
+    setLiked(likedResults)
+  }, [user?.userID, friend?.liked, friend?.likes])
+
 
   return (
     <div id="indicators-carousel" className="relative w-full" data-carousel="static">
@@ -35,7 +60,7 @@ const index = () => {
                   "transition-all hidden duration-700 ease-in-out"
               }
               data-carousel-item="active" key={index + 1}>
-              <Image
+              <ProtectiveImage
                 src={friend?.thumbimage?.[index]}
                 unoptimized
                 placeholder="blur"
@@ -48,7 +73,11 @@ const index = () => {
               -translate-x-1/2 -translate-y-1/2 ease-in-out top-1/2 left-1/2"
                 alt="프로필사진" />
             </div>
-            <span className='absolute top-4 right-4 rounded-full px-4 py-2 shadow-md bg-black/50 text-md font-semibold text-white'>D-{Math.ceil(expiredDay?.diff(today, "day", true))}일</span>
+            {/* {likes && liked ?
+              null :
+              <span className='absolute top-4 right-4 rounded-full px-4 py-2 shadow-md bg-black/50 text-md font-semibold text-white'>
+                D-{Math.ceil(expiredDay?.diff(today, "day", true))}일</span>
+            } */}
           </div>
         ))}
       </div>

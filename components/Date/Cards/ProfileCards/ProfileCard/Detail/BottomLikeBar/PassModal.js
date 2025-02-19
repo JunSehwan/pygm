@@ -106,7 +106,7 @@ const slideOut = keyframes`
     }
 `
 
-const Modal = ({ onClose, title, children, visible, widths, subtitle, onDislike }) => {
+const Modal = ({ onClose, title, children, visible, widths, subtitle, onPass }) => {
 
 
 
@@ -170,7 +170,7 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, onDislike 
                         {title}</h2>
                     </div>
                     <h2 className="text-gray-500 text-md p-3 font-normal tracking-normal leading-tight w-full text-center">
-                      거절을 하게되면,<br />
+                      패스를 하게되면,<br />
                       상대방의 프로필을 
                       <br />
                       더 이상 확인할 수 없습니다.</h2>
@@ -187,9 +187,9 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, onDislike 
                 <div className='w-full flex justify-center items-center gap-2'>
                   <button
                     type="submit"
-                    onClick={onDislike}
+                    onClick={onPass}
                     className='w-full inline-flex justify-center rounded-md border border-gray-300 shadow-md px-4 py-4 bg-white text-base font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500'
-                  >거절하기
+                  >패스하기
                   </button>
                   <button
                     type="button"
@@ -210,7 +210,7 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, onDislike 
 
 Modal.propTypes = {
   visible: PropTypes.bool,
-  onDislike: PropTypes.func,
+  onPass: PropTypes.func,
   onClose: PropTypes.func,
   title: PropTypes.string,
   children: PropTypes.node,

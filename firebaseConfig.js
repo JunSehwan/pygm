@@ -49,9 +49,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APPID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENTID
 };
+import { httpsCallable, getFunctions } from 'firebase/functions';
+
+// const cors = require("cors");
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// app.use(cors());
 // const analytics = getAnalytics(app);
 
 const db = getFirestore(app);
@@ -173,6 +177,7 @@ export async function getUser(userId) {
   return res.status(404).json({ id: user.id, ...user.data() });
 }
 
+
 export async function getOtherUser(otherid) {
   try {
     const currentUser = auth.currentUser;
@@ -235,7 +240,7 @@ export async function createAccount(
     await setDoc(doc(db, "users", user.uid), {
       id: user.uid,
       username: username,
-      gender : gender,
+      gender: gender,
       nickname: nickname,
       thumbimage: "",
       birthday: form,
@@ -246,7 +251,7 @@ export async function createAccount(
       disliked: [],
       wink: 0,
       date_sleep: false,
-      date_sleep: false,
+      date_profile_finished: false,
       withdraw: false,
       datecard: [],
       date_lastIntroduce: "",
@@ -837,6 +842,36 @@ export async function dislikeUser(
     await updateDoc(api.userByIdRef(userId), {
       disliked: arrayUnion({ userId: user.uid, username: user.displayName, startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'), }),
     });
+    await updateDoc(api.userByIdRef(userId), {
+      wink: increment(1)
+    })
+    const docRef = doc(db, "users", userId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const result = {
+        ...docSnap.data(),
+      }
+      return result;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+export async function passUser(
+  userId, username,
+) {
+  const user = auth.currentUser;
+  if (!user) {
+    return alert("로그인 후 가능합니다.")
+  }
+  try {
+    await updateDoc(api.userByIdRef(user.uid), {
+      dislikes: arrayUnion({ userId: userId, username: username, startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'), }),
+    });
+    await updateDoc(api.userByIdRef(userId), {
+      disliked: arrayUnion({ userId: user.uid, username: user.displayName, startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'), }),
+    });
     const docRef = doc(db, "users", userId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -896,9 +931,14 @@ export async function getLikesFriendsByUserId(likes, liked) {
     const querySnapshot = await getDocs(q);
     const arr = [];
 
+    let today = dayjs();
+
+
     const result = Promise.all(querySnapshot?.docs?.map(async (doc) => {
       await likes?.map(async (m) => (
-        m?.userId == doc.data().id && arr?.push(
+        m?.userId == doc.data().id &&
+        Math.ceil(dayjs(m?.startAt).add(7, 'day')?.diff(today, "day", true)) >= 0 &&
+        arr?.push(
           {
             userID: doc.data().id,
             username: doc.data().username,
@@ -1006,11 +1046,12 @@ export async function getLikedFriendsByUserId(liked, likes) {
     );
     const querySnapshot = await getDocs(q);
     const arr = [];
-
+    let today = dayjs();
     const result = Promise.all(querySnapshot?.docs?.map(async (doc) => {
       await liked?.map(async (m) => (
-        m?.userId == doc.data().id
-        && arr?.push(
+        m?.userId == doc.data().id &&
+        Math.ceil(dayjs(m?.startAt).add(7, 'day')?.diff(today, "day", true)) >= 0 &&
+        arr?.push(
           {
             userID: doc.data().id,
             username: doc.data().username,
@@ -1442,15 +1483,7 @@ export async function getNewFriends() {
     if (!user) {
       return alert("로그인 후 가능합니다.")
     }
-    // 소개시 : 
-    // 1. lastintroduce보다 1주일 지나거나 lastintroduce가 null값
-    // 2. user가 sleep이거나 withdraw false
-    // 이러면 새롭게 불러들여옴
-    // 부르는 조건 : 이미 소개한애들 빼고, gender 다름, 지역가깝게, 
-    // 조건 해결시 db를 만들어 - introduceCard
-    // 변경내용 : 유저 업데이트 : lastintroduce - today, == 완료
-    // 리스트 업데이트 " "
-    // 기존리스트 또는 새로운리스트
+
 
     const result = await getDoc(api.userByIdRef(user.uid));
     // if (result.exists()) {
@@ -1463,6 +1496,7 @@ export async function getNewFriends() {
       userID: user.uid
     };
 
+    // 1. 성 반대인 사람, 처음 가입했던 사람부터
     const q = query(api.usersRef,
       where("gender", "!=", me?.gender),
       orderBy("timestamp", "asc"),
@@ -1555,31 +1589,63 @@ export async function getNewFriends() {
         date_profile_finished: doc.data().date_profile_finished || [],
         date_pending: doc.data().date_pending || [],
 
-
         location_distance: Math.abs(parseInt(doc.data().address_sido) - parseInt(me?.address_sido)) || "",
         age_gap: Math.abs(parseInt(doc.data().birthday.year) - parseInt(me?.birthday.year)) || "",
-        age_prefer: me?.prefer_age_max - (parseInt(nowForCopy.format('YYYY')) - doc.data()?.birthday?.year) || ""
+        age_prefer: Math.abs((parseInt(me?.prefer_age_min) + parseInt(me?.prefer_age_max)) / 2 - ((parseInt(nowForCopy.format('YYYY')) - parseInt(doc.data()?.birthday?.year)))) || ""
       }
       return man;
     }))
-
+    // 2. 집 가까운사람
+    const arrayresult = people?.sort(function (a, b) { return a?.location_distance - b?.location_distance });
     // 1. date_sleep : false
     // 2. withdraw : false
     // 3. 기존에 감겼던애들 : false
     // 4. location_Distance 낮은 순
     // age_prefer : 0보다 커아햐며 높을수록 좋음
     const newArr = [];
-    people?.map((v) => (
-      (!v?.date_sleep || v?.date_sleep == false) && (!v?.withdraw || v?.withdraw == false) && v?.date_pending == false && v?.date_profile_finished == true
-      ? newArr?.push(v) : null
+    arrayresult?.map((v) => (
+      (!v?.date_sleep || v?.date_sleep == false) &&
+        (!v?.withdraw || v?.withdraw == false) &&
+        v?.date_pending == false &&
+        v?.date_profile_finished == true
+        ? newArr?.push(v) : null
     ))
+    // like 했던애들 빼기
+    const likesMinusArr = [];
+    if (me?.likes?.length !== 0) {
+      newArr?.map(async (v) => (
+        await me?.likes?.map(async (m) => (
+          v?.userID !== m?.userId && likesMinusArr?.push(v)
+        ))
+      ))
+    } else {
+      newArr?.map(async (v) => (
+        likesMinusArr?.push(v)
+      ))
+    }
+    // 중복제거
+    const uniqueLikesMinusArrs = [...new Set(likesMinusArr)];
+    // like 받은애들 빼기
+    const likedMinusArr = [];
+    if (me?.liked?.length !== 0) {
+      uniqueLikesMinusArrs?.map(async (v) => (
+        await me?.liked?.map(async (m) => (
+          v?.userID !== m?.userId && likedMinusArr?.push(v)
+        ))
+      ))
+    } else {
+      uniqueLikesMinusArrs?.map(async (v) => (
+        likedMinusArr?.push(v)
+      ))
+    }
+    // 중복제거
+    const uniqueLikedMinusArrs = [...new Set(likedMinusArr)];
 
-    const result1 = newArr?.sort((a, b) => b?.age_prefer - a?.age_prefer);
-    const result2 = result1?.sort((a, b) => a?.location_distance - b?.location_distance);
+    // 지역/나이 가까운곳으로
+    const result1 = uniqueLikedMinusArrs?.sort(function async(a, b) { return a?.age_prefer - b?.age_prefer });
+    const result2 = result1?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
     const brandArr = [];
-
-    me?.datecard?.length > 0 ?
-
+    if (me?.datecard?.length > 0) {
       result2?.map(async (v) => (
         await me?.datecard?.map(async (m) => (
           m?.userID !== v?.userID ?
@@ -1594,8 +1660,9 @@ export async function getNewFriends() {
             : null
         )))
       )
-      :
-      (result2?.map(async (v) => (
+    }
+    else {
+      result2?.map(async (v) => (
         brandArr?.push({
           ...v,
           userID: v?.userID,
@@ -1604,13 +1671,14 @@ export async function getNewFriends() {
           expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
           card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
         })
-      )))
+      ))
+    }
 
+    // 중복제거
     const uniqueArrs = Array.from(new Set(brandArr?.map(a => a?.userID)))
       ?.map(userID => {
         return brandArr?.find(a => a?.userID === userID)
       })
-
     const uniqueFromMyDataArrs = [];
     await me?.datecard?.map(async (v) => (
       uniqueArrs?.map(async (m) => (
@@ -1634,16 +1702,15 @@ export async function getNewFriends() {
       })
     )
     )
-
     const uniqueArr = uniqueArrs?.slice(0, (5 - (countArr?.length <= 0 ? 0 : countArr?.length)));
-
+    const reuniqueArr = uniqueArr?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
     if (me?.datecard?.length === 0 || !me?.datecard) {
       await updateDoc(api.userByIdRef(user.uid), {
-        datecard: arrayUnion(...uniqueArr),
+        datecard: arrayUnion(...reuniqueArr),
       })
     } else {
       await updateDoc(api.userByIdRef(user.uid), {
-        datecard: arrayUnion(...uniqueArr),
+        datecard: arrayUnion(...reuniqueArr),
       });
     }
     const finalArr = [];
@@ -1664,9 +1731,6 @@ export async function getNewFriends() {
         finalArr?.push(v)
         : null
     ))
-
-
-
 
     return finalArr;
 
@@ -1853,11 +1917,209 @@ export async function finishDate_Profile() {
       body: `${user?.displayName}님이 가입했습니다.(ID: ${user?.uid})`,
       to: "+821075781252",
       // or to: "someone@example.com
-      
+
     })
     return { date_profile_finished: true, date_pending: true }
   } catch (error) {
     console.error(error);
     alert("update에 문제가 있습니다.");
+  }
+}
+
+
+export async function MessageFunction(number) {
+  try {
+    const currentUser = auth.currentUser;
+    const result = await getDoc(api.userByIdRef(currentUser?.uid));
+    const newArr = []
+    result.likes?.map((v) => (
+      v?.startAt?.add(1, 'minute').diff(dayjs().format('YYYY MM DD HH:mm:ss'), 'minute') == 0
+      && newArr.push(v)
+    ))
+    console.log(newArr)
+    // const addMessage = httpsCallable(getFunctions(), 'senddatemessage');
+    // addMessage(number).then((result) => {
+    //   const data = result.data;
+    //   const sanitizedMessage = data.text;
+    //   console.log(data, sanitizedMessage)
+    //   return data;
+    // });
+
+
+
+    // await addDoc(messageRef, {
+    //   body: `${user?.displayName}님이 가입했습니다.(ID: ${user?.uid})`,
+    //   to: "+821075781252",
+    //   // or to: "someone@example.com
+    // })
+  } catch (error) {
+    console.error(error);
+    alert("update에 문제가 있습니다.");
+  }
+}
+
+
+
+///////////////////// 이메일 발송
+
+// for now mail will automatically be configured to my email
+export async function sendMailForLike(email, targetname, nickname) {
+  const mailRef = collection(db, "mail");
+  try {
+    await addDoc(mailRef, {
+      to: `${[email]}`,
+      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      // or to: "someone@example.com
+      message: {
+        subject: `${targetname}님! 피그말리온(PYGMALION)에서 ${nickname}님이 윙크를 보냈습니다!`,
+        // text: '메시지를 확인해주세요',
+        html: `
+        <h3>안녕하세요 피그말리온입니다!</h3>
+        <br/>
+       ${nickname}님께서 ${targetname}님에게 윙크를 보냈습니다.😘
+       <p>피그말리온 소개팅 사이트에서 상대방의 프로필을 확인한 다음 응답하실 수 있습니다.</p>
+        <br/><br/>상대방 프로필 보러가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
+        <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
+        <br/>
+        <br/>
+        <h4>즐거운 하루 보내세요!^^</h4>
+        `
+      },
+      template: {
+        name: 'welcome',
+        data: {
+          fname: 'Pygmalion',
+          msg: '자연스럽고 즐거운 만남! 피그말리온'
+        }
+      }
+    })
+  } catch (e) {
+    throw new Error('Something went wrong with sending email. Error Message: ', e.message);
+  }
+}
+
+
+// for now mail will automatically be configured to my email
+export async function sendMailForMatch(email, targetname, nickname) {
+  const mailRef = collection(db, "mail");
+  try {
+    await addDoc(mailRef, {
+      to: `${[email]}`,
+      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      // or to: "someone@example.com
+      message: {
+        subject: `${targetname}님! 피그말리온(PYGMALION)에서 ${nickname}님이 맞윙크를 보냈습니다!`,
+        // text: '메시지를 확인해주세요',
+        html: `
+        <h3>안녕하세요 피그말리온입니다!</h3>
+        <br/>
+        <p>축하드립니다!💞</p>
+       ${nickname}님께서 ${targetname}님에게 맞윙크를 보냈습니다.😘
+       <p>피그말리온 소개팅 사이트에서 상대방의 연락처를 확인할 수 있습니다.</p>
+       <p>상대방의 연락처를 확인 후, 먼저 상대방에게 인사말을 건네보세요!</p>
+        <br/><br/>상대방 연락처 보러가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
+        <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
+        <br/>
+        <br/>
+        <h4>즐거운 하루 보내세요!^^</h4>
+        `
+      },
+      template: {
+        name: 'welcome',
+        data: {
+          fname: 'Pygmalion',
+          msg: '자연스럽고 즐거운 만남! 피그말리온'
+        }
+      }
+    })
+  } catch (e) {
+    throw new Error('Something went wrong with sending email. Error Message: ', e.message);
+  }
+}
+// for now mail will automatically be configured to my email
+export async function sendMailForDecline(email, targetname, nickname) {
+  const mailRef = collection(db, "mail");
+  try {
+    await addDoc(mailRef, {
+      to: `${[email]}`,
+      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      // or to: "someone@example.com
+      message: {
+        subject: `${targetname}님! 피그말리온(PYGMALION)에서 ${nickname}님이 아쉽게도 윙크를 거절하였습니다.`,
+        // text: '메시지를 확인해주세요',
+        html: `
+        <h3>안녕하세요 피그말리온입니다!</h3>
+        <br/>
+       ${nickname}님께서 ${targetname}님의 윙크를 거절했습니다.
+       <p>안타까움을 뒤로하고 윙크를 다시 1개 반납하였습니다.</p>
+        <br/><br/>피그말리온 소개팅 바로가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
+        <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
+        <br/>
+        <h4>다음 만남을 기약하겠습니다.</h4>
+        <br/>
+        <h4>즐거운 하루 보내세요!^^</h4>
+        `
+      },
+      template: {
+        name: 'welcome',
+        data: {
+          fname: 'Pygmalion',
+          msg: '자연스럽고 즐거운 만남! 피그말리온'
+        }
+      }
+    })
+  } catch (e) {
+    throw new Error('Something went wrong with sending email. Error Message: ', e.message);
+  }
+}
+
+
+export async function onBuyWink(nickname, email, winks, money) {
+  const mailRef = collection(db, "mail");
+  try {
+    await addDoc(mailRef, {
+      to: `${[email]}`,
+      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      // or to: "someone@example.com
+      message: {
+        subject: `${nickname}님! 피그말리온(PYGMALION)에서 윙크구매 관련 안내드립니다.`,
+        // text: '메시지를 확인해주세요',
+        html: `
+        <h3>안녕하세요 피그말리온입니다!</h3>
+        <br/>
+       무통장입금 관련 안내드립니다.
+       <p>새로운 인연을 만나기 위해서 저렴하게 윙크를 구매해보세요!</p>
+       <br/>
+       <br/>
+       <b>[상품정보 안내] 👉</b>
+       <p>[윙크 ${winks}개 구매 / ${money}원]</p>
+       <br/>
+       <br/>
+       <b>[입금계좌 안내] 👉</b>
+       <p>🔖 예금주 : 전세환</p>
+       <p>🏦 은행명 : 하나(외환)은행</p>
+       <p>💌 계좌번호 :11289113899107</p>
+       <br/>
+       <br/>
+       <p>메일을 수신하신 후, 5시간내에 입금을 완료해주세요!</p>
+       <p>영업시간 3시간 내 확인 후, 윙크를 드리고 알림메일을 보내드립니다.</p>
+       
+        <br/><br/>피그말리온 소개팅 바로가기: <a href="https://pygm.co.kr">여기를</a> 클릭하세요.
+        <p><a href="https://pygm.co.kr">https://pygm.co.kr</a></p>
+        <br/>
+        <h4>가치있고 즐거운 만남을 기약하겠습니다.</h4>
+        <h4>즐거운 하루 보내세요!^^</h4>
+        `
+      },
+      template: {
+        name: 'welcome',
+        data: {
+          fname: 'Pygmalion',
+          msg: '자연스럽고 즐거운 만남! 피그말리온'
+        }
+      }
+    })
+  } catch (e) {
+    throw new Error('Something went wrong with sending email. Error Message: ', e.message);
   }
 }

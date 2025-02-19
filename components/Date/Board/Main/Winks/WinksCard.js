@@ -36,7 +36,7 @@ const WinksCard = ({ friend, sido, sigugunList }) => {
     <>
       {gap >= 0 &&
         <button
-          className='rounded-lg border border-solid border-gray-300 w-full shadow-lg hover:bg-slate-100'
+          className='rounded-lg border border-solid border-gray-300 w-full shadow-lg hover:bg-pink-100'
           onClick={goDetail}
         >
           <section className='w-full relative'>
@@ -82,7 +82,7 @@ const WinksCard = ({ friend, sido, sigugunList }) => {
                 </div>
               </div>
             </div>
-            <p className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-center text-white bg-[--pygm-five] hover:bg-slate-800 focus:ring-4 focus:outline-none focus:ring-slate-300 dark:bg-slate-200 dark:hover:bg-slate-300 dark:focus:ring-slate-400 dark:text-black">
+            <p className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-center text-white bg-pink-500 hover:bg-pink-800 focus:ring-4 focus:outline-none focus:ring-pink-300 dark:bg-pink-200 dark:hover:bg-pink-300 dark:focus:ring-pink-400 dark:text-black">
               <span className="">{(() => {
                 switch (friend?.address_sido) {
                   case '11': return (<span className="">서울특별시</span>)

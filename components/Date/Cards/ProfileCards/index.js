@@ -8,17 +8,18 @@ import LoadingPage from "components/Common/Loading";
 
 const index = () => {
 
-  const { friends, loading, friendsLoading } = useSelector((state) => state.user);
+  const { friends, loading, friendsLoading, getCardsReady } = useSelector((state) => state.user);
 
   return (
     <>
-      {loading &&
+      {loading || friendsLoading ?
         <div>
           <LoadingPage
           />
         </div>
+        : null
       }
-      {!loading && friends?.length !== 0 &&
+      {!loading && friends?.length !== 0 && !friendsLoading && getCardsReady == true &&
         <div className="scroll-smooth"
         >
           {friends?.map((friend) => (
@@ -32,9 +33,9 @@ const index = () => {
               />
             </section>
           ))}
-          <InfoModal />
         </div>}
-      {friends?.length == 0 ?
+      <InfoModal />
+      {!loading && !friendsLoading && friends?.length == 0 ?
         <div>
           <Empty
             title="잠시만요!"

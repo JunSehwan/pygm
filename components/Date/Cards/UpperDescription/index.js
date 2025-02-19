@@ -1,10 +1,14 @@
 import React, { useCallback } from 'react';
 import fake_friends from 'components/Common/Dummy/data';
-import { updateUserInfos } from 'firebaseConfig';
+import { updateUserInfos, MessageFunction } from 'firebaseConfig';
 
 const index = () => {
   const setUsers = useCallback(async () => {
     const res = await updateUserInfos(fake_friends);
+  }, [])
+
+  const setMessage = useCallback(async () => {
+    await MessageFunction("01075781252");
   }, [])
 
   return (
@@ -18,7 +22,8 @@ const index = () => {
           <span className="font-medium">매칭이 실패할 경우, 윙크를 다시 돌려드립니다. </span>
         </div>
       </div>
-      {/* <button onClick={setUsers}>유저등록</button> */}
+      {/* <button onClick={setUsers}>유저등록</button>
+      <button onClick={setMessage}>메시지등록</button> */}
     </div>
   );
 };

@@ -13,11 +13,26 @@ import { getFriendSleep, getFriendWithdraw, auth } from 'firebaseConfig';
 import {
   setFriendSleep, setFriendWithdraw, friendSleepLoadingStart, friendSleepLoadingEnd
 } from 'slices/user';
+import { GiNightSleep } from "react-icons/gi";
+
 import { onAuthStateChanged } from 'firebase/auth';
+import styled from 'styled-components';
+
+const ProtectiveImage = styled(Image)`
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+`;
 
 const index = ({ friend }) => {
-  const { user, allFriends, loading } = useSelector(state => state.user);
-  const { sido, sigugun, dong } = hangjungdong;
+  const { user, allFriends } = useSelector(state => state.user);
+  const { sido, sigugun } = hangjungdong;
   const router = useRouter();
   const dispatch = useDispatch();
   const sigugunList = hangjungdong?.sigugun;
@@ -53,22 +68,27 @@ const index = ({ friend }) => {
   let today = dayjs();
   let expiredDay = dayjs(friend?.expired);
 
-  const friendID = friend?.userID
+  // const friendID = friend?.userID
   useEffect(() => {
-    const authStateListener = onAuthStateChanged(auth, async (mine) => {
+    async function fetchAndSetUser() {
+      // const authStateListener = onAuthStateChanged(auth, async () => {
       // dispatch(friendSleepLoadingStart())
       await getFriendSleep(friend?.userID).then((result) => {
-        dispatch(setFriendSleep({ ...result, id: friendID }));
+        result && dispatch(setFriendSleep({ ...result, id: friend?.userID }));
       })
       await getFriendWithdraw(friend?.userID).then((result) => {
-        dispatch(setFriendWithdraw({ ...result, id: friendID }));
+        result && dispatch(setFriendWithdraw({ ...result, id: friend?.userID }));
       })
-    })
+    }
+    fetchAndSetUser();
     // dispatch(friendSleepLoadingEnd())
-    return () => {
-      authStateListener();
-    };
-  }, [dispatch, friendID, friend?.userID, user?.userID, friend?.date_sleep, friend?.withdraw])
+    // return () => {
+    //   authStateListener();
+    // };
+  }, [
+    dispatch, friend?.userID,
+    // friend?.date_sleep, friend?.withdraw
+  ])
 
   const sleeping = friend?.date_sleep == true;
   const withdrawing = friend?.withdraw == true;
@@ -89,39 +109,48 @@ const index = ({ friend }) => {
     allFriends?.map((v) => (
       friend?.userID === v?.userID ? setRefreshedFriend(v) : null
     ))
-
-  }, [allFriends, friend, friend?.userID])
+  }, [allFriends, friend?.userID])
 
   return (
     <>
       {sleeping && !withdrawing &&
         <>
           <div
-          className="my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-pink-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm  transition-transform duration-300 transform hover:scale-110">
+            className="max-w-[380px] my-3 mx-2 w-[100%] opacity-75 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
             <div className='w-full text-left relative '>
-              <div className='w-full relative h-[420px] flex flex-col items-center justify-center gap-4'>
-                <Image
-                  alt="empty"
+              <div className='rounded-lg w-full relative h-[380px] bg-gray-700 flex flex-col items-center justify-center gap-4'>
+                <ProtectiveImage
+                  // alt="empty"
                   width="0"
                   height="0"
                   sizes="100vw"
                   unoptimized
-                  className='w-[70px]'
-                  src="/image/icon/empty.png" />
-                <span className='text-lg text-slate-500'>휴면중인 회원입니다.</span>
+                  placeholder="blur"
+                  blurDataURL="data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                  className='absolute top-0 left-0 opacity-30 rounded-lg w-[100%] h-[100%] object-cover blur-xl'
+                  src={friend?.thumbimage[0]}
+                  alt={friend?.thumbimage[0]}
+
+                // src="/image/icon/empty.png"
+                />
+                <GiNightSleep
+                  className='text-white'
+                  size={35}
+                />
+                <span className='text-lg text-white font-semibold'>휴면중인 회원입니다.</span>
               </div>
             </div>
           </div>
         </>
       }
       {withdrawing && !sleeping &&
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-slate-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
+        <div
+          // initial={{ opacity: 0 }}
+          // whileInView={{ opacity: 1 }}
+          // viewport={{ once: true }}
+          className="max-w-[380px] my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-slate-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
           <div className='w-full text-left relative '>
-            <div className='w-full relative h-[420px] flex flex-col items-center justify-center gap-4'>
+            <div className='w-full relative h-[380px] flex flex-col items-center justify-center gap-4'>
               <Image
                 alt="empty"
                 width="0"
@@ -133,14 +162,14 @@ const index = ({ friend }) => {
               <span className='text-lg text-slate-500'>탈퇴한 회원입니다.</span>
             </div>
           </div>
-        </motion.div>
+        </div>
       }
       {(refreshedFriend?.disliked?.length == 0 || !refreshedFriend?.disliked) && (!sleeping || sleeping == "") && (!withdrawing || withdrawing == "") &&
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="my-3 mx-2 w-[100%] h-[420px] bg-white shadow-lg hover:shadow-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 border-b-solid border-b-4 border-blue-300 ">
+        <div
+          // initial={{ opacity: 0 }}
+          // whileInView={{ opacity: 1 }}
+          // viewport={{ once: true }}
+          className="transition-transform duration-300 transform hover:scale-105 max-w-[380px] my-3 mx-2 w-[100%] h-[380px] bg-white shadow-lg hover:shadow-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 border-b-solid border-b-4 border-blue-300 ">
           <button
             className='w-full text-left relative h-[100%]'
             onClick={goDetail}
@@ -148,7 +177,7 @@ const index = ({ friend }) => {
             <div className='w-full relative h-[100%]'>
               {friend?.thumbimage?.[0] ?
                 <div className=' w-[100%] h-[100%] rounded-lg flex items-center justify-center bg-slate-700'>
-                  <Image
+                  <ProtectiveImage
                     className="rounded-lg w-[100%] h-[100%] object-cover"
                     unoptimized
                     placeholder="blur"
@@ -162,7 +191,7 @@ const index = ({ friend }) => {
                 </div>
                 :
                 <div className=' w-[100%] h-[100%] rounded-lg flex items-center justify-center bg-slate-700'>
-                  <Image
+                  <ProtectiveImage
                     className="rounded-lg w-[90%] h-[360px] object-cover blur"
                     unoptimized
                     placeholder="blur"
@@ -262,7 +291,7 @@ const index = ({ friend }) => {
               </div>
             </div>
           </button>
-        </motion.div>
+        </div>
       }
     </>
   );

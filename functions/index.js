@@ -1,228 +1,122 @@
 
+const logger = require("firebase-functions/logger");
 const functions = require("firebase-functions");
-// const admin = require("firebase-admin");
-// const axios = require("axios");
-// const dayjs = require('dayjs');
-// const serviceAccount = require("./admin-sdk.json");
+const admin = require("firebase-admin");
 const express = require("express");
+const axios = require("axios");
+const dayjs = require("dayjs");
 const apps = express();
 const { setGlobalOptions } = require("firebase-functions/v2");
-// import * as admin from "firebase-admin";
-const admin = require("firebase-admin");
-// import { onRequest } from "firebase-functions/v2/https";
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+// const serviceAccount = require("./admin-sdk.json");
+const serviceAccount = require("./serviceAccountKey.json");
+const { onCall } = require("firebase-functions/v2/https");
+const { onRequest } = require('firebase-functions/v2/https');
+const logI = functions.logger.info;
+const logE = functions.logger.error;
 
-admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
+// function 초기화
+// const app = admin.initializeApp({
+//   credential: admin.credential.applicationDefault(),
+// });
+
+const app = admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://pygmalion-96c6f-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 
+const auth = admin.auth(app);
+const cors = require("cors");
+apps.use(cors());
+// const app = admin.initializeApp({
+// credential: admin.credential.cert(serviceAccount),
+// });
 setGlobalOptions({
   region: "asia-northeast3", maxInstances: 10,
 });
 
-/**
- * CLOVA Studio
- */
-export async function chatCompletions(text) {
-  try {
-    const option = {
-      method: "POST",
-      body: JSON.stringify({
-        prompt: "마크다운 파일을 읽고 질문을 만들어주세요. 질문은 다음과 같은 형식으로 출력해주세요. [\"첫 번째 질문\", \"두 번째 질문\", ...]",
-        text: text,
-      }),
-    };
-
-    const response = await fetch("/question-generator/v1/json", option);
-
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
-
-    return await response.json();
-  } catch (err) {
-    console.error("Error during fetch:", err);
+exports.getGreeting = onCall(
+  { cors: true },
+  // { cors: [/firebase\.com$/, "https://pygm.co.kr"] },
+  (request) => {
+    return "Hello, world!";
   }
+);
 
-  return null;
-}
-// setGlobalOptions({
-//   region: "asia-northeast3",
-// })
 
-// const {onRequest} = require('firebase-functions/v2/https');
-// const app = admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount)
-// });
+exports.webhookasia = onRequest({
+  region: 'asia-northeast3'
+}, (req, res) => {
+  res.send("Hello");
+});
+// const dateApp = express.Router();
+// app.use(express.json()); // body-parser 설정
+// app.use("/api", dateApp);
 
-// const auth = admin.auth(app);
-// const logI = functions.logger.info;
-// const logE = functions.logger.error;
-// const isDev = process.env.NODE_ENV !== 'production'
+exports.myfunction = onDocumentWritten("date_message", (event) => {
+  // Your code here
+});
 
-// async function fetchKakaoAccessToken(code) {
-//   try {
-//     const res = await axios({
-//       method: 'POST',
-//       url: 'https://kauth.kakao.com/oauth/token',
-//       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-//       data: {
-//         code: code,
-//         grant_type: "authorization_code",
-//         client_id: process.env.KAKAO_LOGIN_CLIENT_ID,
-//         // redirect_uri: "http://localhost:3060/auth/kakaologin",
-//         redirect_uri: "https://jobcoc.com/auth/kakaologin",
-//       }
-//     })
-//     return res?.data;
-//   } catch (e) {
-//     logE("# fetch kakao access token error:", e);
-//     throw e;
-//   }
+// async function chatCompletions(text) {
+// try {
+// const option = {
+// method: "POST",
+// body: JSON.stringify({
+// prompt: "마크다운 파일을 읽고 질문을 만들어주세요. 질문은 다음과 같은 형식으로 출력해주세요. [\"첫 번째 질문\", \"두 번째 질문\", ...]",
+// text: text,
+// }),
+// };
+
+// const response = await fetch("/question-generator/v1/json", option);
+
+// if (!response.ok) {
+// throw new Error("Network response was not ok");
 // }
 
-// async function fetchKakaoUser(accessToken) {
-//   try {
-//     const res = await axios({
-//       url: 'https://kapi.kakao.com/v2/user/me',
-//       headers: { 'authorization': `Bearer ${accessToken}` }
-//     });
-//     return res.data;
-//   } catch (e) {
-//     logE("# fetch kakao user error:", e);
-//   }
+// return await response.json();
+// } catch (err) {
+// console.error("Error during fetch:", err);
 // }
 
-// async function writeDefaultUserDataOnFirestore(uid, email, profile) {
-//   try {
-//     return await admin
-//       .firestore()
-//       .collection("users")
-//       .doc(uid)
-//       .set({
-//         id: uid,
-//         username: profile.nickname || "",
-//         avatar: profile.profile_image_url || "",
-//         birthday: "",
-//         phonenumber: "",
-//         likes: [],
-//         liked: [],
-//         joboffers: [],
-//         joboffered: [],
-//         coccocs: [],
-//         coccoced: [],
-//         advices: [],
-//         adviced: [],
-//         firstmake: true,
-//         email: email,
-//         timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-//       })
-//   } catch (e) {
-//     logE("# write default user data got error:", e);
-//   }
+// return null;
 // }
-
-// async function createAuthUser({ email, profile }) {
-//   try {
-//     return await auth.createUser({
-//       email: email,
-//       emailVerified: false,
-//       displayName: profile.nickname || "",
-//       photoURL: profile.profile_image_url || "",
-//       disabled: false,
-//     });
-//   } catch (e) {
-//     logE("# create Auth User get Error:", e);
-//   }
-// }
-
-// async function createAccount(kakaoUser) {
-//   try {
-//     const { email, profile } = kakaoUser;
-//     const authUser = await createAuthUser(kakaoUser);
-//     logI("# createAccount : who i am :", authUser.uid, email, profile);
-//     const doc = await writeDefaultUserDataOnFirestore(uid, email, profile);
-//     logI("# createAccount : doc saved :", doc);
-//     return authUser;
-//   } catch (e) {
-//     logE("# create account got error:", e);
-//   }
-// }
-
-// async function fetchAuthUser(kakaoUser) {
-//   try {
-//     return await auth.getUserByEmail(kakaoUser.email);
-//   } catch (e) {
-//     // TODO 각 에러 코드에 대응하여 예외 처리 해야합니다.
-//     // https://firebase.google.com/docs/auth/admin/errors
-//     logE("# fetchAuthUser got Error", e);
-//     if (e.code === "auth/user-not-found")
-//       return null;
-//     return null;
-//   }
-// }
-
-// exports.kakaoLogin = functions
-//   .region('asia-northeast3')
-//   .https
-//   .onCall(async (data, context) => {
-//     logI('# code is :', data.code);
-//     const { access_token } = await fetchKakaoAccessToken(data.code);
-//     const { kakao_account } = await fetchKakaoUser(access_token);
-
-//     let user = await fetchAuthUser(kakao_account);
-//     logI("# user is :", user);
-//     if (!user) {
-//       user = await createAccount(kakao_account);
-//     }
-//     return await auth.createCustomToken(user.uid, { provider: "KAKAO" });
-//   });
-
-
-// exports.buildSitemap = functions.https.onRequest(async (request, response) => {
-
-//   let sitemapHeader = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
-
-//   let basucURL = `<url><loc>https://jobcoc.com</loc><lastmod>2022-12-29</lastmod></url>`;
-//   let blogURL = `<url><loc>https://jobcoc.com/news</loc><lastmod>2022-12-29</lastmod></url>`;
-//   let projectsURL = `<url><loc>https://jobcoc.com/friends</loc><lastmod>2022-12-29</lastmod></url>`;
-//   let aboutURL = `<url><loc>https://jobcoc.com/about</loc><lastmod>2022-12-29</lastmod></url>`;
-//   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//   // Reading data dynamically from the database
-//   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//   let snapshot = await admin.database().ref('users').once('userID');
-//   let posts = snapshot.val();
-//   let postURLs = Object.keys(posts).reduce((acc, url) => {
-
-//     acc = acc + `<url><loc>https://jobcoc.com/friends/detail/${url}</loc><lastmod>${posts[url].timestamp}</lastmod></url>`;
-
-//     return acc;
-
-//   }, '');
-//   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-//   let sitemapFooter = `</urlset>`;
-
-//   let sitemapString = sitemapHeader + basucURL + blogURL + projectsURL + aboutURL + postURLs + sitemapFooter;
-//   logI("# sitemapString", sitemapString);
-//   response.set('Content-Type', 'text/xml');
-//   response.status(200).send(sitemapString);
-
-// });
-
 
 // /** *function test */
-// function sendMessage(phone) {
-//   const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;
+// async function sendMessage(phone) {
+
+//   // 예약자 번호, 닉네임, 코인이름
+//   const user_phone_number = phone;
+//   const user_nickname = nickname;
+//   const user_coin_name = coin_name;
+
+//   // 모듈들을 불러오기. 오류 코드는 맨 마지막에 삽입 예정
+//   const finErrCode = 404;
 //   const date = Date.now().toString();
-//   axios({
+
+//   // 환경변수로 저장했던 중요한 정보들
+//   const serviceId = process.env.NEXT_PUBLIC_NCP_SERVICE_ID;
+//   const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;
+//   const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;
+//   const my_number = process.env.NEXT_PUBLIC_MY_NUM;
+
+//   // 그 외 url 관련
+//   const method = "POST";
+//   const space = "  ";
+//   const newLine = "\n";
+//   const url = `https://sens.apigw.ntruss.com/sms/v2/services/${uri}/messages`;
+//   const url2 = `/sms/v2/services/${uri}/messages`;
+
+
+//   await axios({
 //     method: "POST",
+//     url: url,
 //     // request는 uri였지만 axios는 url이다
 //     url: process.env.NEXT_PUBLIC_SERVICE_ID,
 //     headers: {
 //       "Contenc-type": "application/json; charset=utf-8",
 //       "x-ncp-iam-access-key": accessKey,
 //       "x-ncp-apigw-timestamp": date,
-//       // "x-ncp-apigw-signature-v2": signature,
+//       // "x-ncp-apig w-signature-v2": signature,
 //     },
 //     // request는 body였지만 axios는 data다
 //     data: {
@@ -245,81 +139,110 @@ export async function chatCompletions(text) {
 //     })
 //   return;
 // }
+// module.exports = sendMessage;
 
-// apps.get("/sms/:phone", (req, res) => {
-//   const paramObj = req.params;
-//   sendMessage(paramObj.phone);
-//   res.send("complete!");
-// });
+exports.test = functions
+  // .region("asia-northeast3")
+  .https.onRequest((request, response) => {
+    response.send("Hello World!");
+  });
 
-// apps.get('/sitemap.xml', async (request, response) => {
-//   let sitemapHeader = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+apps.get("/senddatemessage", async (req, res) => {
+  // const { name } = req.body;
+  // 예약자 번호, 닉네임, 코인이름
+  const user_phone_number = phone;
+  const user_nickname = nickname;
+  const user_coin_name = coin_name;
 
-//   let basucURL = `<url><loc>https://pygm.co.kr</loc><lastmod>2022-12-29</lastmod></url>`;
-//   let blogURL = `<url><loc>https://pygm.co.kr/news</loc><lastmod>2022-12-29</lastmod></url>`;
-//   let projectsURL = `<url><loc>https://pygm.co.kr/friends</loc><lastmod>2022-12-29</lastmod></url>`;
-//   let aboutURL = `<url><loc>https://pygm.co.kr/about</loc><lastmod>2022-12-29</lastmod></url>`;
-//   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//   // Reading data dynamically from the database
-//   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//   let snapshot = await admin.database().ref('users').once('userID');
-//   let posts = snapshot.val();
-//   let postURLs = Object.keys(posts).reduce((acc, url) => {
+  // 모듈들을 불러오기. 오류 코드는 맨 마지막에 삽입 예정
+  const finErrCode = 404;
+  const date = Date.now().toString();
 
-//     acc = acc + `<url><loc>https://pygm.co.kr/friends/detail/${url}</loc><lastmod>${posts[url].timestamp}</lastmod></url>`;
+  // 환경변수로 저장했던 중요한 정보들
+  const serviceId = process.env.NEXT_PUBLIC_NCP_SERVICE_ID;
+  const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;
+  const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;
+  const my_number = process.env.NEXT_PUBLIC_MY_NUM;
 
-//     return acc;
+  // 그 외 url 관련
+  const method = "POST";
+  const space = "  ";
+  const newLine = "\n";
+  const url = `https://sens.apigw.ntruss.com/sms/v2/services/${uri}/messages`;
+  const url2 = `/sms/v2/services/${uri}/messages`;
 
-//   }, '');
-//   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-//   let sitemapFooter = `</urlset>`;
+  await axios({
+    method: "POST",
+    url: url,
+    // request는 uri였지만 axios는 url이다
+    url: process.env.NEXT_PUBLIC_SERVICE_ID,
+    headers: {
+      "Contenc-type": "application/json; charset=utf-8",
+      "x-ncp-iam-access-key": accessKey,
+      "x-ncp-apigw-timestamp": date,
+      "Access-Control-Allow-Origin": true,
+      // "x-ncp-apig w-signature-v2": signature,
+    },
+    // request는 body였지만 axios는 data다
+    data: {
+      type: "SMS",
+      countryCode: "82",
+      from: phone,
+      // 원하는 메세지 내용
+      content: `세환님 가격 예약을 신청해주셔서 감사합니다.`,
+      messages: [
+        // 신청자의 전화번호
+        {
+          to: `${phone}`,
+        }],
+    },
+  }).then((res) => {
+    console.log(res.data);
+  })
+    .catch((err) => {
+      console.log(err);
+    })
+  return;
+})
 
-//   let sitemapString = sitemapHeader + basucURL + blogURL + projectsURL + aboutURL + postURLs + sitemapFooter;
-//   logI("# sitemapString", sitemapString);
-//   response.set('Content-Type', 'text/xml');
-//   response.status(200).send(sitemapString);
+apps.get("/sitemap.xml", async (request, response) => {
+  let sitemapHeader = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
 
-// })
-// exports.myApp = functions.
-//   region("asia-northeast3")
-//   .https.onRequest(apps);
+  let basucURL = `<url><loc>https://pygm.co.kr</loc><lastmod>2022-12-29</lastmod></url>`;
+  let blogURL = `<url><loc>https://pygm.co.kr/date/cards</loc><lastmod>2022-12-29</lastmod></url>`;
+  let projectsURL = `<url><loc>https://pygm.co.kr/date/board</loc><lastmod>2022-12-29</lastmod></url>`;
+  let aboutURL = `<url><loc>https://pygm.co.kr/date/profile</loc><lastmod>2022-12-29</lastmod></url>`;
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // Reading data dynamically from the database
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  let snapshot = await admin.database().ref("users").once("userID");
+  let posts = snapshot.val();
+  let postURLs = Object.keys(posts).reduce((acc, url) => {
+
+    acc = acc + `<url><loc>https://pygm.co.kr/date/cards/${url}</loc></url>`;
+    return acc;
+
+  }, "");
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  let sitemapFooter = `</urlset>`;
+
+  let sitemapString = sitemapHeader + basucURL + blogURL + projectsURL + aboutURL + postURLs + sitemapFooter;
+  // logI("# sitemapString", sitemapString);
+  response.set("Content-Type", "text/xml");
+  response.status(200).send(sitemapString);
+
+})
+// exports.myApp = functions.https.onRequest(apps);
+
+
 
 
 exports.myApp = functions
   // .region("asia-northeast3")
-  .https.onCall(apps);
-//     // 함수내용
-
-
-// export const generateSitemap = functions.region('us-central1').https.onRequest((req, res) => {
-
-//   const afStore = admin.firestore();
-//   const promiseArray: Promise<any>[] = [];
-
-//   const stream = new SitemapStream({ hostname: 'https://www.example.com' });
-//   const fixedLinks: any[] = [
-//     { url: `/start/`, changefreq: 'hourly', priority: 1 },
-//     { url: `/help/`, changefreq: 'weekly', priority: 1 }
-//   ];
-
-//   const userLinks: any[] = [];
-
-//   promiseArray.push(afStore.collection('users').where('active', '==', true).get().then(querySnapshot => {
-//     querySnapshot.forEach(doc => {
-//       if (doc.exists) {
-//         userLinks.push({ url: `/user/${doc.id}`, changefreq: 'daily', priority: 1 });
-//       }
-//     });
-//   }));
-
-//   return Promise.all(promiseArray).then(() => {
-//     const array = fixedLinks.concat(userLinks);
-//     return streamToPromise(Readable.from(array).pipe(stream)).then((data: any) => {
-//       res.set('Content-Type', 'text/xml');
-//       res.status(200).send(data.toString());
-//       return;
-//     });
-//   });
-// });
+  .https.onCall(apps, {
+    cors: true
+  });
+// // 함수내용
 

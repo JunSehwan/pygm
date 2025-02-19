@@ -5,14 +5,13 @@ import { useRouter } from 'next/router';
 import {
   setUser, resetUserState, userLoadingStart, userLoadingEnd,
   userLoadingEndwithNoone, setFriends, setAllFriends,
-  setFriendsDoneFalse, patchDate_lastIntroduce
+  setFriendsDoneFalse, patchDate_lastIntroduce, setGetCardsReadyTrue
 } from "slices/user";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import {
   db, getFriends, getNewFriends, updateDate_lastIntroduce,
   getOldFriends
-  // getEducationsByUserId, getCareersByUserId, getSkillsByUserId
 } from "firebaseConfig";
 import LoadingPage from 'components/Common/Loading';
 import Router from 'next/router';
@@ -48,6 +47,7 @@ const index = () => {
   }, []);
 
   useEffect(() => {
+    // console.log("a")
     const authStateListener = onAuthStateChanged(auth, async (user) => {
       dispatch(userLoadingStart());
       if (!user) {
@@ -58,7 +58,6 @@ const index = () => {
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists())
         return dispatch(userLoadingEndwithNoone());
-
       const docData = docSnap.data();
 
       const currentUser = {
@@ -147,6 +146,7 @@ const index = () => {
         date_profile_finished: docData.date_profile_finished,
         date_pending: docData.date_pending,
       };
+      // console.log("b")
       dispatch(setUser(currentUser));
       if (!currentUser?.date_profile_finished) {
         router.push("/date/profile")
@@ -164,27 +164,17 @@ const index = () => {
         // dispatch(resetUserState());
         return router.push("/");
       }
-
-      await getFriends().then((result) => {
-        dispatch(setAllFriends(result));
-      })
-      // 새로 인물을 소개할 경우
-      // if (
-      //   currentUser?.date_lastIntroduce == "" || !currentUser?.date_lastIntroduce || dayjs(currentUser?.date_lastIntroduce).add(7, 'day')?.isBefore(nowForCopy)
-      // ) {
       await getNewFriends().then((result) => {
         // 1. 일단 기존에 있었던 matchings에서는 다 expired 처리..??
         dispatch(setFriends(result));
       })
-      // } else {
-      //   await getOldFriends().then((result) => {
-      //     console.log(result, "사례2")
-      //     dispatch(setFriends(result));
-      //   })
-      // }
-      dispatch(userLoadingEnd());
+      await getFriends().then((result) => {
+        dispatch(setAllFriends(result));
+      })
+      // console.log("c")
       dispatch(setFriendsDoneFalse());
-      
+      dispatch(userLoadingEnd());
+      dispatch(setGetCardsReadyTrue());
     });
     return () => {
       authStateListener();
@@ -192,8 +182,9 @@ const index = () => {
   }, [auth, dispatch, user?.uid, router]);
 
   useEffect(() => {
+    dispatch(userLoadingStart());
+    // console.log("d")
     if (!user?.userID) return;
-
     const unsubscribe = onSnapshot(doc(db, "users", user.userID), (user) => {
       if (!user?.exists()) return;
       const docData = user?.data();
@@ -279,6 +270,7 @@ const index = () => {
       };
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
+      // console.log("e")
     });
     return () => {
       unsubscribe();
@@ -293,14 +285,16 @@ const index = () => {
   const writeThinkInfo = user?.mbti_ei && user?.hobby && user?.drink && user?.health && user?.interest && user?.career_goal && user?.living_weekend && user?.living_consume && user?.opfriend && user?.friendmeeting && user?.longdistance && user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
 
   useEffect(() => {
+    // console.log("f")
+    dispatch(userLoadingStart());
     if (!user?.userID) return;
-    
     if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
       alert("모든 정보를 입력해주세요!")
       router.push("/date/profile");
       return
     }
-  }, [user, router, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
+    // console.log("g")
+  }, [user, router, dispatch, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
 
 
 
