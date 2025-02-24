@@ -122,7 +122,7 @@ const index = (
       targetId: friend?.userID,
       targetName: friend?.username,
       // targetThumbimage: friend?.thumbimage,
-      userId: user?.userID,
+      userId: user?.userID, 
       username: user?.username,
       // thumbimage: user?.thumbimage,
     }));

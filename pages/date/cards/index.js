@@ -173,8 +173,8 @@ const index = () => {
       })
       // console.log("c")
       dispatch(setFriendsDoneFalse());
-      dispatch(userLoadingEnd());
       dispatch(setGetCardsReadyTrue());
+      dispatch(userLoadingEnd());
     });
     return () => {
       authStateListener();
@@ -287,14 +287,20 @@ const index = () => {
   useEffect(() => {
     // console.log("f")
     dispatch(userLoadingStart());
-    if (!user?.userID) return;
-    if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
-      alert("모든 정보를 입력해주세요!")
-      router.push("/date/profile");
-      return
-    }
+    const authStateListener = onAuthStateChanged(auth, async (user) => {
+      if (!user?.userID) return;
+      if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
+        alert("모든 정보를 입력해주세요!")
+        router.push("/date/profile");
+        return
+      }
+    });
+    dispatch(userLoadingEnd());
+    return () => {
+      authStateListener();
+    };
     // console.log("g")
-  }, [user, router, dispatch, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
+  }, [auth, user?.userID, router, dispatch, writeThumbImage, writeBasicInfo, writeCareerInfo, writeThinkInfo])
 
 
 

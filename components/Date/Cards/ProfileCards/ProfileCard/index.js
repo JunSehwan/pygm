@@ -11,7 +11,8 @@ import { FaBriefcase } from "react-icons/fa";
 import dayjs from "dayjs";
 import { getFriendSleep, getFriendWithdraw, auth } from 'firebaseConfig';
 import {
-  setFriendSleep, setFriendWithdraw, friendSleepLoadingStart, friendSleepLoadingEnd
+  setFriendSleep, setFriendWithdraw, friendSleepLoadingStart, friendSleepLoadingEnd,
+  userLoadingEnd
 } from 'slices/user';
 import { GiNightSleep } from "react-icons/gi";
 
@@ -81,7 +82,8 @@ const index = ({ friend }) => {
       })
     }
     fetchAndSetUser();
-    // dispatch(friendSleepLoadingEnd())
+    dispatch(friendSleepLoadingEnd())
+    dispatch(userLoadingEnd())
     // return () => {
     //   authStateListener();
     // };

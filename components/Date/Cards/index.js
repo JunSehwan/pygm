@@ -1,5 +1,4 @@
 import React from 'react';
-import fake_friends from 'components/Common/Dummy/data';
 import UpperDescription from './UpperDescription';
 import ProfileCards from './ProfileCards';
 import { Toaster } from 'react-hot-toast';

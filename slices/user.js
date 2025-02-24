@@ -278,7 +278,7 @@ export const user = createSlice({
     likeToUser(state, action) {
       const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
       target?.liked?.unshift({ userId: action.payload.userId, username: action.payload.username, startAt: action.payload.startAt });
-      state.wink = state.wink - 1;
+      state.user.wink = state.user.wink - 1;
       state.addLikeDone = true;
     },
     addLikeDoneFalse(state) {
@@ -338,7 +338,7 @@ export const user = createSlice({
       // target?.withdraw = action.payload.withdraw;
       // state.friends.find((v) => v?.userID === action.payload?.id)?.withdraw = action.payload.withdraw
       if (!!targeting?.withdraw) {
-      targeting.withdraw = action.payload.withdraw;
+        targeting.withdraw = action.payload.withdraw;
       }
       // targeting.withdraw = action.payload.withdraw;
     },
@@ -363,6 +363,16 @@ export const user = createSlice({
     },
     buyWinkDoneFalse(state) {
       state.buyWinkDone = false;
+    },
+    setPaybackWinks(state, action) {
+      // action.payload?.removeArr?.map((v) => (
+      //   state.user.likes?.filter((e) => e?.userId !== v?.userId)
+      // ))
+
+      // action.payload?.fixArr?.map((v) => (
+      //   state.user.likes?.unshift(v)
+      // ))
+      // state.user.wink = state.user.wink + action.payload.fixArr?.length;
     },
   },
   extraReducers: (builder) => {
@@ -435,6 +445,7 @@ export const {
   // pageLoadingEnd
   buyWink,
   buyWinkDoneFalse,
+  setPaybackWinks,
 } = user.actions;
 
 export const useUserState = () => useAppSelector((state) => state.user);

@@ -806,10 +806,20 @@ export async function likeUser(
   }
   try {
     await updateDoc(api.userByIdRef(user.uid), {
-      likes: arrayUnion({ userId: userId, username: username, startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'), }),
+      likes: arrayUnion({
+        userId: userId,
+        username: username,
+        startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        refund: false
+      }),
     });
     await updateDoc(api.userByIdRef(userId), {
-      liked: arrayUnion({ userId: user.uid, username: user.displayName, startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'), }),
+      liked: arrayUnion({
+        userId: user.uid,
+        username: user.displayName,
+        startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        refund: false
+      }),
     });
     await updateDoc(api.userByIdRef(user.uid), {
       wink: increment(-1)
@@ -822,6 +832,71 @@ export async function likeUser(
       }
       return result;
     }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+
+// 7일지나면 하트 페이백
+export async function onPaybackHeart(
+  finalArr
+) {
+  const user = auth.currentUser;
+  if (!user) {
+    return alert("로그인 후 가능합니다.")
+  }
+  try {
+    const length = finalArr?.length;
+    // 검색
+    const result = await getDoc(api.userByIdRef(user.uid));
+    // if (result.exists()) {
+    const me = {
+      ...result.data(),
+      likes: result.data().likes || [],
+      liked: result.data().liked || [],
+      dislikes: result.data().dislikes || [],
+      disliked: result.data().disliked || [],
+      userID: user.uid
+    };
+
+    const removeArr = [];
+    me?.likes?.map(async (v) => (
+      finalArr?.map(async (m) => (
+        v?.userId == m?.userId ? removeArr?.push(v) : null))
+    ))
+
+    removeArr?.map(async (v) => (
+      await updateDoc(api.userByIdRef(user.uid), {
+        likes: arrayRemove(v),
+      })
+    ))
+
+    const fixArr = [];
+    removeArr?.map(async (v) => (
+      fixArr?.push({
+        ...v, refund: true
+      })
+    ))
+
+    fixArr?.map(async (v) => (
+      await updateDoc(api.userByIdRef(user.uid), {
+        likes: arrayUnion(v),
+      }, { merge: true })
+    ))
+
+    await updateDoc(api.userByIdRef(user.uid), {
+      wink: increment(length)
+    })
+    // const docRef = doc(db, "users", userId);
+    // const docSnap = await getDoc(docRef);
+    // if (docSnap.exists()) {
+    //   const result = {
+    //     ...docSnap.data(),
+    //   }
+    //   return result;
+    // }
+    return { removeArr, fixArr }
   } catch (e) {
     console.error(e);
   }

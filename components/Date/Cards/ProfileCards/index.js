@@ -20,11 +20,11 @@ const index = () => {
         : null
       }
       {!loading && friends?.length !== 0 && !friendsLoading && getCardsReady == true &&
-        <div className="scroll-smooth"
+        <div className="w-full mx-auto scroll-smooth"
         >
           {friends?.map((friend) => (
             // <StickScroll key={friend?.userID}>
-            <section className="scroll-smooth flex"
+            <section className="scroll-smooth flex justify-center w-full mx-auto"
               key={nanoid()}>
               <ProfileCard
                 friend={friend}
