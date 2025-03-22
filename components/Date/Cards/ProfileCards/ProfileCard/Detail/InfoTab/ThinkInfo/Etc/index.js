@@ -1,15 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import { MdChurch } from "react-icons/md";
 import { GiCycle } from "react-icons/gi";
 import { BsHourglassSplit } from "react-icons/bs";
 import { BiSolidGame } from "react-icons/bi";
-import { IoFastFood } from "react-icons/io5";
-import { FaFrownOpen } from "react-icons/fa";
 import { FaRegThumbsUp } from "react-icons/fa6";
 import { FaRegThumbsDown } from "react-icons/fa6";
-import { BiRestaurant } from "react-icons/bi";
 import { FaLeaf } from "react-icons/fa";
 import { MdSoupKitchen } from "react-icons/md";
 import { FaRunning } from "react-icons/fa";

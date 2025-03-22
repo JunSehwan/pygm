@@ -118,7 +118,7 @@ const index = ({ friend }) => {
       {sleeping && !withdrawing &&
         <>
           <div
-            className="max-w-[380px] my-3 mx-2 w-[100%] opacity-75 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
+            className="max-w-[380px] my-3 mx-2 w-[100%] opacity-75 rounded-lg shadow-lg hover:shadow-sm ">
             <div className='w-full text-left relative '>
               <div className='rounded-lg w-full relative h-[380px] bg-gray-700 flex flex-col items-center justify-center gap-4'>
                 <ProtectiveImage
@@ -150,7 +150,7 @@ const index = ({ friend }) => {
           // initial={{ opacity: 0 }}
           // whileInView={{ opacity: 1 }}
           // viewport={{ once: true }}
-          className="max-w-[380px] my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-slate-300 rounded-lg dark:bg-gray-800 dark:border-gray-700 shadow-lg hover:shadow-sm ">
+          className="max-w-[380px] my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-slate-300 rounded-lg shadow-lg hover:shadow-sm ">
           <div className='w-full text-left relative '>
             <div className='w-full relative h-[380px] flex flex-col items-center justify-center gap-4'>
               <Image
@@ -171,7 +171,7 @@ const index = ({ friend }) => {
           // initial={{ opacity: 0 }}
           // whileInView={{ opacity: 1 }}
           // viewport={{ once: true }}
-          className="transition-transform duration-300 transform hover:scale-105 max-w-[380px] my-3 mx-2 w-[100%] h-[380px] bg-white shadow-lg hover:shadow-sm border rounded-lg dark:bg-gray-800 dark:border-gray-700 border-b-solid border-b-4 border-blue-300 ">
+          className="transition-transform duration-300 transform hover:scale-105 max-w-[380px] my-3 mx-2 w-[100%] h-[380px] bg-white shadow-lg hover:shadow-sm border rounded-lgsolid border-b-4 border-blue-300 ">
           <button
             className='w-full text-left relative h-[100%]'
             onClick={goDetail}
@@ -211,14 +211,14 @@ const index = ({ friend }) => {
             
             ">
               <div className='w-full flex justify-between flow-row items-center gap-2'>
-                <div className="text-2xl font-bold tracking-tight text-white dark:text-white">{friend?.nickname}
+                <div className="text-2xl text-subColor1 [text-shadow:_1px_1px_1px_gray] font-bold tracking-tight text-white ">{friend?.nickname}
                 </div>
-                <span className='inline-flex items-center rounded-md px-4 py-1.5 text-md font-medium text-center text-sky-700 bg-white hover:bg-white focus:ring-4 focus:outline-none focus:ring-white dark:bg-white dark:hover:bg-white dark:focus:ring-white dark:text-black'>
+                <span className='inline-flex items-center rounded-md px-4 py-1.5 text-md font-medium text-center text-sky-700 bg-white hover:bg-white focus:ring-4 focus:outline-none focus:ring-white'>
                   {friend?.mbti_ei}{friend?.mbti_sn}{friend?.mbti_tf}{friend?.mbti_jp}</span>
               </div>
-              <p className="mb-2 text-lg tracking-tight text-white dark:text-white">{friend?.birthday?.year}년생</p>
+              <p className="mb-2 text-lg tracking-tight text-white text-subColor1 [text-shadow:_1px_1px_1px_gray]">{friend?.birthday?.year}년생</p>
               <div className="flex w-full items-center justify-start flex-wrap gap-1">
-                <p className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-sky-600/60 hover:bg-sky-800/60 focus:ring-4 focus:outline-none focus:ring-sky-300/60 dark:bg-sky-200/60 dark:hover:bg-sky-300/60 dark:focus:ring-sky-400/60 dark:text-black">
+                <p className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-sky-600/60 hover:bg-sky-800/60 focus:ring-4 focus:outline-none focus:ring-sky-300/60">
                   <FaHome className='' />
                   <span className="">{(() => {
                     switch (friend?.address_sido) {
@@ -244,7 +244,7 @@ const index = ({ friend }) => {
                   })(friend?.address_sido)}</span>
                   <span className=''>{defaultSigugun?.codeNm}</span>
                 </p>
-                <p className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-sky-600/60 hover:bg-sky-800/60 focus:ring-4 focus:outline-none focus:ring-sky-300/60 dark:bg-sky-200/60 dark:hover:bg-sky-300/60 dark:focus:ring-sky-400/60 dark:text-black">
+                <p className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-sky-600/60 hover:bg-sky-800/60 focus:ring-4 focus:outline-none focus:ring-sky-300/60 ">
                   <FaBuilding className='' />
                   <span className="">{(() => {
                     switch (friend?.company_location_sido) {
@@ -270,7 +270,7 @@ const index = ({ friend }) => {
                   })(friend?.company_location_sido)}</span>
                   <span className=''>{defaultCompanySigugun?.codeNm}</span>
                 </p>
-                <div className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-blue-600/60 hover:bg-blue-800/60 focus:ring-4 focus:outline-none focus:ring-blue-300/60 dark:bg-blue-600/60 dark:hover:bg-blue-700/60 dark:focus:ring-blue-800/60">
+                <div className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-blue-600/60 hover:bg-blue-800/60 focus:ring-4 focus:outline-none focus:ring-blue-300/60 ">
                   <FaBriefcase className='' />
                   <span className="text-md">{(() => {
                     switch (friend?.job) {

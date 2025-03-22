@@ -10,7 +10,42 @@ const index = () => {
   const { user, patchCareerLivingDone } = useSelector(state => state.user);
   const dispatch = useDispatch();
 
-  const updateCareerLivingDone = () => toast('커리어/생활 업데이트 완료!');
+  const writeThumbImage = user?.thumbimage?.length >= 2;
+  const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
+  const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun
+  const writeCarrerDocu = user?.jobdocument?.length !== 0;
+  const writeMBTI = user?.mbti_ei;
+  const writeRomance = user?.opfriend && user?.friendmeeting && user?.longdistance;
+  const writeCareerLiving = user?.career_goal && user?.living_weekend && user?.living_consume;
+  const writeEtc = user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
+  const writeHobby = user?.hobby && user?.drink && user?.health && user?.interest;
+
+  const [trueCount, setTrueCount] = useState(0);
+  useEffect(() => {
+    async function fetchAndSetUser() {
+      setTrueCount(0);
+      writeThumbImage && setTrueCount(prev => prev + 1)
+      writeBasicInfo && setTrueCount(prev => prev + 1)
+      writeCareerInfo && setTrueCount(prev => prev + 1)
+      writeCarrerDocu && setTrueCount(prev => prev + 1)
+      writeMBTI && setTrueCount(prev => prev + 1)
+      writeRomance && setTrueCount(prev => prev + 1)
+      writeCareerLiving && setTrueCount(prev => prev + 1)
+      writeEtc && setTrueCount(prev => prev + 1)
+      writeHobby && setTrueCount(prev => prev + 1)
+    }
+    fetchAndSetUser();
+  }, [writeThumbImage,
+    writeBasicInfo,
+    writeCareerInfo,
+    writeCarrerDocu,
+    writeMBTI,
+    writeRomance,
+    writeCareerLiving,
+    writeEtc,
+    writeHobby])
+
+  const updateCareerLivingDone = () => toast(`커리어/생활 업데이트 완료! ${trueCount}/9개 섹션 입력완료!`);
 
   useEffect(() => {
     if (patchCareerLivingDone) {
@@ -117,11 +152,11 @@ const index = () => {
 
   const career_goalArr = ["꾸준히 지금 일을 계속한다", "학위 또는 자격취득", "이직 또는 취업", "사업", "카페나 자영업", "투자, 재테크", "투잡", "관심 없음"]
   const living_weekendArr = ["집에서 휴식", "산책과 운동", "친구만나기", "학습(직무/재테크 등)", "취미생활", "봉사활동", "드라이브", "게임", "기타"]
-  const living_consumeArr = ["자린고비", "필요한것만 사는 편", "이따금씩 플랙스!", "고민없이 플랙스!","스트레스 해소로 플랙스!"]
+  const living_consumeArr = ["자린고비", "필요한것만 사는 편", "이따금씩 플랙스!", "고민없이 플랙스!", "스트레스 해소로 플랙스!"]
   const living_petArr = ["매우 싫다", "반려동물은 그닥...", "크게 상관없다", "매우 긍정적", "동물에 따라 다름"]
   const living_tatooArr = ["매우 싫다", "한 두개는 괜찮다", "괜찮다", "멋지다고 생각한다", "나 역시 타투 경험이 있다"]
-  const living_smokeArr = ["긍정적이다", "크게 상관없다", "전자담배는 괜찮다", "조금은 부정적이다", "끊으면 좋겠다", "매우 싫다","생각해본 적 없다"]
-  const living_charmingArr = ["귀여움", "섹시함", "청순함", "새침함", "순둥이", "앙칼짐", "터프함", "시크함", "쿨함", "싸가지", "듬직함", "병맛", "겸손함", "느끼함", "유머러스", "유치함", "진지함", "집중력", "배려심", "착함", "로맨틱","자유분방함","섬세함"]
+  const living_smokeArr = ["긍정적이다", "크게 상관없다", "전자담배는 괜찮다", "조금은 부정적이다", "끊으면 좋겠다", "매우 싫다", "생각해본 적 없다"]
+  const living_charmingArr = ["귀여움", "섹시함", "청순함", "새침함", "순둥이", "앙칼짐", "터프함", "시크함", "쿨함", "싸가지", "듬직함", "병맛", "겸손함", "느끼함", "유머러스", "유치함", "진지함", "집중력", "배려심", "착함", "로맨틱", "자유분방함", "섬세함"]
 
 
   return (

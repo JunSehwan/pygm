@@ -11,7 +11,43 @@ const index = () => {
   const { user, patchMycompanyInfoDone } = useSelector(state => state.user);
   const dispatch = useDispatch();
 
-  const updateCareerProfileDone = () => toast('스펙정보 업데이트 완료!');
+
+  const writeThumbImage = user?.thumbimage?.length >= 2;
+  const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
+  const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun
+  const writeCarrerDocu = user?.jobdocument?.length !== 0;
+  const writeMBTI = user?.mbti_ei;
+  const writeRomance = user?.opfriend && user?.friendmeeting && user?.longdistance;
+  const writeCareerLiving = user?.career_goal && user?.living_weekend && user?.living_consume;
+  const writeEtc = user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
+  const writeHobby = user?.hobby && user?.drink && user?.health && user?.interest;
+
+  const [trueCount, setTrueCount] = useState(0);
+  useEffect(() => {
+    async function fetchAndSetUser() {
+      setTrueCount(0);
+      writeThumbImage && setTrueCount(prev => prev + 1)
+      writeBasicInfo && setTrueCount(prev => prev + 1)
+      writeCareerInfo && setTrueCount(prev => prev + 1)
+      writeCarrerDocu && setTrueCount(prev => prev + 1)
+      writeMBTI && setTrueCount(prev => prev + 1)
+      writeRomance && setTrueCount(prev => prev + 1)
+      writeCareerLiving && setTrueCount(prev => prev + 1)
+      writeEtc && setTrueCount(prev => prev + 1)
+      writeHobby && setTrueCount(prev => prev + 1)
+    }
+    fetchAndSetUser();
+  }, [writeThumbImage,
+    writeBasicInfo,
+    writeCareerInfo,
+    writeCarrerDocu,
+    writeMBTI,
+    writeRomance,
+    writeCareerLiving,
+    writeEtc,
+    writeHobby])
+
+  const updateCareerProfileDone = () => toast(`스펙정보 업데이트 완료! ${trueCount}/9개 섹션 입력완료!`);
 
   useEffect(() => {
     if (patchMycompanyInfoDone) {
@@ -23,7 +59,6 @@ const index = () => {
       setDutyError(false);
       setSalaryError(false);
       setCompany_locationError(false);
-
       updateCareerProfileDone();
       dispatch(patchMycompanyInfofalse());
     }
@@ -389,6 +424,25 @@ const index = () => {
           ) : null}
         </div>
 
+
+
+
+        <CareerUpload
+        />
+        <div className='w-full' id="jobdocument">
+          {jobdocumentError ? (
+            <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+              <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+              </svg>
+              <span className="sr-only">Info</span>
+              <div>
+                <span className="font-medium">증명문서를 등록해주세요.</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         <div className="py-4">
           <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="salary">
             연봉수준
@@ -408,6 +462,7 @@ const index = () => {
             defaultValue={user?.salary || salary}
           >
             <option value="" key="99">선택</option>
+            <option value={20} key="20">비공개</option>
             <option value={1} key="1">2,000만원 이하</option>
             <option value={2} key="2">2,000 ~ 2,500만원</option>
             <option value={3} key="3">2,500 ~ 3,000만원</option>
@@ -490,22 +545,6 @@ const index = () => {
           </div>
         </div>
 
-
-        <CareerUpload
-        />
-        <div className='w-full' id="jobdocument">
-          {jobdocumentError ? (
-            <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
-              <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
-              </svg>
-              <span className="sr-only">Info</span>
-              <div>
-                <span className="font-medium">증명문서를 등록해주세요.</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
         <div className="w-full justify-end flex items-center">
           <button type="submit"
             className="my-2 px-6 text-md py-4 font-bold text-white bg-[#4173f4] hover:bg-[#1C52DC]  focus:outline-none focus:shadow-outline rounded-lg">

@@ -11,7 +11,43 @@ const index = () => {
   const { user, patchRomanceDone } = useSelector(state => state.user);
   const dispatch = useDispatch();
 
-  const updateRomanceDone = () => toast('연애관 업데이트 완료!');
+
+  const writeThumbImage = user?.thumbimage?.length >= 2;
+  const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
+  const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun
+  const writeCarrerDocu = user?.jobdocument?.length !== 0;
+  const writeMBTI = user?.mbti_ei;
+  const writeRomance = user?.opfriend && user?.friendmeeting && user?.longdistance;
+  const writeCareerLiving = user?.career_goal && user?.living_weekend && user?.living_consume;
+  const writeEtc = user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
+  const writeHobby = user?.hobby && user?.drink && user?.health && user?.interest;
+
+  const [trueCount, setTrueCount] = useState(0);
+  useEffect(() => {
+    async function fetchAndSetUser() {
+      setTrueCount(0);
+      writeThumbImage && setTrueCount(prev => prev + 1)
+      writeBasicInfo && setTrueCount(prev => prev + 1)
+      writeCareerInfo && setTrueCount(prev => prev + 1)
+      writeCarrerDocu && setTrueCount(prev => prev + 1)
+      writeMBTI && setTrueCount(prev => prev + 1)
+      writeRomance && setTrueCount(prev => prev + 1)
+      writeCareerLiving && setTrueCount(prev => prev + 1)
+      writeEtc && setTrueCount(prev => prev + 1)
+      writeHobby && setTrueCount(prev => prev + 1)
+    }
+    fetchAndSetUser();
+  }, [writeThumbImage,
+    writeBasicInfo,
+    writeCareerInfo,
+    writeCarrerDocu,
+    writeMBTI,
+    writeRomance,
+    writeCareerLiving,
+    writeEtc,
+    writeHobby])
+
+  const updateRomanceDone = () => toast(`연애관 업데이트 완료! ${trueCount}/9개 섹션 입력완료!`);
 
   useEffect(() => {
     if (patchRomanceDone) {
@@ -166,8 +202,8 @@ const index = () => {
   const longdistanceArr = ["절대불가", "가능하지만 자신은 없음", "가능한 편", "웬만하면 가능"]
   const datecycleArr = ["한달에 1회미만", "한달에 1회", "격주 1회", "주1~2회", "주3~4회", "주5~7회"]
   const dateromanceArr = ["같이 산책하는 등 소소한 행복", "항상 설레는 연애", "새로운 경험을 함께하는 연애", "현실적, 안정적인 연애"]
-  const contactArr = ["전혀 중요하지 않다", "크게 중요하지 않음","연애 초기에만 중요한 편","중요한 편이다","매우 중요하다"]
-  const contactcycleArr = ["매번 어디든 상황공유", "최소 아침, 저녁에는 연락", "이따금씩 한번씩", "하루에 한번정도","상관 없다"]
+  const contactArr = ["전혀 중요하지 않다", "크게 중요하지 않음", "연애 초기에만 중요한 편", "중요한 편이다", "매우 중요하다"]
+  const contactcycleArr = ["매번 어디든 상황공유", "최소 아침, 저녁에는 연락", "이따금씩 한번씩", "하루에 한번정도", "상관 없다"]
   const passwordshareArr = ["프라이버시는 지켜줘야 한다", "알려줘도 상관없다"]
   const weddingArr = ["아직 관심없음", "원하지만 계획은 없음", "1~2년내", "당장이라도 가능"]
   const wedding_datingArr = ["크게 중요하지 않음", "3년 이상", "1년~3년", "6개월~1년", "6개월이내 가능", "3개월이내 가능"]
@@ -602,8 +638,10 @@ const index = () => {
           usermax={user?.prefer_age_max || 49}
         />
 
-
-        <div className="w-full justify-end flex items-center">
+        <div
+        className='w-full my-2'
+        ></div>
+        <div className="w-full justify-end flex items-center mt-12 mb-4">
           <button type="submit" className="text-white bg-[#050708] hover:bg-[#050708]/90 focus:ring-4 focus:outline-none focus:ring-[#050708]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#050708]/50 dark:hover:bg-[#050708]/30 me-2 mb-2">
             <FaRegSave className="w-5 h-5 me-2 -ms-1" />
             연애/결혼관 업데이트

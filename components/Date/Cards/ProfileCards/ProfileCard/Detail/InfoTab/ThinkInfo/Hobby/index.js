@@ -255,12 +255,12 @@ const index = () => {
             </span>
             <span className='text-left font-normal text-md text-gray-600 w-full'>
               <span className="w-full flex flex-col items-start">
-                <span className='text-xs font-light text-slate-500'>취미를 공유하는것에 대해 어떻게 생각하나요?</span>
+                <span className='text-xs font-light text-slate-500'>취미를 공유하는 것에 대해 어떻게 생각하나요?</span>
                 <span>
                   {(() => {
                     switch (friend?.hobbyshare) {
                       case '1': return (<span className="">상대방의 취미엔 신경안씀</span>)
-                      case '2': return (<span className="">한 개 정도는?</span>)
+                      case '2': return (<span className="">한 개 정도는 공유하고 싶다</span>)
                       case '3': return (<span className="">많은 취미를 함께하고 싶다</span>)
                       case '4': return (<span className="">생각해 본 적 없음</span>)
                       default: null;

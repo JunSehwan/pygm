@@ -11,7 +11,42 @@ const index = () => {
   const { user, patchHobbyDone } = useSelector(state => state.user);
   const dispatch = useDispatch();
 
-  const updateHobbyDone = () => toast('취미분야 업데이트 완료!');
+const writeThumbImage = user?.thumbimage?.length >= 2;
+  const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
+  const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun
+  const writeCarrerDocu = user?.jobdocument?.length !== 0;
+  const writeMBTI = user?.mbti_ei;
+  const writeRomance = user?.opfriend && user?.friendmeeting && user?.longdistance;
+  const writeCareerLiving = user?.career_goal && user?.living_weekend && user?.living_consume;
+  const writeEtc = user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
+  const writeHobby = user?.hobby && user?.drink && user?.health && user?.interest;
+
+  const [trueCount, setTrueCount] = useState(0);
+  useEffect(() => {
+    async function fetchAndSetUser() {
+      setTrueCount(0);
+      writeThumbImage && setTrueCount(prev => prev + 1)
+      writeBasicInfo && setTrueCount(prev => prev + 1)
+      writeCareerInfo && setTrueCount(prev => prev + 1)
+      writeCarrerDocu && setTrueCount(prev => prev + 1)
+      writeMBTI && setTrueCount(prev => prev + 1)
+      writeRomance && setTrueCount(prev => prev + 1)
+      writeCareerLiving && setTrueCount(prev => prev + 1)
+      writeEtc && setTrueCount(prev => prev + 1)
+      writeHobby && setTrueCount(prev => prev + 1)
+    }
+    fetchAndSetUser();
+  }, [writeThumbImage,
+    writeBasicInfo,
+    writeCareerInfo,
+    writeCarrerDocu,
+    writeMBTI,
+    writeRomance,
+    writeCareerLiving,
+    writeEtc,
+    writeHobby])
+
+  const updateHobbyDone = () => toast(`취미분야 업데이트 완료! ${trueCount}/9개 섹션 입력완료!`);
 
   useEffect(() => {
     if (patchHobbyDone) {
@@ -153,7 +188,7 @@ const index = () => {
   //여행의 주된 목적은?
   const tourpurposeArr = ["주로 관광", "주로 휴양", "새로운 경험과 문화접촉", "사람들과 관계", "일상의 해방", "도전과 탐험"]
   //취미를 공유하는것 생각?
-  const hobbyshareArr = ["상대방의 취미엔 신경안씀", "한 개 정도는?", "많은 취미를 함께하고 싶다", "생각해 본 적 없음"]
+  const hobbyshareArr = ["상대방의 취미엔 신경안씀", "한 개 정도는 공유하고 싶다", "많은 취미를 함께하고 싶다", "생각해 본 적 없음"]
 
 
   return (

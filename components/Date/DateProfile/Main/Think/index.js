@@ -90,7 +90,7 @@ const index = () => {
             </button>
           </h2>
           <div className={`
-              ${openMbti ? "max-h-[2000px] transition-all duration-500 ease-in-out" :
+              ${openMbti ? "max-h-[2400px] h-fit transition-all duration-500 ease-in-out" :
               "max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0 "}
               transition duration-500 ease-in-out `}
             id="accordion-collapse-body-1"
@@ -126,7 +126,7 @@ const index = () => {
             </button>
           </h2>
           <div className={`
-              ${openHobby ? "max-h-[2000px] transition-all duration-500 ease-in-out" :
+              ${openHobby ? "max-h-[2400px] h-fit transition-all duration-500 ease-in-out" :
               "max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0"}
               transition duration-500 ease-in-out `}
             id="accordion-collapse-body-1"
@@ -159,7 +159,7 @@ const index = () => {
           </h2>
 
           <div className={`
-              ${openRomance ? "max-h-[2000px] transition-all duration-500 ease-in-out" :
+              ${openRomance ? "max-h-[2400px] h-fit transition-all duration-500 ease-in-out" :
               "max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0"}
               transition duration-500 ease-in-out `}
             id="accordion-collapse-body-1"
@@ -191,7 +191,7 @@ const index = () => {
           </h2>
 
           <div className={`
-              ${openCareerLiving ? "max-h-[2000px] transition-all duration-500 ease-in-out" :
+              ${openCareerLiving ? "max-h-[2400px] h-fit transition-all duration-500 ease-in-out" :
               "max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0 "}
               transition duration-500 ease-in-out `}
             id="accordion-collapse-body-1"
@@ -223,7 +223,7 @@ const index = () => {
           </h2>
 
           <div className={`
-              ${openEtc ? "max-h-[2000px] transition-all duration-500 ease-in-out" :
+              ${openEtc ? "max-h-[2400px] h-fit transition-all duration-500 ease-in-out" :
               "max-h-0 overflow-hidden transition-all duration-500 ease-in-out opacity-0 "}
               transition duration-500 ease-in-out `}
             id="accordion-collapse-body-1"

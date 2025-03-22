@@ -276,9 +276,9 @@ export const user = createSlice({
       state.otherFriendLoading = false;
     },
     likeToUser(state, action) {
-      const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
-      target?.liked?.unshift({ userId: action.payload.userId, username: action.payload.username, startAt: action.payload.startAt });
-      state.user.wink = state.user.wink - 1;
+      // const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
+      // target?.liked?.unshift({ userId: action.payload.userId, username: action.payload.username, startAt: action.payload.startAt });
+      // state.user.wink = state.user.wink - 1;
       state.addLikeDone = true;
     },
     addLikeDoneFalse(state) {

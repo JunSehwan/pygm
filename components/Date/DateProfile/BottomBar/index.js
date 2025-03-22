@@ -71,7 +71,6 @@ const index = (
         || (user?.date_profile_finished == true && user?.date_pending == true)
       ) {
         onClickFinishedModal()
-
       }
     }
   }, [onClickFinishedModal, writeThumbImage, writeBasicInfo,
@@ -83,8 +82,6 @@ const index = (
       dispatch(writeDateprofileDoneFalse());
     }
   }, [dispatch, writeDateprofileDone, user?.likes])
-
-
 
   const onFinish = useCallback(async () => {
     const result = await finishDate_Profile();

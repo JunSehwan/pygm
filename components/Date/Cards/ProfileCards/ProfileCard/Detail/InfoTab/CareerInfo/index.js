@@ -162,6 +162,7 @@ const index = () => {
               <span>
                 {(() => {
                   switch (friend?.salary) {
+                    case '20': return (<span className="">비공개</span>)
                     case '1': return (<span className="">2,000만원 이하</span>)
                     case '2': return (<span className="">2,000 ~ 2,500만원</span>)
                     case '3': return (<span className="">2,500 ~ 3,000만원</span>)
@@ -174,8 +175,8 @@ const index = () => {
                     case '10': return (<span className="">6,000 ~ 7,000만원</span>)
                     case '11': return (<span className="">7,000 ~ 8,000만원</span>)
                     case '12': return (<span className="">8,000 ~ 9,000만원</span>)
-                    case '12': return (<span className="">9,000 ~ 1억원</span>)
-                    case '12': return (<span className="">1억원 이상</span>)
+                    case '13': return (<span className="">9,000 ~ 1억원</span>)
+                    case '14': return (<span className="">1억원 이상</span>)
                     default: null;
                   }
                 })(friend?.salary)}

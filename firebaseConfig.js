@@ -1777,7 +1777,7 @@ export async function getNewFriends() {
       })
     )
     )
-    const uniqueArr = uniqueArrs?.slice(0, (5 - (countArr?.length <= 0 ? 0 : countArr?.length)));
+    const uniqueArr = uniqueArrs?.slice(0, (3 - (countArr?.length <= 0 ? 0 : countArr?.length)));
     const reuniqueArr = uniqueArr?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
     if (me?.datecard?.length === 0 || !me?.datecard) {
       await updateDoc(api.userByIdRef(user.uid), {

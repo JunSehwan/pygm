@@ -12,7 +12,7 @@ import { db, storage } from 'firebaseConfig';
 import { BsFillCloudUploadFill } from 'react-icons/bs';
 import { uploadJobDocument, uploadJobDocumentDoneFalse } from 'slices/user';
 import styled, { css, keyframes } from 'styled-components';
-
+import toast, { Toaster } from 'react-hot-toast';
 
 // const progresssituation = (propgress) => css`
 //   width : ${progress ? progress : null};
@@ -113,6 +113,43 @@ const index = ({
     dispatch(uploadJobDocument(URLs));
   }, [URLs, dispatch, user?.userID])
 
+  const writeThumbImage = user?.thumbimage?.length >= 2;
+  const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
+  const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun
+  const writeCarrerDocu = user?.jobdocument?.length !== 0;
+  const writeMBTI = user?.mbti_ei;
+  const writeRomance = user?.opfriend && user?.friendmeeting && user?.longdistance;
+  const writeCareerLiving = user?.career_goal && user?.living_weekend && user?.living_consume;
+  const writeEtc = user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
+  const writeHobby = user?.hobby && user?.drink && user?.health && user?.interest;
+
+  const [trueCount, setTrueCount] = useState(0);
+  useEffect(() => {
+    async function fetchAndSetUser() {
+      setTrueCount(0);
+      writeThumbImage && setTrueCount(prev => prev + 1)
+      writeBasicInfo && setTrueCount(prev => prev + 1)
+      writeCareerInfo && setTrueCount(prev => prev + 1)
+      writeCarrerDocu && setTrueCount(prev => prev + 1)
+      writeMBTI && setTrueCount(prev => prev + 1)
+      writeRomance && setTrueCount(prev => prev + 1)
+      writeCareerLiving && setTrueCount(prev => prev + 1)
+      writeEtc && setTrueCount(prev => prev + 1)
+      writeHobby && setTrueCount(prev => prev + 1)
+    }
+    fetchAndSetUser();
+  }, [writeThumbImage,
+    writeBasicInfo,
+    writeCareerInfo,
+    writeCarrerDocu,
+    writeMBTI,
+    writeRomance,
+    writeCareerLiving,
+    writeEtc,
+    writeHobby])
+
+  const updatenotify = () => toast(`문서 업데이트 완료! ${trueCount}/9개 섹션 입력완료!`);
+
   useEffect(() => {
     async function fetchData() {
       // You can await here
@@ -132,6 +169,7 @@ const index = ({
       setProgress(0)
       setURLs([])
       setFinish(false);
+      updatenotify();
       dispatch(uploadJobDocumentDoneFalse());
     }
   }, [dispatch, uploadJobDocumentDone])
