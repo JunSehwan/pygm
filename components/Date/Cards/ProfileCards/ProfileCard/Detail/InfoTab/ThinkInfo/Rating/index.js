@@ -25,20 +25,17 @@ const index = () => {
     setFinish(dubCheck);
   }, [dubCheck, friend, user, MyRatingList])
 
-  const [currentRating, setCurrentRating] = useState(3);
+  const [currentRating, setCurrentRating] = useState(0);
   const [finish, setFinish] = useState(dubCheck);
 
   const handleRatingChange = useCallback(async (event) => {
     setCurrentRating(event); // Update current rating
     const result = await addDateRating(
-      friend?.id, friend?.username, currentRating
+      friend?.id, friend?.username, event
     )
     dispatch(plusDateRating(result));
     setFinish(true);
   }, [dispatch, friend?.id, friend?.username, currentRating])
-
-
-
 
   return (
     <>

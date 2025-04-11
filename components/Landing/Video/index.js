@@ -7,7 +7,7 @@ const index = () => {
         <div className='max-w-[320px]'
           data-aos="zoom-y-out"
           data-aos-delay={300}>
-          <video class="w-full" autoPlay loop muted controls>
+          <video className="w-full" autoPlay loop muted controls>
             <source src="/image/service.mov" type="video/mp4" />
             Your browser does not support the video tag.
           </video>

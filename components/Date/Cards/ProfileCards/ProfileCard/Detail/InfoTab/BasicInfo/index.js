@@ -84,22 +84,27 @@ const index = () => {
                 {(() => {
                   switch (friend?.address_sido) {
                     case '11': return (<span className="">서울특별시</span>)
-                    case '26': return (<span className="">부산광역시</span>)
-                    case '27': return (<span className="">대구광역시</span>)
-                    case '28': return (<span className="">인천광역시</span>)
-                    case '29': return (<span className="">광주광역시</span>)
-                    case '30': return (<span className="">대전광역시</span>)
-                    case '31': return (<span className="">울산광역시</span>)
-                    case '36': return (<span className="">세종특별자치시</span>)
-                    case '41': return (<span className="">경기도</span>)
-                    case '42': return (<span className="">강원도</span>)
-                    case '43': return (<span className="">충청북도</span>)
-                    case '44': return (<span className="">충청남도</span>)
-                    case '45': return (<span className="">전라북도</span>)
-                    case '46': return (<span className="">전라남도</span>)
-                    case '47': return (<span className="">경상북도</span>)
-                    case '48': return (<span className="">경상남도</span>)
-                    case '50': return (<span className="">제주특별자치도</span>)
+                    case '12': return (<span className="">인천광역시</span>)
+                    case '13': return (<span className="">경기도</span>)
+
+                    case '21': return (<span className="">충청북도</span>)
+                    case '22': return (<span className="">대전광역시</span>)
+                    case '23': return (<span className="">세종특별자치시</span>)
+                    case '24': return (<span className="">충청남도</span>)
+
+                    case '32': return (<span className="">강원도</span>)
+
+                    case '41': return (<span className="">광주광역시</span>)
+                    case '42': return (<span className="">전라북도</span>)
+                    case '43': return (<span className="">전라남도</span>)
+
+                    case '51': return (<span className="">대구광역시</span>)
+                    case '52': return (<span className="">경상북도</span>)
+                    case '53': return (<span className="">경상남도</span>)
+                    case '54': return (<span className="">울산광역시</span>)
+                    case '55': return (<span className="">부산광역시</span>)
+
+                    case '60': return (<span className="">제주특별자치도</span>)
                     default: null;
                   }
                 })(friend?.address_sido)}
@@ -126,22 +131,27 @@ const index = () => {
                 {(() => {
                   switch (friend?.company_location_sido) {
                     case '11': return (<span className="">서울특별시</span>)
-                    case '26': return (<span className="">부산광역시</span>)
-                    case '27': return (<span className="">대구광역시</span>)
-                    case '28': return (<span className="">인천광역시</span>)
-                    case '29': return (<span className="">광주광역시</span>)
-                    case '30': return (<span className="">대전광역시</span>)
-                    case '31': return (<span className="">울산광역시</span>)
-                    case '36': return (<span className="">세종특별자치시</span>)
-                    case '41': return (<span className="">경기도</span>)
-                    case '42': return (<span className="">강원도</span>)
-                    case '43': return (<span className="">충청북도</span>)
-                    case '44': return (<span className="">충청남도</span>)
-                    case '45': return (<span className="">전라북도</span>)
-                    case '46': return (<span className="">전라남도</span>)
-                    case '47': return (<span className="">경상북도</span>)
-                    case '48': return (<span className="">경상남도</span>)
-                    case '50': return (<span className="">제주특별자치도</span>)
+                    case '12': return (<span className="">인천광역시</span>)
+                    case '13': return (<span className="">경기도</span>)
+
+                    case '21': return (<span className="">충청북도</span>)
+                    case '22': return (<span className="">대전광역시</span>)
+                    case '23': return (<span className="">세종특별자치시</span>)
+                    case '24': return (<span className="">충청남도</span>)
+
+                    case '32': return (<span className="">강원도</span>)
+
+                    case '41': return (<span className="">광주광역시</span>)
+                    case '42': return (<span className="">전라북도</span>)
+                    case '43': return (<span className="">전라남도</span>)
+
+                    case '51': return (<span className="">대구광역시</span>)
+                    case '52': return (<span className="">경상북도</span>)
+                    case '53': return (<span className="">경상남도</span>)
+                    case '54': return (<span className="">울산광역시</span>)
+                    case '55': return (<span className="">부산광역시</span>)
+
+                    case '60': return (<span className="">제주특별자치도</span>)
                     default: null;
                   }
                 })(friend?.company_location_sido)}

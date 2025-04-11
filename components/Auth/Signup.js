@@ -730,7 +730,7 @@ const Signup = () => {
 
                       </form>
                       <div className="text-center mt-[2rem] mb-[1rem] text-[14px] text-gray-400">
-                        이미 가입을 하셨나요? <Link href="/"><span className="text-blue-800">로그인</span></Link> 해주세요.
+                        이미 가입을 하셨나요? <Link href="/login"><span className="text-blue-800">로그인</span></Link> 해주세요.
                       </div>
 
                     </div>

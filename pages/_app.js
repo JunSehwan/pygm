@@ -10,7 +10,12 @@ import 'tailwindcss/tailwind.css'
 import Script from 'next/script';
 import { Provider } from 'react-redux';
 import Proptypes from 'prop-types';
+import * as gtag from "lib/gtag";
+import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleAnalytics } from '@next/third-parties/google'
 
+export const GOOGLE_TAG = process.env.NEXT_PUBLIC_GOOGLE_TAG;
+export const GOOGLE_ANAL = process.env.NEXT_PUBLIC_GOOGLE_ANAL;
 
 const _app = ({ Component, pageProps, ...rest }) => {
 
@@ -38,11 +43,21 @@ const _app = ({ Component, pageProps, ...rest }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const handleRouteChange = (url) => {
+      gtag.pageview(url)
+    }
+    router.events.on('routeChangeComplete', handleRouteChange)
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange)
+    }
+  }, [router.events])
+
   return (
     <>
       <GlobalStyle />
       <Script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></Script>
-      
+
       <Head>
         <title>추억과 즐거움으로 이성을 만나다! 피그말리온</title>
         <meta charSet="utf-8" />
@@ -65,11 +80,13 @@ const _app = ({ Component, pageProps, ...rest }) => {
         <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="naver-site-verification" content="703be80d3c30d67edfd91f465ba95a258fd65d96" />
-        
+
       </Head>
       <ThemeProvider theme={theme}>
         <Provider store={store}>
           <Component {...pageProps} />
+          <GoogleTagManager gtmId={GOOGLE_TAG} />
+          <GoogleAnalytics gaId={GOOGLE_ANAL} />
         </Provider>
       </ThemeProvider>
     </>

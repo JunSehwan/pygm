@@ -12,14 +12,19 @@ const index = () => {
 
   return (
     <>
-      {loading || friendsLoading ?
+      {loading
+       || friendsLoading 
+       ?
         <div>
           <LoadingPage
           />
         </div>
         : null
       }
-      {!loading && friends?.length !== 0 && !friendsLoading && getCardsReady == true &&
+      {
+      !loading && friends?.length !== 0 
+      && !friendsLoading && getCardsReady == true 
+      &&
         <div className="w-full mx-auto scroll-smooth"
         >
           {friends?.map((friend) => (

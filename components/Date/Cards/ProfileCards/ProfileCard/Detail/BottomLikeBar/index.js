@@ -122,7 +122,7 @@ const index = (
       targetId: friend?.userID,
       targetName: friend?.username,
       // targetThumbimage: friend?.thumbimage,
-      userId: user?.userID, 
+      userId: user?.userID,
       username: user?.username,
       // thumbimage: user?.thumbimage,
     }));
@@ -216,7 +216,9 @@ const index = (
   return (
     <>
       {/* 아무것도 선택 안했을 경우 */}
-      {!likes && !liked && !dislikes && !disliked ?
+      {!likes && !dislikes && !liked
+        //  && !disliked
+        ?
         (<BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
       duration-300 ease-in-out z-10 bg-slate-100
@@ -294,10 +296,7 @@ const index = (
       {!likes && liked ?
         user?.wink >= 1 ?
           (<BottomBar aria-label="Bottombar"
-            className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
-      duration-300 ease-in-out z-10 bg-slate-100
-      fixed bottom-2 shadow-md rounded-md mr-2 ml-2
-      '>
+            className='max-w-[380px] block w-full overflow-y-hidden transition-transform duration-300 ease-in-out z-10 bg-slate-100 fixed bottom-2 shadow-md rounded-md mr-2 ml-2      '>
             <div className="overflow-y-auto w-full mx-auto">
               <div className=''>
 
@@ -472,8 +471,9 @@ const index = (
         : null
       }
 
-
+      {/* 내가 패스했을때 */}
       {dislikes &&
+        // likes &&
         <BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
       duration-300 ease-in-out z-10 bg-slate-100
@@ -505,7 +505,8 @@ const index = (
         </BottomBar>
       }
 
-      {disliked &&
+      {/* 내가 좋아하지만 상대가 거절했을때 */}
+      {disliked && likes &&
         <BottomBar aria-label="Bottombar"
           className='max-w-[380px] block w-full overflow-y-hidden transition-transform 
       duration-300 ease-in-out z-10 bg-slate-100

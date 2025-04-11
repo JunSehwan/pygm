@@ -54,7 +54,7 @@ const index = ({ friend }) => {
   }, [friend?.company_location_sido])
 
   const [defaultCompanySido] = sido?.filter((item) => item?.sido == friend?.company_location_sido, [])
-  const [defaultCompanySigugun] = sigugun?.filter((item) => item?.sido == friend?.company_location_sido && item?.sigugun == friend?.address_sigugun, [])
+  const [defaultCompanySigugun] = sigugun?.filter((item) => item?.sido == friend?.company_location_sido && item?.sigugun == friend?.company_location_sigugun, [])
 
   const goDetail = useCallback(() => {
     if (user) {
@@ -92,27 +92,34 @@ const index = ({ friend }) => {
     // friend?.date_sleep, friend?.withdraw
   ])
 
-  const sleeping = friend?.date_sleep == true;
-  const withdrawing = friend?.withdraw == true;
 
+  // 이 지ㄹㅏ말까 고ㄴㅐㅆ던거
+  const [dislikes, setDislikes] = useState(false);
+  const [disliked, setDisliked] = useState(false);
 
-  // const [dislikes, setDislikes] = useState(false);
-  // const [disliked, setDisliked] = useState(false);
+  useEffect(() => {
+    const dislikesResults = friend?.disliked?.find((v) => v?.userId === user?.userID) !== undefined
+    setDislikes(dislikesResults)
+    const dislikedResults = friend?.dislikes?.find((v) => v?.userId === user?.userID) !== undefined
+    setDisliked(dislikedResults)
+  }, [friend?.disliked, friend?.dislikes])
 
-  // useEffect(() => {
-  //   const dislikesResults = friend?.disliked?.find((v) => v?.userId === user?.userID) !== undefined
-  //   setDislikes(dislikesResults)
-  //   const dislikedResults = friend?.dislikes?.find((v) => v?.userId === user?.userID) !== undefined
-  //   setDisliked(dislikedResults)
-  // }, [friend?.disliked, friend?.dislikes])
+  ////////////
 
   const [refreshedFriend, setRefreshedFriend] = useState("");
-  useEffect(() => {
-    allFriends?.map((v) => (
-      friend?.userID === v?.userID ? setRefreshedFriend(v) : null
-    ))
-  }, [allFriends, friend?.userID])
 
+  useEffect(() => {
+    async function fetchAndSetUser() {
+      allFriends?.map((v) => (
+        friend?.userID === v?.userID ? setRefreshedFriend(v) : null
+      ))
+    }
+    fetchAndSetUser();
+  }, [allFriends, friend?.userID, refreshedFriend])
+  // console.log(friend, "구ㅅtt")
+  // console.log(disliked, dislikes, "디스이크")
+  const sleeping = refreshedFriend?.date_sleep == true;
+  const withdrawing = refreshedFriend?.withdraw == true;
   return (
     <>
       {sleeping && !withdrawing &&
@@ -150,7 +157,7 @@ const index = ({ friend }) => {
           // initial={{ opacity: 0 }}
           // whileInView={{ opacity: 1 }}
           // viewport={{ once: true }}
-          className="max-w-[380px] my-3 mx-2 w-[100%] bg-slate-50 opacity-75 border-solid border-t-2 border-slate-300 rounded-lg shadow-lg hover:shadow-sm ">
+          className="max-w-[380px] my-3 mx-2 w-[100%] bg-pink-50 opacity-75 border-solid border-t-1 border-slate-300 rounded-lg shadow-lg hover:shadow-sm ">
           <div className='w-full text-left relative '>
             <div className='w-full relative h-[380px] flex flex-col items-center justify-center gap-4'>
               <Image
@@ -166,11 +173,13 @@ const index = ({ friend }) => {
           </div>
         </div>
       }
-      {(refreshedFriend?.disliked?.length == 0 || !refreshedFriend?.disliked) && (!sleeping || sleeping == "") && (!withdrawing || withdrawing == "") &&
+      {
+        // (refreshedFriend?.disliked?.length == 0 || !refreshedFriend?.disliked) &&
+        !disliked &&
+        // !dislikes &&
+        (!sleeping || sleeping == "") && (!withdrawing || withdrawing == "") &&
         <div
-          // initial={{ opacity: 0 }}
-          // whileInView={{ opacity: 1 }}
-          // viewport={{ once: true }}
+
           className="transition-transform duration-300 transform hover:scale-105 max-w-[380px] my-3 mx-2 w-[100%] h-[380px] bg-white shadow-lg hover:shadow-sm border rounded-lgsolid border-b-4 border-blue-300 ">
           <button
             className='w-full text-left relative h-[100%]'
@@ -223,22 +232,27 @@ const index = ({ friend }) => {
                   <span className="">{(() => {
                     switch (friend?.address_sido) {
                       case '11': return (<span className="">서울특별시</span>)
-                      case '26': return (<span className="">부산광역시</span>)
-                      case '27': return (<span className="">대구광역시</span>)
-                      case '28': return (<span className="">인천광역시</span>)
-                      case '29': return (<span className="">광주광역시</span>)
-                      case '30': return (<span className="">대전광역시</span>)
-                      case '31': return (<span className="">울산광역시</span>)
-                      case '36': return (<span className="">세종특별자치시</span>)
-                      case '41': return (<span className="">경기도</span>)
-                      case '42': return (<span className="">강원도</span>)
-                      case '43': return (<span className="">충청북도</span>)
-                      case '44': return (<span className="">충청남도</span>)
-                      case '45': return (<span className="">전라북도</span>)
-                      case '46': return (<span className="">전라남도</span>)
-                      case '47': return (<span className="">경상북도</span>)
-                      case '48': return (<span className="">경상남도</span>)
-                      case '50': return (<span className="">제주특별자치도</span>)
+                      case '12': return (<span className="">인천광역시</span>)
+                      case '13': return (<span className="">경기도</span>)
+
+                      case '21': return (<span className="">충청북도</span>)
+                      case '22': return (<span className="">대전광역시</span>)
+                      case '23': return (<span className="">세종특별자치시</span>)
+                      case '24': return (<span className="">충청남도</span>)
+
+                      case '32': return (<span className="">강원도</span>)
+
+                      case '41': return (<span className="">광주광역시</span>)
+                      case '42': return (<span className="">전라북도</span>)
+                      case '43': return (<span className="">전라남도</span>)
+
+                      case '51': return (<span className="">대구광역시</span>)
+                      case '52': return (<span className="">경상북도</span>)
+                      case '53': return (<span className="">경상남도</span>)
+                      case '54': return (<span className="">울산광역시</span>)
+                      case '55': return (<span className="">부산광역시</span>)
+
+                      case '60': return (<span className="">제주특별자치도</span>)
                       default: null;
                     }
                   })(friend?.address_sido)}</span>
@@ -249,22 +263,27 @@ const index = ({ friend }) => {
                   <span className="">{(() => {
                     switch (friend?.company_location_sido) {
                       case '11': return (<span className="">서울특별시</span>)
-                      case '26': return (<span className="">부산광역시</span>)
-                      case '27': return (<span className="">대구광역시</span>)
-                      case '28': return (<span className="">인천광역시</span>)
-                      case '29': return (<span className="">광주광역시</span>)
-                      case '30': return (<span className="">대전광역시</span>)
-                      case '31': return (<span className="">울산광역시</span>)
-                      case '36': return (<span className="">세종특별자치시</span>)
-                      case '41': return (<span className="">경기도</span>)
-                      case '42': return (<span className="">강원도</span>)
-                      case '43': return (<span className="">충청북도</span>)
-                      case '44': return (<span className="">충청남도</span>)
-                      case '45': return (<span className="">전라북도</span>)
-                      case '46': return (<span className="">전라남도</span>)
-                      case '47': return (<span className="">경상북도</span>)
-                      case '48': return (<span className="">경상남도</span>)
-                      case '50': return (<span className="">제주특별자치도</span>)
+                      case '12': return (<span className="">인천광역시</span>)
+                      case '13': return (<span className="">경기도</span>)
+
+                      case '21': return (<span className="">충청북도</span>)
+                      case '22': return (<span className="">대전광역시</span>)
+                      case '23': return (<span className="">세종특별자치시</span>)
+                      case '24': return (<span className="">충청남도</span>)
+
+                      case '32': return (<span className="">강원도</span>)
+
+                      case '41': return (<span className="">광주광역시</span>)
+                      case '42': return (<span className="">전라북도</span>)
+                      case '43': return (<span className="">전라남도</span>)
+
+                      case '51': return (<span className="">대구광역시</span>)
+                      case '52': return (<span className="">경상북도</span>)
+                      case '53': return (<span className="">경상남도</span>)
+                      case '54': return (<span className="">울산광역시</span>)
+                      case '55': return (<span className="">부산광역시</span>)
+
+                      case '60': return (<span className="">제주특별자치도</span>)
                       default: null;
                     }
                   })(friend?.company_location_sido)}</span>

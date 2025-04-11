@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@next/bundle-analyzer": "^15.1.2",
+    "@next/third-parties": "^15.2.4",
     "@reduxjs/toolkit": "^2.5.0",
     "aos": "^2.3.4",
     "axios": "^1.7.9",

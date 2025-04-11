@@ -1651,8 +1651,8 @@ export async function getNewFriends() {
         food_spicy: doc.data().food_spicy || "",
         food_diet: doc.data().food_diet || "",
         wink: doc.data().wink || "",
-        date_sleep: doc.data().date_sleep || "",
-        withdraw: doc.data().withdraw || "",
+        date_sleep: doc.data().date_sleep || false,
+        withdraw: doc.data().withdraw || false,
         date_lastIntroduce: doc.data().date_lastIntroduce || "",
         timestamp: doc.data().timestamp || "",
 
@@ -1777,6 +1777,8 @@ export async function getNewFriends() {
       })
     )
     )
+
+    // 내 datecard에 넣기
     const uniqueArr = uniqueArrs?.slice(0, (3 - (countArr?.length <= 0 ? 0 : countArr?.length)));
     const reuniqueArr = uniqueArr?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
     if (me?.datecard?.length === 0 || !me?.datecard) {
@@ -1788,6 +1790,7 @@ export async function getNewFriends() {
         datecard: arrayUnion(...reuniqueArr),
       });
     }
+
     const finalArr = [];
 
     const resultMy = await getDoc(api.userByIdRef(user.uid));
@@ -2011,7 +2014,6 @@ export async function MessageFunction(number) {
       v?.startAt?.add(1, 'minute').diff(dayjs().format('YYYY MM DD HH:mm:ss'), 'minute') == 0
       && newArr.push(v)
     ))
-    console.log(newArr)
     // const addMessage = httpsCallable(getFunctions(), 'senddatemessage');
     // addMessage(number).then((result) => {
     //   const data = result.data;

@@ -296,6 +296,8 @@ const index = () => {
       }
     });
     dispatch(userLoadingEnd());
+    dispatch(setFriendsDoneFalse());
+    dispatch(setGetCardsReadyTrue());
     return () => {
       authStateListener();
     };
