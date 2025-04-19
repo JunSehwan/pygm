@@ -42,7 +42,7 @@ const index = () => {
       <div className='w-full mt-5'>
         <section className='w-full my-3 mx-auto px-2'>
           <div className='mx-auto px-2 flex flex-row items-center justify-between my-2 w-full'>
-            <div className='text-xl text-blue-800 font-bold mb-2'>
+            <div className='text-xl text-pink-800 font-bold mb-2'>
               매칭된 이성😃
             </div>
             <div className='text-md text-gray-500 mb-2'>
