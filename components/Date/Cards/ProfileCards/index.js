@@ -12,45 +12,27 @@ const index = () => {
 
   return (
     <>
-      {loading
-       || friendsLoading 
-       ?
-        <div>
-          <LoadingPage
-          />
-        </div>
-        : null
-      }
-      {
-      !loading && friends?.length !== 0 
-      && !friendsLoading && getCardsReady == true 
-      &&
-        <div className="w-full mx-auto scroll-smooth"
-        >
-          {friends?.map((friend) => (
-            // <StickScroll key={friend?.userID}>
+      {(loading || friendsLoading || !getCardsReady) ? (
+        <LoadingPage />
+      ) : Array.isArray(friends) && friends.length > 0 ? (
+        <div className="w-full mx-auto scroll-smooth">
+          {friends.map((friend) => (
             <section className="scroll-smooth flex justify-center w-full mx-auto"
               key={nanoid()}>
               <ProfileCard
                 friend={friend}
                 id={friend?.userID}
-                key={friend?.userID}
               />
             </section>
           ))}
-        </div>}
-      <InfoModal />
-      {!loading && !friendsLoading && friends?.length == 0 ?
-        <div>
-          <Empty
-            title="잠시만요!"
-            text="조만간 좋은 인연을 소개해드릴 예정입니다."
-            subtext="즐거운 만남을 위해 조금만 기다려주세요."
-          />
         </div>
-        : null
-      }
-
+      ) : (
+        <Empty
+          title="잠시만요!"
+          text="조만간 좋은 인연을 소개해드릴 예정입니다."
+          subtext="즐거운 만남을 위해 조금만 기다려주세요."
+        />
+      )}
 
     </>
   );

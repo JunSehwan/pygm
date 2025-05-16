@@ -4,9 +4,16 @@
     "es6": true,
     "node": true
   },
-  "extends": ["eslint:recommended", "google"],
+  "extends": [
+    "eslint:recommended",
+    "google",
+    "next",
+    "next/babel",
+    "next/core-web-vitals"
+  ],
   "rules": {
     "no-unused-vars": "warn",
-    "quotes": ["error", "double"]
+    "quotes": ["error", "double"],
+    "@next/next/no-img-element": "off"
   }
 }

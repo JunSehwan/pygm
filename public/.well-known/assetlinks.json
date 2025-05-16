@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.pygm.app",
+      "sha256_cert_fingerprints": [
+        "48:CA:64:5E:A0:43:DD:5F:1A:0A:25:5E:6F:C2:6D:3E:A0:FC:B7:77:07:30:A2:2B:16:6A:CC:05:94:50:4C:86"
+      ]
+    }
+  }
+]

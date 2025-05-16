@@ -9,7 +9,8 @@ import Modal from './Modal';
 import { getAuth, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { reauthenticateUser, getWithdraw } from 'firebaseConfig';
 import { signOut } from 'slices/user';
-
+import { updateDoc, doc, getFirestore } from 'firebase/firestore';
+import { initializeApp, getApp, getApps } from "firebase/app";
 const index = () => {
   const { user, setWithdrawDone } = useSelector(state => state.user);
   const router = useRouter();
@@ -17,18 +18,22 @@ const index = () => {
   auth.languageCode = 'ko';
   const me = auth.currentUser;
   const dispatch = useDispatch();
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  const db = getFirestore(app);
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState(false);
   const [password, setPassword] = useState();
   const [passwordError, setPasswordError] = useState(false);
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState(false);
 
   const [openModal, setOpenModal] = useState(false);
-
   const onClickOpenModal = useCallback(async (e) => {
     e.preventDefault();
     if (email?.length === 0) return setEmailError(true);
     if (email !== user?.email) return setEmailError(true);
+    if (reason?.length === 0) return setReasonError(true);
     if (!password || password?.length === 0) return setPasswordError(true);
     if (email?.length !== 0 && email === user?.email) {
       try {
@@ -66,7 +71,7 @@ const index = () => {
       alert("정보를 다시 확인해주세요.")
       return (setPasswordError(true))
     }
-  }, [auth.currentUser, email, password, user?.email])
+  }, [auth.currentUser, email, password, reason, user?.email])
 
   const onClickCloseModal = useCallback(() => {
     setOpenModal(false);
@@ -100,13 +105,28 @@ const index = () => {
   }, [])
   // if (!!user) return router.push("/dashboard");
 
+  //탈퇴사유
+  const onChangeReason = useCallback((e) => {
+    setReason(e.target.value);
+    setReasonError(false);
+  }, [])
+
+  const reasonArr = ["서비스 사용안함", "다른 서비스 이용", "서비스이용 불편", "서비스 장애가 많아서", "개인정보 유출 우려", "선호하는이성 없음", "기타"]
+
   const onSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (email?.length === 0) return setEmailError(true);
     if (email !== user?.email) return setEmailError(true);
     if (password?.length === 0) return setPasswordError(true);
+    if (reason?.length === 0) return setReasonError(true);
     if (email?.length !== 0 && email === user?.email) {
       try {
+        await updateDoc(
+          doc(db, "users", me?.uid),
+          {
+            "withdrawreason": reason,
+          }
+        );
         await reauthenticateUser(password)
           .then(async () => {
             await getWithdraw()
@@ -142,7 +162,7 @@ const index = () => {
     } else {
       alert("정보를 다시 확인해주세요.")
     }
-  }, [router, email, user?.email, password, me, dispatch])
+  }, [router, email, user?.email, reason, password, me, dispatch])
 
 
   return (
@@ -202,7 +222,51 @@ const index = () => {
             </div>
           </div>
 
-          <h2 className="text-lg mt-4 mb-4 font-semibold">회원님의 이메일 계정과 비밀번호를 작성해주세요.</h2>
+          {/* 탈퇴사유 */}
+          <div className="py-4">
+            <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="reason">
+              탈퇴하시는 주된 사유가 어떤건가요?
+            </label>
+            <ul className="grid w-full gap-2 grid-cols-2">
+              {reasonArr?.map((v, index) => (
+                <li key={index + 1}>
+                  <input type="radio"
+                    id={`reason ${index + 1}`}
+                    onChange={onChangeReason}
+                    checked={reason == index + 1}
+                    name="reason"
+                    value={index + 1}
+                    className="opacity-0 w-0 h-0 absolute peer" />
+                  <label htmlFor={`reason ${index + 1}`}
+                    className="peer-checked:bg-slate-100 peer-checked:text-blue-600 peer-checked:border peer-checked:border-blue-600 inline-flex transition-all transform items-center justify-between w-full p-3 text-gray-500
+                         border border-solid
+                           bg-white border-gray-200 rounded-lg cursor-pointer 
+                          dark:hover:text-gray-300 dark:border-gray-700 dark:active:text-blue-500 
+                          active:border active:border-solid target:border-solid target:border-2 target:border-blue-600 active:border-blue-600 hover:border-blue-600 checked:border-solid checked:border-blue-600 focus:border-blue-600 active:text-blue-600 checked:text-blue-600 focus:text-blue-600 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-800 dark:hover:bg-gray-700 shadow-md">
+                    <div className="block">
+                      {/* <div className="w-full text-lg font-semibold"></div> */}
+                      <div className="w-full text-sm">{v}</div>
+                    </div>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {reasonError ? (
+              <div className="flex items-center p-3 mt-2 text-sm text-red-800 border border-red-300 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 dark:border-red-800" role="alert">
+                <svg className="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
+                </svg>
+                <span className="sr-only">Info</span>
+                <div>
+                  <span className="font-medium">탈퇴사유를 선택해주세요.</span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* 이메일계정 확인 */}
+
+          <h2 className="block mb-2 mt-4 text-md font-bold text-gray-700">회원님의 이메일 계정과 비밀번호를 작성해주세요.</h2>
           {/* <form onSubmit={onSubmit}> */}
           <div className="mb-1">
             <input
