@@ -304,7 +304,7 @@ const index = () => {
           </div>
           <label htmlFor="school_open"
             className="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300"><span className="text-gray-600 hover:underline dark:text-blue-500">
-              학교 공개(스마트함을 어필할 수 있습니다)</span></label>
+              학교 공개(비공개라도 작성해주세요)</span></label>
         </div>
 
         {/* 경력입력 */}
@@ -391,7 +391,7 @@ const index = () => {
               checked={company_open} className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800" />
           </div>
           <label htmlFor="company_open" className="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300"><span className="text-gray-600 hover:underline dark:text-blue-500">
-            직장명 공개(능력을 어필할 수 있습니다)</span></label>
+            직장명 공개(비공개라도 작성해주세요)</span></label>
         </div>
 
         <div className="py-4">

@@ -1,136 +1,99 @@
 import Image from 'next/image';
 import React, { useCallback, useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import dayjs from "dayjs";
 import styled from 'styled-components';
 import { useSwipeable } from 'react-swipeable';
+import dayjs from 'dayjs';
 
 const ProtectiveImage = styled(Image)`
   -webkit-user-select: none;
-  -khtml-user-select: none;
   -moz-user-select: none;
-  -o-user-select: none;
   user-select: none;
   -webkit-user-drag: none;
-  -khtml-user-drag: none;
   -moz-user-drag: none;
-  -o-user-drag: none;
 `;
 
 const Index = () => {
   const { user, friend } = useSelector(state => state.user);
   const [current, setCurrent] = useState(0);
-  const length = friend?.thumbimage?.length;
+  const length = friend?.thumbimage?.length || 0;
 
   const onNext = useCallback(() => {
-    setCurrent(current === length - 1 ? 0 : current + 1);
-  }, [current, length]);
+    if (length > 0) setCurrent((prev) => (prev === length - 1 ? 0 : prev + 1));
+  }, [length]);
 
   const onPrevious = useCallback(() => {
-    setCurrent(current === 0 ? length - 1 : current - 1);
-  }, [current, length]);
+    if (length > 0) setCurrent((prev) => (prev === 0 ? length - 1 : prev - 1));
+  }, [length]);
 
-  const onNumberImage = useCallback((index) => {
-    setCurrent(index);
-  }, []);
+  const onNumberImage = useCallback((index) => setCurrent(index), []);
 
-  let today = dayjs();
-  let expiredDay = dayjs(friend?.expired);
-
-  const [likes, setLikes] = useState(false);
-  const [liked, setLiked] = useState(false);
-
-  useEffect(() => {
-    const likesResults = friend?.liked?.find((v) => v?.userId === user?.userID) !== undefined;
-    setLikes(likesResults);
-    const likedResults = friend?.likes?.find((v) => v?.userId === user?.userID) !== undefined;
-    setLiked(likedResults);
-  }, [user?.userID, friend?.liked, friend?.likes]);
-
-  // ✅ 스와이프 핸들러 추가
+  // 🔥 Swipe 기능
   const handlers = useSwipeable({
-    onSwipedLeft: () => onNext(),
-    onSwipedRight: () => onPrevious(),
-    preventDefaultTouchmoveEvent: true,
-    trackMouse: true,
+    onSwipedLeft: onNext,
+    onSwipedRight: onPrevious,
+    preventScrollOnSwipe: true,
+    trackMouse: true, // PC에서도 마우스드래그로 가능
   });
 
   return (
     <div id="indicators-carousel" className="relative w-full" data-carousel="static">
+      {/* 스와이프 영역 */}
       <div
         {...handlers}
-        className="relative overflow-hidden rounded-lg h-[420px]"
+        className="relative overflow-hidden rounded-lg h-[420px] touch-pan-y select-none"
       >
-        {friend && friend?.thumbimage?.length !== 0 && friend?.thumbimage?.map((v, index) => (
-          <div key={index + 1}>
-            <div
-              className={
-                index === current
-                  ? "transition-all duration-700 ease-in-out"
-                  : "transition-all hidden duration-700 ease-in-out"
-              }
-              data-carousel-item="active"
-            >
-              <ProtectiveImage
-                src={friend?.thumbimage?.[index]}
-                unoptimized
-                placeholder="blur"
-                blurDataURL="data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAK..."
-                width="0"
-                height="0"
-                sizes="100vw"
-                loader={() => friend?.thumbimage?.[index]}
-                className="absolute block w-full h-full object-cover transition-all
-              -translate-x-1/2 -translate-y-1/2 ease-in-out top-1/2 left-1/2"
-                alt="프로필사진"
-              />
-            </div>
+        {friend?.thumbimage?.map((v, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-all duration-500 ease-in-out ${index === current
+                ? 'opacity-100 translate-x-0 z-20'
+                : index < current
+                  ? '-translate-x-full opacity-0 z-10'
+                  : 'translate-x-full opacity-0 z-10'
+              }`}
+          >
+            <ProtectiveImage
+              src={v}
+              unoptimized
+              loader={() => v}
+              alt="프로필사진"
+              fill
+              className="object-cover transition-transform duration-500"
+            />
           </div>
         ))}
       </div>
 
-      <div className="transition-all ease-in-out absolute z-30 flex -translate-x-1/2 space-x-3 rtl:space-x-reverse bottom-5 left-1/2">
-        {friend && friend?.thumbimage?.length !== 0 && friend?.thumbimage?.map((v, index) => (
+      {/* 페이지 인디케이터 */}
+      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 space-x-3">
+        {friend?.thumbimage?.map((_, index) => (
           <button
-            type="button"
-            key={index + 1}
+            key={index}
             onClick={() => onNumberImage(index)}
-            value={index}
-            className={
-              index === current
-                ? "w-3 h-3 bg-sky-600 hover:bg-slate-500 rounded-full"
-                : "w-3 h-3 bg-white hover:bg-gray-200 rounded-full"
-            }
-            aria-current="true"
-            aria-label={`slide ${index + 1}`}
+            className={`w-3 h-3 rounded-full transition-all ${index === current ? 'bg-blue-500 scale-110' : 'bg-white/70'
+              }`}
           />
         ))}
       </div>
 
+      {/* 이전/다음 버튼 */}
       <button
         onClick={onPrevious}
-        type="button"
-        className="absolute top-0 start-0 z-30 flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none"
-        data-carousel-prev>
-        <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/30 dark:bg-gray-800/30 group-hover:bg-white/50 dark:group-hover:bg-gray-800/60 group-focus:ring-4 group-focus:ring-white dark:group-focus:ring-gray-800/70 group-focus:outline-none">
-          <svg className="w-4 h-4 text-white dark:text-gray-800 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 1 1 5l4 4" />
-          </svg>
-          <span className="sr-only">Previous</span>
-        </span>
+        className="absolute top-1/2 left-2 z-30 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full"
+      >
+        <svg width="10" height="16" viewBox="0 0 6 10" fill="none">
+          <path d="M5 1 1 5l4 4" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
       </button>
 
       <button
         onClick={onNext}
-        type="button"
-        className="absolute top-0 end-0 z-30 flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none"
-        data-carousel-next>
-        <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/30 dark:bg-gray-800/30 group-hover:bg-white/50 dark:group-hover:bg-gray-800/60 group-focus:ring-4 group-focus:ring-white dark:group-focus:ring-gray-800/70 group-focus:outline-none">
-          <svg className="w-4 h-4 text-white dark:text-gray-800 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4" />
-          </svg>
-          <span className="sr-only">Next</span>
-        </span>
+        className="absolute top-1/2 right-2 z-30 -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full"
+      >
+        <svg width="10" height="16" viewBox="0 0 6 10" fill="none">
+          <path d="m1 9 4-4-4-4" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
       </button>
     </div>
   );

@@ -44,6 +44,7 @@ export const initialState = {
   getCardsReady: false,
 
   buyWinkDone: false,
+  patchWinkUpDone: false,
   // 권한
   // isExpert: false,
   // isAdmin: false,
@@ -137,12 +138,25 @@ export const user = createSlice({
       state.user.nickname = action.payload.nickname;
       state.user.religion = action.payload.religion;
       state.user.birthday = action.payload.newForm;
-      // state.user.gender = action.payload.gender;
       state.user.phonenumber = action.payload.tel;
-      state.user.address_sigugun = action.payload.address_sigugun;
       state.user.address_sido = action.payload.address_sido;
+      state.user.address_sigugun = action.payload.address_sigugun;
+      state.user.status = action.payload.status;
+      state.user.height = action.payload.height;
       state.updateBasicProfileSuccess = true;
     },
+
+    // updateBasicProfile(state, action) {
+    //   state.user.username = action.payload.username;
+    //   state.user.nickname = action.payload.nickname;
+    //   state.user.religion = action.payload.religion;
+    //   state.user.birthday = action.payload.newForm;
+    //   // state.user.gender = action.payload.gender;
+    //   state.user.phonenumber = action.payload.tel;
+    //   state.user.address_sigugun = action.payload.address_sigugun;
+    //   state.user.address_sido = action.payload.address_sido;
+    //   state.updateBasicProfileSuccess = true;
+    // },
     updateBasicProfileFalse(state, action) {
       state.updateBasicProfileSuccess = false;
     },
@@ -357,7 +371,16 @@ export const user = createSlice({
     setIntroduceStart(state, action) {
       state.friendsIntroduceStart = true;
     },
-
+    patchWinkUp(state, action) {
+      const target = state.friends?.find((v) => v?.userID === action.payload.targetId);
+      target.wink = action.payload.wink;
+      target.date_pending = action.payload.profilePending;
+      target.date_profile_finished = action.payload.profileDone;
+      state.patchWinkUpDone = true;
+    },
+    patchWinkUpDoneFalse(state) {
+      state.patchWinkUpDone = false;
+    },
     buyWink(state) {
       state.buyWinkDone = true;
     },
@@ -446,6 +469,8 @@ export const {
   buyWink,
   buyWinkDoneFalse,
   setPaybackWinks,
+  patchWinkUp,
+  patchWinkUpDoneFalse,
 } = user.actions;
 
 export const useUserState = () => useAppSelector((state) => state.user);

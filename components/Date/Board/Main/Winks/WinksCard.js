@@ -31,7 +31,7 @@ const WinksCard = ({ friend, sido, sigugunList }) => {
 
   let today = dayjs();
   let expiredDay = dayjs(friend?.startAt).add(7, 'day');
-  let gap = Math.ceil(expiredDay?.diff(today, "day", true));
+  let gap = Math.max(0, Math.floor(expiredDay.diff(today, "day", true)));
   return (
     <>
       {gap >= 0 &&

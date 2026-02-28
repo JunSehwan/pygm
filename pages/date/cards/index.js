@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Head from 'next/head'
+import Head from 'next/head';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import {
@@ -14,18 +14,17 @@ import {
 } from "firebaseConfig";
 import LoadingPage from 'components/Common/Loading';
 import Router from 'next/router';
-import Cards from 'components/Date/Cards'
+import Cards from 'components/Date/Cards';
 import Navbar from 'components/Common/Navbar_Date';
-import dayjs from "dayjs";
 
 const Index = () => {
   const auth = getAuth();
   const dispatch = useDispatch();
   const router = useRouter();
-  const { user, loading } = useSelector(state => state.user);
-
+  const { user, loading, getCardsReady } = useSelector(state => state.user);
   const [nowLoading, setNowLoading] = useState(false);
 
+  // 페이지 전환 로딩 제어
   useEffect(() => {
     const start = () => setNowLoading(true);
     const end = () => setNowLoading(false);
@@ -39,6 +38,7 @@ const Index = () => {
     };
   }, []);
 
+  // 로그인 및 유저 데이터 세팅
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       dispatch(userLoadingStart());
@@ -46,6 +46,10 @@ const Index = () => {
         router.push("/");
         return;
       }
+
+      // ✅ 기존 데이터 초기화 (이전 카드 깜빡임 방지)
+      dispatch(setFriends([]));
+      dispatch(setAllFriends([]));
 
       const docRef = doc(db, "users", firebaseUser.uid);
       const docSnap = await getDoc(docRef);
@@ -70,9 +74,12 @@ const Index = () => {
         return;
       }
 
-      await getNewFriends().then((result) => dispatch(setFriends(result)));
-      await getFriends().then((result) => dispatch(setAllFriends(result)));
+      // 카드 데이터 불러오기
+      const newFriends = await getNewFriends();
+      const allFriends = await getFriends();
 
+      dispatch(setFriends(newFriends || []));
+      dispatch(setAllFriends(allFriends || []));
       dispatch(setFriendsDoneFalse());
       dispatch(setGetCardsReadyTrue());
       dispatch(userLoadingEnd());
@@ -81,6 +88,11 @@ const Index = () => {
     return () => unsubscribe();
   }, [auth, dispatch, router]);
 
+  useEffect(() => {
+    if (user?.datecard?.length === 0) {
+      getNewFriends(); // 자동 보충
+    }
+  }, [user?.datecard]);
   // Firestore 실시간 업데이트
   useEffect(() => {
     if (!user?.userID) return;
@@ -97,17 +109,15 @@ const Index = () => {
     if (!user?.userID) return;
 
     const writeThumbImage = user?.thumbimage?.length >= 2;
-    const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
+    const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
     const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun && user?.jobdocument?.length !== 0;
-    const writeThinkInfo = user?.mbti_ei && user?.hobby && user?.drink && user?.health && user?.interest && user?.career_goal && user?.living_weekend && user?.living_consume && user?.opfriend && user?.friendmeeting && user?.longdistance && user?.religion_important && user?.religion_visit && user?.religion_accept && user?.food_diet;
 
-    if (!user.date_profile_finished || !writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
+    if (!user.date_profile_finished || !writeThumbImage || !writeBasicInfo || !writeCareerInfo) {
       alert("모든 정보를 입력해주세요!");
       router.push("/date/profile");
     } else if (user.date_pending) {
       router.push("/date/pending");
     }
-
   }, [user, router]);
 
   return (
@@ -122,11 +132,13 @@ const Index = () => {
         <meta property="og:url" content="https://pygm.co.kr" />
       </Head>
 
-      {nowLoading || loading ? <LoadingPage /> : (
-        <Navbar>
-          <Cards />
-        </Navbar>
-      )}
+      {(nowLoading || loading || !getCardsReady)
+        ? <LoadingPage />
+        : (
+          <Navbar>
+            <Cards />
+          </Navbar>
+        )}
     </>
   );
 };

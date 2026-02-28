@@ -1,74 +1,102 @@
 import React, { useEffect, createRef } from 'react';
 import PropTypes from 'prop-types';
-import { FcAdvertising } from 'react-icons/fc';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiAlertCircle } from 'react-icons/fi';
 
-const AlertModal = ({ title, contents, contents_second, closeOutsideClick, openModal, closeModal, cancelFunc, twobutton }) => {
-
+const AlertModal = ({
+  title,
+  contents,
+  contents_second,
+  closeOutsideClick,
+  openModal,
+  closeModal,
+  cancelFunc,
+  twobutton,
+}) => {
   const modalEl = createRef();
+
   const handleClickOutside = (event) => {
-    if (openModal === true && closeOutsideClick === true && !modalEl?.current?.contains(event.target))
+    if (openModal && closeOutsideClick && !modalEl?.current?.contains(event.target)) {
       cancelFunc();
+    }
   };
+
   useEffect(() => {
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   });
 
   return (
-    <>
-      {openModal ?
-
-        <div className="fixed top-0 left-0 z-[50] flex h-full w-full items-center justify-center bg-[#00000090]">
-          <div className="w-[100%] justify-center items-center flex overflow-x-hidden overflow-y-auto fixed inset-0 z-50 outline-none focus:outline-none"
+    <AnimatePresence>
+      {openModal && (
+        <motion.div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            ref={modalEl}
+            className="relative bg-white/90 dark:bg-[#111]/90 backdrop-blur-xl shadow-2xl border border-white/30 dark:border-gray-800/30 rounded-2xl max-w-md w-[90%] mx-auto p-8"
+            initial={{ y: 40, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 30, opacity: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
           >
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              className="sticky w-[100%] mt-auto mb-auto mx-auto max-w-[32rem] min-w-[320px]">
-              <div className="" ref={modalEl}>
-                <div className="border-0 rounded-lg shadow-lg relative flex flex-col w-full bg-white outline-none focus:outline-none">
-                  <div className='p-8'>
-                    <FcAdvertising className="h-[10%] w-[10%] m-auto text-sky-600" />
-                    {title ?
-                      (<p className="text-gray-800 mb-[12px] text-center dark:text-gray-100 font-bold text-[1.4rem] py-4">
-                        {title}
-                      </p>)
-                      : null}
-                    <p className="whitespace-normal leading-normal w-full overflow-hidden text-gray-600 dark:text-gray-100 text-left text-md py-1">
-                      {contents}
-                    </p>
-                    <p className="text-left text-sky-600 dark:text-gray-100 text-sm py-1 mt-[2px]">
-                      {contents_second}
-                    </p>
-                    <div className="flex items-center justify-center gap-4 w-full mt-8">
-                      {twobutton ?
-                        <>
-                          <button type="button" onClick={cancelFunc} className="w-full py-2 px-4  bg-white hover:bg-slate-100 focus:ring-white focus:ring-offset-white text-gray-600 transition ease-in duration-200 text-center text-base font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-lg">
-                            취소
-                          </button>
-                          <button type="button" onClick={closeModal} className="w-full py-2 px-4  bg-sky-600 hover:bg-sky-700 focus:ring-sky-500 focus:ring-offset-sky-200 text-white transition ease-in duration-200 text-center text-base font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2  rounded-lg ">
-                            확인
-                          </button>
-                        </>
-                        :
-                        <button type="button" onClick={closeModal} className="w-full mb-[12px] py-2 px-4  bg-sky-600 hover:bg-sky-700 focus:ring-sky-500 focus:ring-offset-sky-200 text-white transition ease-in duration-200 text-center text-base font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2  rounded-lg ">
-                          확인
-                        </button>
-                      }
-
-                    </div>
-                  </div>
-                </div>
+            {/* 상단 아이콘 */}
+            <div className="flex flex-col items-center justify-center mb-4">
+              <div className="flex items-center justify-center w-14 h-14 bg-blue-100 rounded-full mb-3">
+                <FiAlertCircle className="text-blue-600 w-7 h-7" />
               </div>
-            </motion.div>
-          </div>
-        </div>
-        : null}
-    </>
+              {title && (
+                <h2 className="text-gray-900 dark:text-gray-100 font-bold text-xl text-center leading-snug">
+                  {title}
+                </h2>
+              )}
+            </div>
+
+            {/* 본문 */}
+            <div className="text-center space-y-2">
+              <p className="text-gray-600 dark:text-gray-300 text-[0.95rem] leading-relaxed">
+                {contents}
+              </p>
+              {contents_second && (
+                <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                  {contents_second}
+                </p>
+              )}
+            </div>
+
+            {/* 버튼 영역 */}
+            <div className={`flex ${twobutton ? 'gap-3 mt-8' : 'mt-8'}`}>
+              {twobutton ? (
+                <>
+                  <button
+                    onClick={cancelFunc}
+                    className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 font-semibold transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={closeModal}
+                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+                  >
+                    확인
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={closeModal}
+                  className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+                >
+                  확인
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -79,6 +107,7 @@ AlertModal.propTypes = {
   closeOutsideClick: PropTypes.bool,
   openModal: PropTypes.bool,
   closeModal: PropTypes.func,
+  cancelFunc: PropTypes.func,
   twobutton: PropTypes.bool,
 };
 

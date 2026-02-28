@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import WinkBuyModal from './WinkBuyModal';
-import { send_message, onBuyWink } from 'firebaseConfig';
+import { sendLms, send_message, onBuyWink } from 'firebaseConfig';
 import toast from 'react-hot-toast';
 import { buyWink, buyWinkDoneFalse } from 'slices/user';
 
@@ -13,7 +13,7 @@ const index = () => {
   const { user, buyWinkDone } = useSelector(state => state.user);
   const [winks, setWinks] = useState(0);
   const dispatch = useDispatch();
-  const BuyNotify = () => toast("구매관련 내용을 메일로 전달하였습니다.");
+  const BuyNotify = () => toast("구매관련 내용을 문자/이메일로 전달하였습니다.");
 
   useEffect(() => {
     if (buyWinkDone) {
@@ -51,7 +51,22 @@ const index = () => {
 
   const onLike = useCallback(async () => {
     if (winks === 5) {
-      await onBuyWink(user?.nickname, user?.email, 5, 125000);
+      try {
+        await onBuyWink(user?.nickname, user?.email, 5, 125000);
+        const msg = `
+        [피그말리온 올인원소개팅]
+        ${user?.nickname}님, 윙크구매 안내드립니다.
+        [윙크 ${winks}개 / 125,000원]
+        예금주: 전세환
+        하나은행 112-891138-99107
+        입금 후 확인 시 윙크 지급됩니다.
+        https://pygm.co.kr
+  `;
+        const result = await sendLms("01075781252", msg, "윙크구매 입금안내");
+        // console.log("✅ LMS 전송 완료:", result);
+      } catch (err) {
+        console.error("❌ SMS 전송 실패:", err.message);
+      }
       dispatch(buyWink())
       // 파이어베이스 5개 문자보내기
       // 그 다음에 모달 닫기
@@ -59,13 +74,43 @@ const index = () => {
       // console.log(result, "결과값");
       return
     } if (winks === 3) {
-      await onBuyWink(user?.nickname, user?.email, 3, 90000);
+      try {
+        await onBuyWink(user?.nickname, user?.email, 3, 90000);
+        const msg = `
+        [피그말리온 올인원소개팅]
+        ${user?.nickname}님, 윙크구매 안내드립니다.
+        [윙크 ${winks}개 / 90,000원]
+        예금주: 전세환
+        하나은행 112-891138-99107
+        입금 후 확인 시 윙크 지급됩니다.
+        https://pygm.co.kr
+  `;
+        const result = await sendLms("01075781252", msg, "윙크구매 입금안내");
+        // console.log("✅ LMS 전송 완료:", result);
+      } catch (err) {
+        console.error("❌ SMS 전송 실패:", err.message);
+      }
       dispatch(buyWink())
       // 파이어베이스 3개 문자보내기
       // 그 다음에 모달 닫기
       return
     } if (winks === 1) {
-      await onBuyWink(user?.nickname, user?.email, 1, 35000);
+      try {
+        await onBuyWink(user?.nickname, user?.email, 1, 35000);
+        const msg = `
+        [피그말리온 올인원소개팅]
+        ${user?.nickname}님, 윙크구매 안내드립니다.
+        [윙크 ${winks}개 / 35,000원]
+        예금주: 전세환
+        하나은행 112-891138-99107
+        입금 후 확인 시 윙크 지급됩니다.
+        https://pygm.co.kr
+  `;
+        const result = await sendLms("01075781252", msg, "윙크구매 입금안내");
+        // console.log("✅ LMS 전송 완료:", result);
+      } catch (err) {
+        console.error("❌ SMS 전송 실패:", err.message);
+      }
       dispatch(buyWink())
       return
     }

@@ -13,6 +13,7 @@ import {
   DocumentData,
   DocumentReference,
   deleteField,
+  getCountFromServer,
   serverTimestamp, limit, arrayUnion, arrayRemove,
   query, where, getDocs, orderBy, or,
   deleteDoc, startAfter, increment, limitToLast, onSnapshot
@@ -50,6 +51,7 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENTID
 };
 import { httpsCallable, getFunctions } from 'firebase/functions';
+import { runTransaction } from "firebase/firestore";
 
 // const cors = require("cors");
 
@@ -386,36 +388,41 @@ async function updateUserDatabase(property, newValue) {
 
 export async function updateUserBasicInfo(
   username, nickname, newForm, religion, tel,
-  address_sido, address_sigugun) {
-
+  address_sido, address_sigugun, status, height
+) {
   const user = auth.currentUser;
+  if (!user) return alert("로그인 후 가능합니다.");
 
-  if (!user) return (
-    alert("로그인 후 가능합니다.")
-  );
   try {
-    await updateProfile(user, {
-      displayName: username,
-    });
-    await updateUserDatabase("religion", religion);
-    await updateUserDatabase("username", user.displayName);
+    await updateProfile(user, { displayName: username });
+
+    await updateUserDatabase("username", username);
     await updateUserDatabase("nickname", nickname);
-    // await updateUserDatabase("gender", gender);
+    await updateUserDatabase("religion", religion);
     await updateUserDatabase("birthday", newForm);
+    await updateUserDatabase("phonenumber", tel);
     await updateUserDatabase("address_sido", address_sido);
     await updateUserDatabase("address_sigugun", address_sigugun);
-    await updateUserDatabase("phonenumber", tel);
-    return ({
-      username: username, nickname: nickname,
-      newForm: newForm, religion: religion, tel: tel,
-      address_sido: address_sido,
-      address_sigugun: address_sigugun,
-    })
+    await updateUserDatabase("status", status);
+    await updateUserDatabase("height", height || null);
+
+    return {
+      username,
+      nickname,
+      newForm,
+      religion,
+      tel,
+      address_sido,
+      address_sigugun,
+      status,
+      height,
+    };
   } catch (error) {
     console.error(error);
-    alert("profile update에 문제가 있습니다.");
+    alert("프로필 업데이트 중 오류가 발생했습니다.");
   }
 }
+
 
 export async function updateThinkMbtiInfo(
   mbti_ei, mbti_sn, mbti_tf, mbti_jp) {
@@ -636,6 +643,30 @@ export async function updateEtc(
   }
 }
 
+export async function updateWinkUp(
+  userID, wink, profilePending, profileDone) {
+  const user = auth.currentUser;
+  if (!user) return (
+    alert("로그인 후 가능합니다.")
+  );
+  try {
+    await updateDoc(api.userByIdRef(userID), {
+      wink: wink,
+      date_pending: profilePending,
+      // date_profile_finished: profileDone,
+    });
+
+    return ({
+      targetId: userID,
+      wink: wink,
+      profilePending: profilePending,
+      profileDone: profileDone,
+    })
+  } catch (error) {
+    console.error(error);
+    alert("update에 문제가 있습니다.");
+  }
+}
 
 export async function getFriends() {
   const q = query(api.usersRef,
@@ -671,6 +702,8 @@ export async function getFriends() {
       religion: doc.data().religion,
       address_sido: doc.data().address_sido,
       address_sigugun: doc.data().address_sigugun,
+      status: doc.data().status,
+      height: doc.data().height,
 
       education: doc.data().education,
       school: doc.data().school,
@@ -735,6 +768,9 @@ export async function getFriends() {
       datecard: doc.data().datecard || [],
       date_lastIntroduce: doc.data().date_lastIntroduce,
       timestamp: doc.data().timestamp,
+      date_pending: doc.data().date_pending,
+      date_profile_finished: doc.data().date_profile_finished,
+      date_sleep: doc.data().date_sleep,
 
       likes: doc.data().likes || [],
       liked: doc.data().liked || [],
@@ -796,47 +832,90 @@ export async function updateServiceInfoSeen(input) {
 }
 
 
-// LIKE USER
-export async function likeUser(
-  userId, username,
-) {
+// // LIKE USER
+// export async function likeUser(
+//   userId, username,
+// ) {
+//   const user = auth.currentUser;
+//   if (!user) {
+//     return alert("로그인 후 가능합니다.")
+//   }
+//   try {
+//     await updateDoc(api.userByIdRef(user.uid), {
+//       likes: arrayUnion({
+//         userId: userId,
+//         username: username,
+//         startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+//         refund: false
+//       }),
+//     });
+//     await updateDoc(api.userByIdRef(userId), {
+//       liked: arrayUnion({
+//         userId: user.uid,
+//         username: user.displayName,
+//         startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+//         refund: false
+//       }),
+//     });
+//     await updateDoc(api.userByIdRef(user.uid), {
+//       wink: increment(-1)
+//     })
+//     const docRef = doc(db, "users", userId);
+//     const docSnap = await getDoc(docRef);
+//     if (docSnap.exists()) {
+//       const result = {
+//         ...docSnap.data(),
+//       }
+//       return result;
+//     }
+//   } catch (e) {
+//     console.error(e);
+//   }
+// }
+
+// 변경한 좋아요
+export async function likeUser(userId, username) {
   const user = auth.currentUser;
   if (!user) {
-    return alert("로그인 후 가능합니다.")
+    return alert("로그인 후 가능합니다.");
   }
+
   try {
-    await updateDoc(api.userByIdRef(user.uid), {
-      likes: arrayUnion({
-        userId: userId,
-        username: username,
-        startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        refund: false
-      }),
+    await runTransaction(db, async (transaction) => {
+      const meRef = api.userByIdRef(user.uid);
+      const friendRef = api.userByIdRef(userId);
+
+      const meSnap = await transaction.get(meRef);
+      const friendSnap = await transaction.get(friendRef);
+
+      if (!meSnap.exists() || !friendSnap.exists()) return;
+
+      transaction.update(meRef, {
+        likes: arrayUnion({
+          userId,
+          username,
+          startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          refund: false
+        }),
+        wink: increment(-1)
+      });
+
+      transaction.update(friendRef, {
+        liked: arrayUnion({
+          userId: user.uid,
+          username: user.displayName,
+          startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          refund: false
+        }),
+      });
     });
-    await updateDoc(api.userByIdRef(userId), {
-      liked: arrayUnion({
-        userId: user.uid,
-        username: user.displayName,
-        startAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        refund: false
-      }),
-    });
-    await updateDoc(api.userByIdRef(user.uid), {
-      wink: increment(-1)
-    })
-    const docRef = doc(db, "users", userId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const result = {
-        ...docSnap.data(),
-      }
-      return result;
-    }
+
+    const docSnap = await getDoc(doc(db, "users", userId));
+    return docSnap.exists() ? docSnap.data() : null;
   } catch (e) {
     console.error(e);
   }
 }
-
 
 // 7일지나면 하트 페이백
 export async function onPaybackHeart(
@@ -1021,6 +1100,8 @@ export async function getLikesFriendsByUserId(likes, liked) {
             email: doc.data().email,
             birthday: doc.data().birthday,
             gender: doc.data().gender,
+            status: doc.data().status,
+            height: doc.data().height,
             thumbimage: doc.data().thumbimage,
             phonenumber: doc.data().phonenumber,
             religion: doc.data().religion,
@@ -1134,6 +1215,8 @@ export async function getLikedFriendsByUserId(liked, likes) {
             email: doc.data().email,
             birthday: doc.data().birthday,
             gender: doc.data().gender,
+            status: doc.data().status,
+            height: doc.data().height,
             thumbimage: doc.data().thumbimage,
             phonenumber: doc.data().phonenumber,
             religion: doc.data().religion,
@@ -1301,7 +1384,8 @@ export async function getMyCouples() {
             receiverName: m?.receiverName,
             closed: m?.closed,
             timestamp: m?.timestamp,
-
+            status: doc.data().status,
+            height: doc.data().height,
             userID: doc.data().id,
             username: doc.data().username,
             nickname: doc.data().nickname,
@@ -1356,6 +1440,8 @@ export async function getMyCouples() {
             thumbimage: doc.data().thumbimage,
             phonenumber: doc.data().phonenumber,
             // religion: doc.data().religion,
+            status: doc.data().status,
+            height: doc.data().height,
             address_sido: doc.data().address_sido,
             address_sigugun: doc.data().address_sigugun,
             education: doc.data().education,
@@ -1551,271 +1637,593 @@ export async function getAllRatings() {
 }
 
 
+// export async function getNewFriends() {
+//   try {
+//     const user = auth.currentUser;
+//     if (!user) return alert("로그인 후 가능합니다.");
+
+//     const now = dayjs();
+//     const userSnap = await getDoc(api.userByIdRef(user.uid));
+//     if (!userSnap.exists()) return;
+
+//     const me = {
+//       ...userSnap.data(),
+//       likes: userSnap.data().likes || [],
+//       liked: userSnap.data().liked || [],
+//       dislikes: userSnap.data().dislikes || [],
+//       disliked: userSnap.data().disliked || [],
+//       datecard: userSnap.data().datecard || [],
+//       userID: user.uid,
+//     };
+
+//     // ✅ 반대 성별만
+//     const targetGender = me.gender === "male" ? "female" : "male";
+
+//     // ✅ Firestore 쿼리 (가입순)
+//     const q = query(
+//       api.usersRef,
+//       where("gender", "==", targetGender),
+//       orderBy("timestamp", "asc")
+//     );
+//     const snap = await getDocs(q);
+
+//     // ✅ 후보자 데이터 가공
+//     const people = snap.docs.map((doc) => {
+//       const d = doc.data();
+//       const mySido = parseInt(me.address_sido) || 0;
+//       const otherSido = parseInt(d.address_sido) || 0;
+
+//       // 거리 계산 (시도 코드 차이)
+//       const locationDistance = Math.abs(mySido - otherSido);
+
+//       // 나이 차이 계산
+//       const myYear = parseInt(me?.birthday?.year);
+//       const otherYear = parseInt(d?.birthday?.year);
+//       const ageGap = Math.abs(myYear - otherYear);
+
+//       // 선호나이 중심 비교
+//       const preferCenter =
+//         (parseInt(me.prefer_age_min || 0) + parseInt(me.prefer_age_max || 0)) / 2;
+//       const currentAge = parseInt(now.format("YYYY")) - otherYear;
+//       const agePrefer = Math.abs(preferCenter - currentAge);
+
+//       return {
+//         userID: doc.id,
+//         ...d,
+//         location_distance: locationDistance || 999,
+//         age_gap: ageGap || 999,
+//         age_prefer: agePrefer || 999,
+//       };
+//     });
+
+//     // ✅ 조건 필터링
+//     let candidates = people.filter(
+//       (v) =>
+//         !v.withdraw &&
+//         !v.date_sleep &&
+//         v.date_profile_finished === true &&
+//         (v.date_pending === false || v.date_pending?.length === 0)
+//     );
+
+//     // ✅ 좋아요/받은 사람 제외
+//     candidates = candidates.filter(
+//       (v) =>
+//         !me.likes.some((m) => m?.userId === v.userID) &&
+//         !me.liked.some((m) => m?.userId === v.userID)
+//     );
+
+//     // ✅ 정렬: 지역 우선 > 나이순
+//     candidates.sort((a, b) => {
+//       // 먼저 지역 거리 차이 비교
+//       if (a.location_distance !== b.location_distance)
+//         return a.location_distance - b.location_distance;
+//       // 같은 지역이면 나이 기준
+//       return a.age_prefer - b.age_prefer;
+//     });
+
+//     // ✅ 기존 카드 ID 목록 (만료 포함)
+//     const existingIds = new Set(me.datecard.map((v) => v.userID));
+
+//     // ✅ 새 후보 중 중복 제외
+//     const uniqueCandidates = candidates.filter((v) => !existingIds.has(v.userID));
+
+//     // ✅ 새 카드 (3명)
+//     const newCards = uniqueCandidates.slice(0, 3).map((v) => ({
+//       ...v,
+//       targetID: user.uid,
+//       targetName: user.displayName || "",
+//       expired: dayjs().add(7, "day").format("YYYY-MM-DD HH:mm:ss"),
+//       card_timestamp: now.format("YYYY-MM-DD HH:mm:ss"),
+//     }));
+
+//     // ✅ 기존 카드 유지 + 새 카드 추가
+//     const updatedCards = [...me.datecard, ...newCards].filter(
+//       (v, i, arr) => arr.findIndex((x) => x.userID === v.userID) === i
+//     );
+
+//     // ✅ Firestore 업데이트 (전체 저장)
+//     await updateDoc(api.userByIdRef(user.uid), { datecard: updatedCards });
+
+//     // ✅ 반환 (기존 + 신규)
+//     return updatedCards.sort(
+//       (a, b) => dayjs(b.card_timestamp).valueOf() - dayjs(a.card_timestamp).valueOf()
+//     );
+//   } catch (e) {
+//     console.error("getNewFriends error:", e);
+//   }
+// }
+
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.tz.setDefault("Asia/Seoul");
 
 export async function getNewFriends() {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      return alert("로그인 후 가능합니다.")
-    }
+    if (!user) return [];
 
+    const nowKST = dayjs().tz("Asia/Seoul");
+    const meSnap = await getDoc(api.userByIdRef(user.uid));
+    if (!meSnap.exists()) return [];
 
-    const result = await getDoc(api.userByIdRef(user.uid));
-    // if (result.exists()) {
     const me = {
-      ...result.data(),
-      likes: result.data().likes || [],
-      liked: result.data().liked || [],
-      dislikes: result.data().dislikes || [],
-      disliked: result.data().disliked || [],
-      userID: user.uid
+      ...meSnap.data(),
+      userID: user.uid,
+      datecard: meSnap.data().datecard || [],
+      date_seen_ids: meSnap.data().date_seen_ids || [], // ✅ 과거에 보여준 모든 userID (영구)
     };
 
-    // 1. 성 반대인 사람, 처음 가입했던 사람부터
-    const q = query(api.usersRef,
-      where("gender", "!=", me?.gender),
-      orderBy("timestamp", "asc"),
+    // 만료판정
+    const isActiveCard = (c) => {
+      if (!c) return false;
+      const exp = c?.expired
+        ? dayjs.tz(c.expired, "Asia/Seoul")
+        : dayjs.tz(c?.card_timestamp, "Asia/Seoul").add(7, "day");
+      return exp.endOf("day").isAfter(nowKST);
+    };
+
+    // 현재 살아있는 카드만 유지
+    const activeCards = (me.datecard || []).filter(isActiveCard);
+    const need = Math.max(0, 3 - activeCards.length);
+
+    // ✅ “한번이라도 보여준 적 있는” ID: 과거 datecard 전부 + 로그
+    const seenIDs = new Set([
+      ...((me.datecard || []).map((c) => c.userID).filter(Boolean)),
+      ...((me.date_seen_ids || [])),
+    ]);
+
+    // 반대 성별만
+    const q = query(api.usersRef, where("gender", "!=", me.gender), orderBy("timestamp", "asc"));
+    const snap = await getDocs(q);
+
+    // 후보 생성 (⚠️ userID 중복 할당 버그 FIX: 한 번만!)
+    const people = snap.docs.map((doc) => {
+      const d = doc.data();
+      const safe = (v) => parseInt(v, 10) || 0;
+      return {
+        userID: d.id || doc.id,            // ✅ 이 줄만! (중복 할당 금지)
+        username: d.username || "",
+        nickname: d.nickname || "",
+        email: d.email || "",
+        birthday: d.birthday || {},
+        gender: d.gender || "",
+        thumbimage: d.thumbimage || [],
+        phonenumber: d.phonenumber || "",
+        religion: d.religion || "",
+
+        address_sido: d.address_sido || "",
+        address_sigugun: d.address_sigugun || "",
+        education: d.education || "",
+        school: d.school || "",
+        school_open: d.school_open || "",
+        job: d.job || "",
+        company: d.company || "",
+        company_open: d.company_open || "",
+        jobdocument: d.jobdocument || "",
+        duty: d.duty || "",
+        salary: d.salary || "",
+        company_location_sido: d.company_location_sido || "",
+        company_location_sigugun: d.company_location_sigugun || "",
+
+        mbti_ei: d.mbti_ei || "",
+        mbti_sn: d.mbti_sn || "",
+        mbti_tf: d.mbti_tf || "",
+        mbti_jp: d.mbti_jp || "",
+
+        hobby: d.hobby || "",
+        drink: d.drink || "",
+        health: d.health || "",
+        hotplace: d.hotplace || "",
+        tour: d.tour || "",
+        tourlike: d.tourlike || "",
+        tourpurpose: d.tourpurpose || "",
+        hobbyshare: d.hobbyshare || "",
+        interest: d.interest || "",
+
+        opfriend: d.opfriend || "",
+        friendmeeting: d.friendmeeting || "",
+        longdistance: d.longdistance || "",
+        datecycle: d.datecycle || "",
+        dateromance: d.dateromance || "",
+        contact: d.contact || "",
+        contactcycle: d.contactcycle || "",
+        passwordshare: d.passwordshare || "",
+        wedding: d.wedding || "",
+        wedding_dating: d.wedding_dating || "",
+        prefer_age_min: d.prefer_age_min || "",
+        prefer_age_max: d.prefer_age_max || "",
+
+        career_goal: d.career_goal || "",
+        living_weekend: d.living_weekend || "",
+        living_consume: d.living_consume || "",
+        living_pet: d.living_pet || "",
+        living_tatoo: d.living_tatoo || "",
+        living_smoke: d.living_smoke || "",
+        living_charming: d.living_charming || "",
+
+        religion_important: d.religion_important || "",
+        religion_visit: d.religion_visit || "",
+        religion_accept: d.religion_accept || "",
+        food_taste: d.food_taste || "",
+        food_like: d.food_like || "",
+        food_dislike: d.food_dislike || "",
+        food_vegetarian: d.food_vegetarian || "",
+        food_spicy: d.food_spicy || "",
+        food_diet: d.food_diet || "",
+        wink: d.wink || 0,
+        date_sleep: d.date_sleep || false,
+        withdraw: d.withdraw || false,
+        date_lastIntroduce: d.date_lastIntroduce || "",
+        timestamp: d.timestamp || "",
+
+        likes: d.likes || [],
+        liked: d.liked || [],
+        dislikes: d.dislikes || [],
+        disliked: d.disliked || [],
+
+        date_profile_finished: d.date_profile_finished ?? false,
+        date_pending: d.date_pending ?? false,
+
+        location_distance: Math.abs(safe(d.address_sido) - safe(me.address_sido)),
+        age_gap: Math.abs(safe(d.birthday?.year) - safe(me.birthday?.year)),
+      };
+    });
+
+    // 상호작용 ID들(키 혼재 userId/userID 모두 고려)
+    const interactedIDs = new Set([
+      ...((me.likes || []).map((x) => x.userID || x.userId).filter(Boolean)),
+      ...((me.liked || []).map((x) => x.userID || x.userId).filter(Boolean)),
+      ...((me.dislikes || []).map((x) => x.userID || x.userId).filter(Boolean)),
+      ...((me.disliked || []).map((x) => x.userID || x.userId).filter(Boolean)),
+    ]);
+
+    // 현재 활성 카드 ID
+    const activeIDs = new Set(activeCards.map((c) => c.userID));
+
+    // 후보 필터 (휴면/탈퇴/미승인/미완료/이미 활성/상호작용/이미 본 적 있음 전부 제외)
+    const filtered = people.filter((v) => {
+      if (!v.userID || v.userID === me.userID) return false;
+      if (v.date_sleep === true) return false;
+      if (v.withdraw === true) return false;
+      if (v.date_pending === true) return false;
+      if (!(v.date_profile_finished === true || v.date_profile_finished === "true")) return false;
+      if (activeIDs.has(v.userID)) return false;
+      if (interactedIDs.has(v.userID)) return false;
+      if (seenIDs.has(v.userID)) return false;             // ✅ 핵심: 과거에 “보여준 적” 있으면 제외
+      return true;
+    });
+
+    // 장소>나이 정렬
+    filtered.sort((a, b) =>
+      a.location_distance !== b.location_distance
+        ? a.location_distance - b.location_distance
+        : a.age_gap - b.age_gap
     );
 
-    const querySnapshot = await getDocs(q);
-    const people = await Promise.all(querySnapshot?.docs?.map(async (doc) => {
+    // 필요한 만큼만 보충
+    const toAdd = filtered.slice(0, need);
 
-      const man = {
-        userID: doc.data().id || "",
-        username: doc.data().username || "",
-        nickname: doc.data().nickname || "",
-        email: doc.data().email || "",
-        birthday: doc.data().birthday || "",
-        gender: doc.data().gender || "",
-        thumbimage: doc.data().thumbimage || "",
-        phonenumber: doc.data().phonenumber || "",
-        religion: doc.data().religion || "",
-        address_sido: doc.data().address_sido || "",
-        address_sigugun: doc.data().address_sigugun || "",
+    // 새 카드 세팅 (7일 끝까지)
+    const newCards = toAdd.map((v) => ({
+      ...v,
+      targetID: user.uid,
+      targetName: user.displayName,
+      expired: nowKST.add(7, "day").endOf("day").format("YYYY-MM-DD HH:mm:ss"),
+      card_timestamp: nowKST.format("YYYY-MM-DD HH:mm:ss"),
+    }));
 
-        education: doc.data().education || "",
-        school: doc.data().school || "",
-        school_open: doc.data().school_open || "",
-        job: doc.data().job || "",
-        company: doc.data().company || "",
-        company_open: doc.data().company_open || "",
-        jobdocument: doc.data().jobdocument || "",
-        duty: doc.data().duty || "",
-        salary: doc.data().salary || "",
-        company_location_sido: doc.data().company_location_sido || "",
-        company_location_sigugun: doc.data().company_location_sigugun || "",
+    // 병합 (살아있는 카드 유지 + 새 카드 보충)
+    const merged = [...activeCards, ...newCards].slice(0, 3);
 
-        mbti_ei: doc.data().mbti_ei || "",
-        mbti_sn: doc.data().mbti_sn || "",
-        mbti_tf: doc.data().mbti_tf || "",
-        mbti_jp: doc.data().mbti_jp || "",
-
-        hobby: doc.data().hobby || "",
-        drink: doc.data().drink || "",
-        health: doc.data().health || "",
-        hotplace: doc.data().hotplace || "",
-        tour: doc.data().tour || "",
-        tourlike: doc.data().tourlike || "",
-        tourpurpose: doc.data().tourpurpose || "",
-        hobbyshare: doc.data().hobbyshare || "",
-        interest: doc.data().interest || "",
-
-        opfriend: doc.data().opfriend || "",
-        friendmeeting: doc.data().friendmeeting || "",
-        longdistance: doc.data().longdistance || "",
-        datecycle: doc.data().datecycle || "",
-        dateromance: doc.data().dateromance || "",
-        contact: doc.data().contact || "",
-        contactcycle: doc.data().contactcycle || "",
-        passwordshare: doc.data().passwordshare || "",
-        wedding: doc.data().wedding || "",
-        wedding_dating: doc.data().wedding_dating || "",
-        prefer_age_min: doc.data().prefer_age_min || "",
-        prefer_age_max: doc.data().prefer_age_max || "",
-
-        career_goal: doc.data().career_goal || "",
-        living_weekend: doc.data().living_weekend || "",
-        living_consume: doc.data().living_consume || "",
-        living_pet: doc.data().living_pet || "",
-        living_tatoo: doc.data().living_tatoo || "",
-        living_smoke: doc.data().living_smoke || "",
-        living_charming: doc.data().living_charming || "",
-
-        religion_important: doc.data().religion_important || "",
-        religion_visit: doc.data().religion_visit || "",
-        religion_accept: doc.data().religion_accept || "",
-        food_taste: doc.data().food_taste || "",
-        food_like: doc.data().food_like || "",
-        food_dislike: doc.data().food_dislike || "",
-        food_vegetarian: doc.data().food_vegetarian || "",
-        food_spicy: doc.data().food_spicy || "",
-        food_diet: doc.data().food_diet || "",
-        wink: doc.data().wink || "",
-        date_sleep: doc.data().date_sleep || false,
-        withdraw: doc.data().withdraw || false,
-        date_lastIntroduce: doc.data().date_lastIntroduce || "",
-        timestamp: doc.data().timestamp || "",
-
-        likes: doc.data().likes || [],
-        liked: doc.data().liked || [],
-        dislikes: doc.data().dislikes || [],
-        disliked: doc.data().disliked || [],
-
-        date_profile_finished: doc.data().date_profile_finished || [],
-        date_pending: doc.data().date_pending || [],
-
-        location_distance: Math.abs(parseInt(doc.data().address_sido) - parseInt(me?.address_sido)) || "",
-        age_gap: Math.abs(parseInt(doc.data().birthday.year) - parseInt(me?.birthday.year)) || "",
-        age_prefer: Math.abs((parseInt(me?.prefer_age_min) + parseInt(me?.prefer_age_max)) / 2 - ((parseInt(nowForCopy.format('YYYY')) - parseInt(doc.data()?.birthday?.year)))) || ""
-      }
-      return man;
-    }))
-    // 2. 집 가까운사람
-    const arrayresult = people?.sort(function (a, b) { return a?.location_distance - b?.location_distance });
-    // 1. date_sleep : false
-    // 2. withdraw : false
-    // 3. 기존에 감겼던애들 : false
-    // 4. location_Distance 낮은 순
-    // age_prefer : 0보다 커아햐며 높을수록 좋음
-    const newArr = [];
-    arrayresult?.map((v) => (
-      (!v?.date_sleep || v?.date_sleep == false) &&
-        (!v?.withdraw || v?.withdraw == false) &&
-        v?.date_pending == false &&
-        v?.date_profile_finished == true
-        ? newArr?.push(v) : null
-    ))
-    // like 했던애들 빼기
-    const likesMinusArr = [];
-    if (me?.likes?.length !== 0) {
-      newArr?.map(async (v) => (
-        await me?.likes?.map(async (m) => (
-          v?.userID !== m?.userId && likesMinusArr?.push(v)
-        ))
-      ))
-    } else {
-      newArr?.map(async (v) => (
-        likesMinusArr?.push(v)
-      ))
-    }
-    // 중복제거
-    const uniqueLikesMinusArrs = [...new Set(likesMinusArr)];
-    // like 받은애들 빼기
-    const likedMinusArr = [];
-    if (me?.liked?.length !== 0) {
-      uniqueLikesMinusArrs?.map(async (v) => (
-        await me?.liked?.map(async (m) => (
-          v?.userID !== m?.userId && likedMinusArr?.push(v)
-        ))
-      ))
-    } else {
-      uniqueLikesMinusArrs?.map(async (v) => (
-        likedMinusArr?.push(v)
-      ))
-    }
-    // 중복제거
-    const uniqueLikedMinusArrs = [...new Set(likedMinusArr)];
-
-    // 지역/나이 가까운곳으로
-    const result1 = uniqueLikedMinusArrs?.sort(function async(a, b) { return a?.age_prefer - b?.age_prefer });
-    const result2 = result1?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
-    const brandArr = [];
-    if (me?.datecard?.length > 0) {
-      result2?.map(async (v) => (
-        await me?.datecard?.map(async (m) => (
-          m?.userID !== v?.userID ?
-            brandArr?.push({
-              ...v,
-              userID: v?.userID,
-              targetID: user.uid,
-              targetName: user.displayName,
-              expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
-              card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            })
-            : null
-        )))
-      )
-    }
-    else {
-      result2?.map(async (v) => (
-        brandArr?.push({
-          ...v,
-          userID: v?.userID,
-          targetID: user.uid,
-          targetName: user.displayName,
-          expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
-          card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-        })
-      ))
-    }
-
-    // 중복제거
-    const uniqueArrs = Array.from(new Set(brandArr?.map(a => a?.userID)))
-      ?.map(userID => {
-        return brandArr?.find(a => a?.userID === userID)
-      })
-    const uniqueFromMyDataArrs = [];
-    await me?.datecard?.map(async (v) => (
-      uniqueArrs?.map(async (m) => (
-        v?.userID !== m?.userID && uniqueFromMyDataArrs?.push(m)
-      ))
-    ))
-    uniqueFromMyDataArrs.filter(v => !me?.datecard.includes(v))
-
-
-    const countArr = []
-    await me?.datecard?.map(async (v) => (
-      dayjs(v?.expired)?.isAfter(nowForCopy) && countArr?.push(v)
-    ))
-
-    me?.datecard?.map(async (v, i) => (
-      // uniqueArrs?.filter(async q => await v?.userID !== q?.userID),
-      uniqueArrs?.forEach(async (item, index) => {
-        if (item?.userID === v?.userID) {
-          uniqueArrs?.splice(index, 1)
-        }
-      })
-    )
-    )
-
-    // 내 datecard에 넣기
-    const uniqueArr = uniqueArrs?.slice(0, (3 - (countArr?.length <= 0 ? 0 : countArr?.length)));
-    const reuniqueArr = uniqueArr?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
-    if (me?.datecard?.length === 0 || !me?.datecard) {
+    // ✅ 이번에 “보여준” 사람들을 seen 로그에 영구 저장
+    const newSeenIDs = newCards.map((c) => c.userID);
+    if (newSeenIDs.length) {
       await updateDoc(api.userByIdRef(user.uid), {
-        datecard: arrayUnion(...reuniqueArr),
-      })
-    } else {
-      await updateDoc(api.userByIdRef(user.uid), {
-        datecard: arrayUnion(...reuniqueArr),
+        date_seen_ids: arrayUnion(...newSeenIDs),
       });
     }
 
-    const finalArr = [];
+    // 카드 갱신
+    await updateDoc(api.userByIdRef(user.uid), { datecard: merged });
 
-    const resultMy = await getDoc(api.userByIdRef(user.uid));
-    const my = {
-      ...resultMy.data(),
-      likes: resultMy.data().likes,
-      liked: resultMy.data().liked,
-      dislikes: resultMy.data().dislikes,
-      disliked: resultMy.data().disliked,
-      datecard: resultMy.data().datecard,
-      userID: user.uid
-    };
-
-    await my?.datecard?.map(async (v) => (
-      dayjs(v?.expired)?.isAfter(nowForCopy) ?
-        finalArr?.push(v)
-        : null
-    ))
-
-    return finalArr;
-
+    // 최종 반환 (활성만)
+    const latest = (await getDoc(api.userByIdRef(user.uid))).data()?.datecard || [];
+    return latest.filter(isActiveCard);
   } catch (e) {
-    console.error(e);
+    console.error("🔥 getNewFriends error:", e);
+    return [];
   }
 }
+
+
+// export async function getNewFriends() {
+//   try {
+//     const user = auth.currentUser;
+//     if (!user) {
+//       return alert("로그인 후 가능합니다.")
+//     }
+
+
+//     const result = await getDoc(api.userByIdRef(user.uid));
+//     // if (result.exists()) {
+//     const me = {
+//       ...result.data(),
+//       likes: result.data().likes || [],
+//       liked: result.data().liked || [],
+//       dislikes: result.data().dislikes || [],
+//       disliked: result.data().disliked || [],
+//       userID: user.uid
+//     };
+
+//     // 1. 성 반대인 사람, 처음 가입했던 사람부터
+//     const q = query(api.usersRef,
+//       where("gender", "!=", me?.gender),
+//       orderBy("timestamp", "asc"),
+//     );
+
+//     const querySnapshot = await getDocs(q);
+//     const people = await Promise.all(querySnapshot?.docs?.map(async (doc) => {
+
+//       const man = {
+//         userID: doc.data().id || "",
+//         username: doc.data().username || "",
+//         nickname: doc.data().nickname || "",
+//         email: doc.data().email || "",
+//         birthday: doc.data().birthday || "",
+//         gender: doc.data().gender || "",
+//         thumbimage: doc.data().thumbimage || "",
+//         phonenumber: doc.data().phonenumber || "",
+//         religion: doc.data().religion || "",
+//         address_sido: doc.data().address_sido || "",
+//         address_sigugun: doc.data().address_sigugun || "",
+
+//         education: doc.data().education || "",
+//         school: doc.data().school || "",
+//         school_open: doc.data().school_open || "",
+//         job: doc.data().job || "",
+//         company: doc.data().company || "",
+//         company_open: doc.data().company_open || "",
+//         jobdocument: doc.data().jobdocument || "",
+//         duty: doc.data().duty || "",
+//         salary: doc.data().salary || "",
+//         company_location_sido: doc.data().company_location_sido || "",
+//         company_location_sigugun: doc.data().company_location_sigugun || "",
+
+//         mbti_ei: doc.data().mbti_ei || "",
+//         mbti_sn: doc.data().mbti_sn || "",
+//         mbti_tf: doc.data().mbti_tf || "",
+//         mbti_jp: doc.data().mbti_jp || "",
+
+//         hobby: doc.data().hobby || "",
+//         drink: doc.data().drink || "",
+//         health: doc.data().health || "",
+//         hotplace: doc.data().hotplace || "",
+//         tour: doc.data().tour || "",
+//         tourlike: doc.data().tourlike || "",
+//         tourpurpose: doc.data().tourpurpose || "",
+//         hobbyshare: doc.data().hobbyshare || "",
+//         interest: doc.data().interest || "",
+
+//         opfriend: doc.data().opfriend || "",
+//         friendmeeting: doc.data().friendmeeting || "",
+//         longdistance: doc.data().longdistance || "",
+//         datecycle: doc.data().datecycle || "",
+//         dateromance: doc.data().dateromance || "",
+//         contact: doc.data().contact || "",
+//         contactcycle: doc.data().contactcycle || "",
+//         passwordshare: doc.data().passwordshare || "",
+//         wedding: doc.data().wedding || "",
+//         wedding_dating: doc.data().wedding_dating || "",
+//         prefer_age_min: doc.data().prefer_age_min || "",
+//         prefer_age_max: doc.data().prefer_age_max || "",
+
+//         career_goal: doc.data().career_goal || "",
+//         living_weekend: doc.data().living_weekend || "",
+//         living_consume: doc.data().living_consume || "",
+//         living_pet: doc.data().living_pet || "",
+//         living_tatoo: doc.data().living_tatoo || "",
+//         living_smoke: doc.data().living_smoke || "",
+//         living_charming: doc.data().living_charming || "",
+
+//         religion_important: doc.data().religion_important || "",
+//         religion_visit: doc.data().religion_visit || "",
+//         religion_accept: doc.data().religion_accept || "",
+//         food_taste: doc.data().food_taste || "",
+//         food_like: doc.data().food_like || "",
+//         food_dislike: doc.data().food_dislike || "",
+//         food_vegetarian: doc.data().food_vegetarian || "",
+//         food_spicy: doc.data().food_spicy || "",
+//         food_diet: doc.data().food_diet || "",
+//         wink: doc.data().wink || "",
+//         date_sleep: doc.data().date_sleep || false,
+//         withdraw: doc.data().withdraw || false,
+//         date_lastIntroduce: doc.data().date_lastIntroduce || "",
+//         timestamp: doc.data().timestamp || "",
+
+//         likes: doc.data().likes || [],
+//         liked: doc.data().liked || [],
+//         dislikes: doc.data().dislikes || [],
+//         disliked: doc.data().disliked || [],
+
+//         date_profile_finished: doc.data().date_profile_finished || [],
+//         date_pending: doc.data().date_pending || [],
+
+//         location_distance: Math.abs(parseInt(doc.data().address_sido) - parseInt(me?.address_sido)) || "",
+//         age_gap: Math.abs(parseInt(doc.data().birthday.year) - parseInt(me?.birthday.year)) || "",
+//         age_prefer: Math.abs((parseInt(me?.prefer_age_min) + parseInt(me?.prefer_age_max)) / 2 - ((parseInt(nowForCopy.format('YYYY')) - parseInt(doc.data()?.birthday?.year)))) || ""
+//       }
+//       return man;
+//     }))
+//     // 2. 집 가까운사람
+//     const arrayresult = people?.sort(function (a, b) { return a?.location_distance - b?.location_distance });
+//     // 1. date_sleep : false
+//     // 2. withdraw : false
+//     // 3. 기존에 감겼던애들 : false
+//     // 4. location_Distance 낮은 순
+//     // age_prefer : 0보다 커아햐며 높을수록 좋음
+//     const newArr = [];
+//     arrayresult?.map((v) => (
+//       (!v?.date_sleep || v?.date_sleep == false) &&
+//         (!v?.withdraw || v?.withdraw == false) &&
+//         v?.date_pending == false &&
+//         v?.date_profile_finished == true
+//         ? newArr?.push(v) : null
+//     ))
+//     // like 했던애들 빼기
+//     const likesMinusArr = [];
+//     if (me?.likes?.length !== 0) {
+//       newArr?.map(async (v) => (
+//         await me?.likes?.map(async (m) => (
+//           v?.userID !== m?.userId && likesMinusArr?.push(v)
+//         ))
+//       ))
+//     } else {
+//       newArr?.map(async (v) => (
+//         likesMinusArr?.push(v)
+//       ))
+//     }
+//     // 중복제거
+//     const uniqueLikesMinusArrs = [...new Set(likesMinusArr)];
+//     // like 받은애들 빼기
+//     const likedMinusArr = [];
+//     if (me?.liked?.length !== 0) {
+//       uniqueLikesMinusArrs?.map(async (v) => (
+//         await me?.liked?.map(async (m) => (
+//           v?.userID !== m?.userId && likedMinusArr?.push(v)
+//         ))
+//       ))
+//     } else {
+//       uniqueLikesMinusArrs?.map(async (v) => (
+//         likedMinusArr?.push(v)
+//       ))
+//     }
+//     // 중복제거
+//     const uniqueLikedMinusArrs = [...new Set(likedMinusArr)];
+
+//     // 지역/나이 가까운곳으로
+//     const result1 = uniqueLikedMinusArrs?.sort(function async(a, b) { return a?.age_prefer - b?.age_prefer });
+//     const result2 = result1?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
+//     const brandArr = [];
+//     if (me?.datecard?.length > 0) {
+//       result2?.map(async (v) => (
+//         await me?.datecard?.map(async (m) => (
+//           m?.userID !== v?.userID ?
+//             brandArr?.push({
+//               ...v,
+//               userID: v?.userID,
+//               targetID: user.uid,
+//               targetName: user.displayName,
+//               expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
+//               card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+//             })
+//             : null
+//         )))
+//       )
+//     }
+//     else {
+//       result2?.map(async (v) => (
+//         brandArr?.push({
+//           ...v,
+//           userID: v?.userID,
+//           targetID: user.uid,
+//           targetName: user.displayName,
+//           expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
+//           card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+//         })
+//       ))
+//     }
+
+//     // 중복제거
+//     const uniqueArrs = Array.from(new Set(brandArr?.map(a => a?.userID)))
+//       ?.map(userID => {
+//         return brandArr?.find(a => a?.userID === userID)
+//       })
+//     const uniqueFromMyDataArrs = [];
+//     await me?.datecard?.map(async (v) => (
+//       uniqueArrs?.map(async (m) => (
+//         v?.userID !== m?.userID && uniqueFromMyDataArrs?.push(m)
+//       ))
+//     ))
+//     uniqueFromMyDataArrs.filter(v => !me?.datecard.includes(v))
+
+
+//     const countArr = []
+//     await me?.datecard?.map(async (v) => (
+//       dayjs(v?.expired)?.isAfter(nowForCopy) && countArr?.push(v)
+//     ))
+
+//     me?.datecard?.map(async (v, i) => (
+//       // uniqueArrs?.filter(async q => await v?.userID !== q?.userID),
+//       uniqueArrs?.forEach(async (item, index) => {
+//         if (item?.userID === v?.userID) {
+//           uniqueArrs?.splice(index, 1)
+//         }
+//       })
+//     )
+//     )
+
+//     // 내 datecard에 넣기
+//     const uniqueArr = uniqueArrs?.slice(0, (3 - (countArr?.length <= 0 ? 0 : countArr?.length)));
+//     const reuniqueArr = uniqueArr?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
+//     if (me?.datecard?.length === 0 || !me?.datecard) {
+//       await updateDoc(api.userByIdRef(user.uid), {
+//         datecard: arrayUnion(...reuniqueArr),
+//       })
+//     } else {
+//       await updateDoc(api.userByIdRef(user.uid), {
+//         datecard: arrayUnion(...reuniqueArr),
+//       });
+//     }
+
+//     const finalArr = [];
+
+//     const resultMy = await getDoc(api.userByIdRef(user.uid));
+//     const my = {
+//       ...resultMy.data(),
+//       likes: resultMy.data().likes,
+//       liked: resultMy.data().liked,
+//       dislikes: resultMy.data().dislikes,
+//       disliked: resultMy.data().disliked,
+//       datecard: resultMy.data().datecard,
+//       userID: user.uid
+//     };
+
+//     await my?.datecard?.map(async (v) => (
+//       dayjs(v?.expired)?.isAfter(nowForCopy) ?
+//         finalArr?.push(v)
+//         : null
+//     ))
+
+//     return finalArr;
+
+//   } catch (e) {
+//     console.error(e);
+//   }
+// }
+
+
 
 export async function getOldFriends() {
   const user = auth.currentUser;
@@ -1897,7 +2305,6 @@ export async function getFriendWithdraw(friendId) {
 //         { to: `${phone}`, },],
 //     },
 //   }).then(res => {
-//     console.log(res.data);
 //   })
 //     .catch(err => {
 //       console.log(err);
@@ -1997,6 +2404,7 @@ export async function finishDate_Profile() {
       // or to: "someone@example.com
 
     })
+
     return { date_profile_finished: true, date_pending: true }
   } catch (error) {
     console.error(error);
@@ -2198,5 +2606,83 @@ export async function onBuyWink(nickname, email, winks, money) {
     })
   } catch (e) {
     throw new Error('Something went wrong with sending email. Error Message: ', e.message);
+  }
+}
+
+
+// export async function sendSms(to, message) {
+//   try {
+//     const auth = getAuth();
+//     const user = auth.currentUser;
+//     const idToken = user ? await user.getIdToken(true) : null;
+
+//     const response = await fetch(
+//       "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendSms",
+//       {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           Authorization: idToken ? `Bearer ${idToken}` : "",
+//         },
+//         body: JSON.stringify({ to, message }),
+//       }
+//     );
+
+//     const data = await response.json();
+//     if (!response.ok) throw new Error(data.error || "SMS send failed");
+
+//     console.log("✅ SMS 발송 성공:", data);
+//     return data;
+//   } catch (err) {
+//     console.error("❌ SMS 발송 실패:", err);
+//     throw err;
+//   }
+// }
+
+export async function sendSms(to, message) {
+  const res = await fetch(
+    "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendSms",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ to, message }),
+    }
+  );
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "SMS send failed");
+  return data;
+}
+
+
+export async function sendLms(to, message, subject = "피그말리온 안내") {
+  const res = await fetch(
+    "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendLms",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, message, subject }),
+    }
+  );
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "LMS send failed");
+  return data;
+}
+
+
+///// 테스트관련
+
+// ✅ test_real 컬렉션 문서 개수(참여자 수) 가져오기
+export async function getTestRealCount() {
+  try {
+    const colRef = collection(db, "test_real");
+    const snap = await getCountFromServer(colRef);
+    return snap.data().count || 0;
+  } catch (e) {
+    console.error("getTestRealCount error:", e);
+    return null; // 실패 시 null
   }
 }

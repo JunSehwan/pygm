@@ -150,7 +150,10 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, onFinish }
                         {title}</h2>
                     </div>
                     <h2 className="text-gray-500 text-md p-3 font-normal tracking-normal leading-tight w-full text-center">
-                      12시간 이내에 <p>작성하신 프로필 내용을 담당자가 확인 후, <br/>승인이 완료됩니다.</p>
+                      {/* <p className='text-blue-600'>프로필 기본정보 작성이 완료되었습니다!</p> */}
+                      {/* <br /> */}
+                      <p>작성하신 프로필 내용을 관리자가 확인 후, <br />12시간 이내 승인이 완료됩니다.</p>
+                      <br /> 좀 더 다양한 이성의 정보를 얻고 싶으시다면 <br />부가정보를 추가로 입력해주세요.
                     </h2>
                     <p className='text-blue-500 text-md px-3 font-normal tracking-normal leading-tight w-full text-center'>승인이 완료된 후, 이성 소개를 시작합니다.</p>
                   </div>

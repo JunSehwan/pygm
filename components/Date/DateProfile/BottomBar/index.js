@@ -66,7 +66,11 @@ const index = (
   }, [])
 
   useEffect(() => {
-    if (writeThumbImage && writeBasicInfo && writeCareerInfo && writeThinkInfo) {
+    if (writeThumbImage && writeBasicInfo
+      && writeCareerInfo
+      //  && writeThinkInfo
+
+    ) {
       if ((!user?.date_profile_finished || user?.date_profile_finished == false)
         || (user?.date_profile_finished == true && user?.date_pending == true)
       ) {
@@ -74,7 +78,9 @@ const index = (
       }
     }
   }, [onClickFinishedModal, writeThumbImage, writeBasicInfo,
-    writeCareerInfo, writeThinkInfo, user?.date_profile_finished, user?.date_pending])
+    writeCareerInfo,
+    // writeThinkInfo,
+    user?.date_profile_finished, user?.date_pending])
 
   useEffect(() => {
     if (writeDateprofileDone) {
@@ -198,7 +204,7 @@ const index = (
         visible={onFinishedModal}
         onFinish={onFinish}
         onClose={onClickFinishedModalClose}
-        title={`프로필 입력을 마쳤습니다!`}
+        title={`프로필 입력완료!`}
       />
     </>
   );

@@ -7,6 +7,8 @@ import { FaCalendarDays } from "react-icons/fa6";
 import { TiHomeOutline } from "react-icons/ti";
 import { MdOutlineMapsHomeWork } from "react-icons/md";
 import { GiGreekTemple } from "react-icons/gi";
+import { GiBodyHeight } from "react-icons/gi";
+import { FaClover } from "react-icons/fa6";
 
 
 const index = () => {
@@ -66,6 +68,9 @@ const index = () => {
           </span>
         </div>
 
+
+
+
         {/* 구분선 */}
         <div className='w-[70%] border-none my-1 border-gray-100 h-0'></div>
 
@@ -115,50 +120,99 @@ const index = () => {
 
         {/* 구분선 */}
         <div className='w-[70%] border-none my-1 border-gray-100 h-0'></div>
+          <div className='w-full flex flex-row justify-start items-center my-1'>
+            <span className='p-1 pr-3'>
+              <div className='rounded-2xl bg-slate-200 text-[--pygm-four] p-2'>
+                <MdOutlineMapsHomeWork
+                  className='w-6 h-6'
+                />
+              </div>
+            </span>
 
-        <div className='w-full flex flex-row justify-start items-center my-1'>
-          <span className='p-1 pr-3'>
-            <div className='rounded-2xl bg-slate-200 text-[--pygm-four] p-2'>
-              <MdOutlineMapsHomeWork
-                className='w-6 h-6'
-              />
+            <span className='text-left font-normal text-md text-gray-600 w-full'>
+              <span className="w-full flex flex-col items-start">
+                <span className='text-xs font-light text-slate-500'>근무지</span>
+                <span>
+                  {(() => {
+                    switch (friend?.company_location_sido) {
+                      case '11': return (<span className="">서울특별시</span>)
+                      case '12': return (<span className="">인천광역시</span>)
+                      case '13': return (<span className="">경기도</span>)
+
+                      case '21': return (<span className="">충청북도</span>)
+                      case '22': return (<span className="">대전광역시</span>)
+                      case '23': return (<span className="">세종특별자치시</span>)
+                      case '24': return (<span className="">충청남도</span>)
+
+                      case '32': return (<span className="">강원도</span>)
+
+                      case '41': return (<span className="">광주광역시</span>)
+                      case '42': return (<span className="">전라북도</span>)
+                      case '43': return (<span className="">전라남도</span>)
+
+                      case '51': return (<span className="">대구광역시</span>)
+                      case '52': return (<span className="">경상북도</span>)
+                      case '53': return (<span className="">경상남도</span>)
+                      case '54': return (<span className="">울산광역시</span>)
+                      case '55': return (<span className="">부산광역시</span>)
+
+                      case '60': return (<span className="">제주특별자치도</span>)
+                      case '': return (<span className="">비공개</span>)
+                      default: return (<span className="">비공개</span>);
+                    }
+                  })(friend?.company_location_sido)}
+                  <span className='pl-2 '>{defaultComSigugun?.codeNm}</span>
+                </span></span>
+            </span>
+          </div>
+
+
+        {/* 구분선 */}
+        <div className='w-[70%] border-none my-1 border-gray-100 h-0'></div>
+
+        {/* 결혼 상태 */}
+        {friend?.status && (
+          <div className='w-full flex flex-row justify-start items-center my-1'>
+            <span className='p-1 pr-3'>
+              <div className='rounded-2xl bg-slate-200 text-[--pygm-four] p-2'>
+                <FaClover className='w-6 h-6' />
+              </div>
+            </span>
+            <span className='text-left font-normal text-md text-gray-600 w-full'>
+              <span className="w-full flex flex-col items-start">
+                <span className='text-xs font-light text-slate-500'>결혼 상태</span>
+                <span className='font-semibold text-gray-700'>
+                  {friend?.status === "미혼" ? "미혼" : "돌싱"}
+                </span>
+              </span>
+            </span>
+          </div>
+        )}
+
+        {/* 키 정보 */}
+        {friend?.height && (
+          <>
+            <div className='w-[70%] border-none my-1 border-gray-100 h-0'></div>
+            <div className='w-full flex flex-row justify-start items-center my-1'>
+              <span className='p-1 pr-3'>
+                <div className='rounded-2xl bg-slate-200 text-[--pygm-four] p-2'>
+                  <GiBodyHeight className='w-6 h-6' />
+                </div>
+              </span>
+              <span className='text-left font-normal text-md text-gray-600 w-full'>
+                <span className="w-full flex flex-col items-start">
+                  <span className='text-xs font-light text-slate-500'>키</span>
+                  <span className='font-semibold text-gray-700'>
+                    {friend?.height} cm
+                  </span>
+                </span>
+              </span>
             </div>
-          </span>
-          <span className='text-left font-normal text-md text-gray-600 w-full'>
-            <span className="w-full flex flex-col items-start">
-              <span className='text-xs font-light text-slate-500'>근무지</span>
-              <span>
-                {(() => {
-                  switch (friend?.company_location_sido) {
-                    case '11': return (<span className="">서울특별시</span>)
-                    case '12': return (<span className="">인천광역시</span>)
-                    case '13': return (<span className="">경기도</span>)
+          </>
+        )}
 
-                    case '21': return (<span className="">충청북도</span>)
-                    case '22': return (<span className="">대전광역시</span>)
-                    case '23': return (<span className="">세종특별자치시</span>)
-                    case '24': return (<span className="">충청남도</span>)
 
-                    case '32': return (<span className="">강원도</span>)
 
-                    case '41': return (<span className="">광주광역시</span>)
-                    case '42': return (<span className="">전라북도</span>)
-                    case '43': return (<span className="">전라남도</span>)
-
-                    case '51': return (<span className="">대구광역시</span>)
-                    case '52': return (<span className="">경상북도</span>)
-                    case '53': return (<span className="">경상남도</span>)
-                    case '54': return (<span className="">울산광역시</span>)
-                    case '55': return (<span className="">부산광역시</span>)
-
-                    case '60': return (<span className="">제주특별자치도</span>)
-                    default: null;
-                  }
-                })(friend?.company_location_sido)}
-                <span className='pl-2 '>{defaultComSigugun?.codeNm}</span>
-              </span></span>
-          </span>
-        </div>
         {/* 구분선 */}
         <div className='w-[70%] border-none my-1 border-gray-100 h-0'></div>
 

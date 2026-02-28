@@ -16,15 +16,14 @@ const index = () => {
         <LoadingPage />
       ) : Array.isArray(friends) && friends.length > 0 ? (
         <div className="w-full mx-auto scroll-smooth">
-          {friends.map((friend) => (
-            <section className="scroll-smooth flex justify-center w-full mx-auto"
-              key={nanoid()}>
-              <ProfileCard
-                friend={friend}
-                id={friend?.userID}
-              />
-            </section>
-          ))}
+            {friends.map((friend) => (
+              <section
+                className="scroll-smooth flex justify-center w-full mx-auto mb-8"
+                key={nanoid()}
+              >
+                <ProfileCard friend={friend} id={friend?.userID} />
+              </section>
+            ))}
         </div>
       ) : (
         <Empty

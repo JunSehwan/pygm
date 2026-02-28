@@ -11,7 +11,7 @@ const index = () => {
   const { user, patchHobbyDone } = useSelector(state => state.user);
   const dispatch = useDispatch();
 
-const writeThumbImage = user?.thumbimage?.length >= 2;
+  const writeThumbImage = user?.thumbimage?.length >= 2;
   const writeBasicInfo = user?.username && user?.nickname && user?.religion && user?.birthday?.year && user?.birthday?.month && user?.birthday?.day && user?.gender && user?.phonenumber && user?.address_sigugun && user?.address_sido;
   const writeCareerInfo = user?.education && user?.school && user?.job && user?.company && user?.duty && user?.salary && user?.company_location_sido && user?.company_location_sigugun
   const writeCarrerDocu = user?.jobdocument?.length !== 0;

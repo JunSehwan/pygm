@@ -1,89 +1,69 @@
+// components/Hero.js
 import Image from 'next/image';
-import Link from 'next/link';
 import React from 'react';
-// import hero from '/public/image/landing_hero.png';
-import Hero from '/public/image/landing.png';
+import HeroImg from '/public/image/landing.png';
 import styled from 'styled-components';
+import Link from 'next/link';
 
-const Neon = styled.div`
-  color: #fff;
-  text-shadow:
-      0 0 3px #fff,
-      0 0 5px #fff,
-      0 0 8px #fff,
-      0 0 14px #ffe880,
-      0 0 22px #ffe880,
-      0 0 24px #8951ff,
-      0 0 35px #8951ff,
-      0 0 42px #8951ff;
+const Neon = styled.span`
+  background: linear-gradient(90deg,#1f8ef1,#7c3aed);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+`;
 
-`
-
-const index = () => {
+const Hero = () => {
   return (
-    <section className="relative bg-black">
-      <div className="mx-auto">
-        {/* Hero content */}
-        <div className="pb-6 pt-24 md:pb-8 md:pt-28">
-          {/* Section header */}
-          <div className="pb-2 text-center md:pb-3 px-4">
-            <div
-              className="mb-6 border-y [border-image:linear-gradient(to_right,transparent,--theme(--color-slate-300/.8),transparent)1]"
-              data-aos="zoom-y-out"
-            >
-            </div>
-            <p className='text-xl md:text-3xl text-white'>
-              이성과의 만남에 즐거움을 추가하다.
-            </p>
-            <h1
-              className="italic mb-6 border-y text-6xl text-white font-bold [border-image:linear-gradient(to_right,transparent,--theme(--color-slate-300/.8),transparent)1]"
-              data-aos="zoom-y-out"
-              data-aos-delay={150}
-            >
-              <Neon>Pygmalion</Neon>
+    <section className="relative bg-white pt-28 pb-16">
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div>
+            <p className="text-sm text-blue-600 font-semibold mb-3">새로운 방식의 소개팅</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight">
+              이성과의 만남에 <Neon>Pygmalion</Neon>을 더하다
             </h1>
-            <div className="mx-auto max-w-3xl">
-              <p
-                className="mb-8 text-md text-gray-500 md:text-lg"
-                data-aos="zoom-y-out"
-                data-aos-delay={300}
-              >
-                피그말리온은 다양한 요소를 통해 <br />
-                이성과의 만남을 좀 더 즐겁게<br />
-                주선해주는 문화를 추구합니다.
-              </p>
+            <p className="mt-4 text-lg text-slate-600">
+              성향, 가치관, MBTI까지 — 매주 3명의 큐레이션으로
+              부담 없이 다양한 인연을 경험해보세요. 검증된 회원만 소개합니다.
+            </p>
 
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/signup" className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700">
+                지금 무료로 시작하기
+              </Link>
+              <Link href="/login" className="inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
+                아이디가 있나요?
+              </Link>
+            </div>
+
+            <div className="mt-6 flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-white shadow flex items-center justify-center text-blue-600 font-bold">✓</div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">여성 안심 검증</div>
+                  <div className="text-xs text-slate-500">신원·재직 확인</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-white shadow flex items-center justify-center text-orange-500 font-bold">★</div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">매칭 보장</div>
+                  <div className="text-xs text-slate-500">무제한 소개, 1회 매칭 보장</div>
+                </div>
+              </div>
             </div>
           </div>
-          {/* Hero image */}
-          <div
-            className="mx-auto max-w-3xl"
-            data-aos="zoom-y-out"
-            data-aos-delay={600}
-          >
-            <div className="relative">
-              <div className="relative mb-8 flex w-full items-center justify-center">
-                <Image
-                  src={Hero}
-                  className='rounded-full mt-[-22px]'
-                  width={0}
-                  height={0}
-                  sizes="80vw"
-                  style={{ width: '50%', height: 'auto' }}
-                  alt="hero"
-                  priority
-                  unoptimized
-                />
 
-
-              </div>
+          <div className="flex items-center justify-center">
+            <div className="max-w-md w-full bg-gradient-to-b from-white to-slate-50 rounded-2xl p-4">
+              <Image src={HeroImg} alt="hero" width={640} height={640} className="rounded-xl" unoptimized />
             </div>
           </div>
         </div>
       </div>
-              
     </section>
   );
 };
 
-export default index;
+export default Hero;

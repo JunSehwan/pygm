@@ -1,3 +1,54 @@
+// /** @type {import('next').NextConfig} */
+// const withBundleAnalyzer = require('@next/bundle-analyzer')({
+//   enabled: process.env.ANALYZE === 'true',
+// });
+
+// const nextConfig = {
+//   output: 'export',
+//   trailingSlash: false,
+//   productionBrowserSourceMaps: true,
+
+//   images: {
+//     loader: 'akamai',
+//     path: '',
+//     domains: [
+//       'pygm.co.kr',
+//       'localhost',
+//       'firebasestorage.googleapis.com',
+//       'upload.wikimedia.org',
+//       'lh3.googleusercontent.com',
+//       'cdn.jsdelivr.net',
+//       'loremflickr.com',
+//     ],
+//     formats: ['image/avif', 'image/webp'],
+//   },
+
+//   distDir: 'build',
+//   compress: true,
+
+//   compiler: {
+//     styledComponents: {
+//       displayName: true,
+//       ssr: true,
+//       preprocess: false,
+//     },
+//   },
+
+//   webpack(config, { dev, isServer }) {
+//     // 개발/배포 모드 구분
+//     if (!dev) {
+//       config.devtool = isServer ? false : 'hidden-source-map';
+//     } else {
+//       config.devtool = 'eval-source-map';
+//     }
+
+//     return config;
+//   },
+// };
+
+// module.exports = withBundleAnalyzer(nextConfig);
+
+
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 });
@@ -9,7 +60,14 @@ module.exports = withBundleAnalyzer({
   productionBrowserSourceMaps: true,
   experimental: {
   },
-
+  // async rewrites() {
+  //   return [
+  //     {
+  //       source: '/api/:path*',
+  //       destination: 'https://api.pygm.co.kr/:path*', // API 서버로 프록시
+  //     }
+  //   ]
+  // },
   images: {
     loader: 'akamai',
     path: '',

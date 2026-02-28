@@ -15,37 +15,61 @@ const index = () => {
   const setMessage = useCallback(async () => {
     const response = await fetch("http://127.0.0.1:5001/pygmalion-96c6f/asia-northeast3/sendmessages");
   }, [])
+  let today = dayjs();
 
-  // 윙크 기간 지난것 정산
-  let today = dayjs()?.format('YYYY-MM-DD HH:mm:ss');
-  const likesArr = []
-  user?.likes?.map((v) => (
-    dayjs(dayjs(v?.startAt).add(7, 'day'))?.isBefore(dayjs(today)) == true
-      && (v?.refund !== true)
-      ?
-      likesArr?.push(v) : null
-  ))
-  const likesAndLikedArr = []
-  likesArr?.map((v) => (
-    (v?.refund !== true) && user?.liked?.length !== 0 && user?.liked?.map((m) => (
-      v?.userId == m?.userId ? likesAndLikedArr?.push(v) : null
-    ))
-  ))
-  // 중복제거&차집합
-  const uniqueLikesAndLikedArr = [...new Set(likesAndLikedArr)];
-  const finalLikesArr = likesArr?.filter(v => !uniqueLikesAndLikedArr?.includes(v))
+  // 1️⃣ 7일 지난 likes (refund 안된 것)
+  const likesArr = (user?.likes || []).filter(v =>
+    dayjs(v?.startAt).add(7, "day").isBefore(today) &&
+    v?.refund !== true
+  );
 
-  const likesAndDislikedArr = []
-  likesArr?.map((v) => (
-    (v?.refund !== true) && user?.disliked?.length !== 0 &&
-    user?.disliked?.map((m) => (
-      v?.userId == m?.userId ? likesAndDislikedArr?.push(v) : null
+  // 2️⃣ 매칭된 (likes + liked 교집합) userId 목록
+  const likedIds = new Set(
+    (user?.liked || []).map(m => m.userId)
+  );
+  const matchedIds = likesArr
+    .filter(v => likedIds.has(v.userId))
+    .map(v => v.userId);
 
-    ))
-  ))
-  // 중복제거&차집합
-  const uniqueLikesAndDislikedArr = [...new Set(likesAndDislikedArr)];
-  const finalArr = finalLikesArr?.filter(v => !uniqueLikesAndDislikedArr?.includes(v))
+  // 3️⃣ 거절(disliked)된 userId 목록
+  const dislikedIds = new Set(
+    (user?.disliked || []).map(m => m.userId)
+  );
+
+  // 4️⃣ 반환 대상 (7일 경과 && refund 안됨 && 매칭 X && 거절 X)
+  const finalArr = likesArr.filter(v =>
+    !matchedIds.includes(v.userId) && !dislikedIds.has(v.userId)
+  );
+  // // 윙크 기간 지난것 정산
+  // let today = dayjs()?.format('YYYY-MM-DD HH:mm:ss');
+  // const likesArr = []
+  // user?.likes?.map((v) => (
+  //   dayjs(dayjs(v?.startAt).add(7, 'day'))?.isBefore(dayjs(today)) == true
+  //     && (v?.refund !== true)
+  //     ?
+  //     likesArr?.push(v) : null
+  // ))
+  // const likesAndLikedArr = []
+  // likesArr?.map((v) => (
+  //   (v?.refund !== true) && user?.liked?.length !== 0 && user?.liked?.map((m) => (
+  //     v?.userId == m?.userId ? likesAndLikedArr?.push(v) : null
+  //   ))
+  // ))
+  // // 중복제거&차집합
+  // const uniqueLikesAndLikedArr = [...new Set(likesAndLikedArr)];
+  // const finalLikesArr = likesArr?.filter(v => !uniqueLikesAndLikedArr?.includes(v))
+
+  // const likesAndDislikedArr = []
+  // likesArr?.map((v) => (
+  //   (v?.refund !== true) && user?.disliked?.length !== 0 &&
+  //   user?.disliked?.map((m) => (
+  //     v?.userId == m?.userId ? likesAndDislikedArr?.push(v) : null
+
+  //   ))
+  // ))
+  // // 중복제거&차집합
+  // const uniqueLikesAndDislikedArr = [...new Set(likesAndDislikedArr)];
+  // const finalArr = finalLikesArr?.filter(v => !uniqueLikesAndDislikedArr?.includes(v))
 
   const onPayback = useCallback(async () => {
     if (!user?.userID) {
@@ -59,7 +83,6 @@ const index = () => {
   }, [
     user?.userID, dispatch, finalArr, user?.likes, user?.wink
   ])
-
 
   // 이거 합쳐서 갯수 >> 추가하면 표시 해놔서 refund : false
 

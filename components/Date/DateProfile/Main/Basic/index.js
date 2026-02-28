@@ -73,6 +73,7 @@ const index = () => {
       setTelError(false);
       setAddressError(false);
       setThumbimageError(false);
+      setStatusError(false);
       updatenotifyProfile();
       dispatch(updateBasicProfileFalse());
     }
@@ -227,9 +228,27 @@ const index = () => {
     v?.sido == address_sido ? resultArr?.push(v) : null
   }, [address_sido])
 
-
   const [defaultSido] = sido?.filter((item) => item?.sido == user?.address_sido, [])
   const [defaultSigugun] = sigugun?.filter((item) => item?.sido == user?.address_sido && item?.sigugun == user?.address_sigugun, [])
+
+
+  // 재혼상태, 키
+  const [status, setStatus] = useState(user?.status || "");
+  const [statusError, setStatusError] = useState(false);
+  const [height, setHeight] = useState(user?.height || "");
+
+  // 핸들러
+  const onChangeStatus = useCallback((e) => {
+    setStatus(e.target.value);
+    setStatusError(false);
+  }, []);
+
+  const onChangeHeight = useCallback((e) => {
+    const val = e.target.value;
+    if (val === "" || /^[0-9]+$/.test(val)) {
+      setHeight(val);
+    }
+  }, []);
 
   const onSubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -245,6 +264,15 @@ const index = () => {
       document.getElementById('thumbimage').focus();
       return setThumbimageError(true);
     }
+
+    // 필수 검증
+    if (!status) {
+      setStatusError(true);
+      document.getElementById("statusDiv").scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+
     if (religion == '') {
       document.getElementById('religion 1').focus();
       return setReligionError(true);
@@ -268,11 +296,20 @@ const index = () => {
     }
     const newForm = { year: parseInt(form?.year), month: parseInt(form?.month), day: parseInt(form?.day) }
     const res = await updateUserBasicInfo(
-      username, nickname, newForm, religion, tel, address_sido, address_sigugun
+      username,
+      nickname,
+      newForm,
+      religion,
+      tel,
+      address_sido,
+      address_sigugun,
+      status,
+      height
     );
     dispatch(updateBasicProfile(res))
-  }, [thumbimage, username, nickname, religion, form?.year, form?.month, form?.day,
-    tel, address_sido, address_sigugun, dispatch])
+  }, [username, nickname, form, religion, tel,
+    address_sido, address_sigugun, status, height,
+    thumbimage, dispatch,])
 
   // const writeFinish = username && nickname && religion && form?.year && form?.month && form?.day && gender && tel && address_sigugun && address_sido;
   const religionArr = ["무교", "기독교", "천주교", "불교", "원불교", "유교",
@@ -360,7 +397,72 @@ const index = () => {
           ) : null}
         </div>
 
+        {/* 결혼 상태 */}
+        <div className="py-4" id="statusDiv">
+          <label className="block mb-3 text-md font-bold text-gray-700">
+            결혼상태
+          </label>
 
+          <ul className="flex flex-wrap gap-3">
+            {[
+              { label: "미혼", icon: "💖" },
+              { label: "돌싱", icon: "🌿" },
+            ].map((item, index) => (
+              <li key={item.label}>
+                <input
+                  type="radio"
+                  id={`status-${index}`}
+                  name="status"
+                  value={item.label}
+                  checked={status === item.label}
+                  onChange={onChangeStatus}
+                  className="hidden peer"
+                />
+                <label
+                  htmlFor={`status-${index}`}
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-full cursor-pointer transition-all
+          border shadow-sm select-none
+          peer-checked:text-blue-600 peer-checked:border-blue-500 peer-checked:bg-blue-50
+          hover:border-blue-400 hover:text-blue-500 bg-white border-gray-300 text-gray-600`}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span>{item.label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+
+          {statusError && (
+            <p className="text-xs text-red-500 mt-2">
+              ⚠️ 결혼 상태를 선택해주세요.
+            </p>
+          )}
+        </div>
+
+        {/* 키 정보 */}
+        <div className="py-4">
+          <label
+            className="block mb-2 text-md font-bold text-gray-700"
+            htmlFor="height"
+          >
+            키 정보 (선택입력)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="height"
+              type="text"
+              maxLength="3"
+              placeholder="예: 175"
+              value={height}
+              onChange={onChangeHeight}
+              className="block w-24 p-3 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 sm:text-md focus:ring-blue-500 focus:border-blue-500"
+            />
+            <span className="text-gray-500 text-sm">cm</span>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            ※ 입력하지 않으면 프로필에서 비공개 처리됩니다.
+          </p>
+        </div>
 
         <div className="py-4">
           <div className="mb-4 md:mr-2 md:mb-0 w-[100%]">
@@ -466,7 +568,7 @@ const index = () => {
 
         <div className="py-4">
           <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="address">
-            거주지 주소
+            주소
           </label>
 
           <div>
@@ -520,7 +622,7 @@ const index = () => {
 
         <div className="py-4">
           <label className="block mb-2 text-md font-bold text-gray-700 " htmlFor="religion">
-            종교(종교가 없을 경우 '무교'입력)
+            종교중요
           </label>
           <ul className="flex w-full gap-2 items-start flex-wrap">
             {religionArr?.map((v, index) => (

@@ -1,325 +1,319 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
-import hangjungdong from 'components/Common/Address';
-import { motion } from "framer-motion";
-import { useDispatch, useSelector } from 'react-redux';
-import { useRouter } from 'next/router';
-import Image from 'next/image';
-import { FaHome } from "react-icons/fa";
-import { FaBuilding } from "react-icons/fa";
-import { FaBriefcase } from "react-icons/fa";
+import React, { useEffect, useState, useCallback } from "react";
+import PropTypes from "prop-types";
+import Image from "next/image";
+import styled from "styled-components";
+import { useSelector, useDispatch } from "react-redux";
+import { useRouter } from "next/router";
 import dayjs from "dayjs";
-import { getFriendSleep, getFriendWithdraw, auth } from 'firebaseConfig';
-import {
-  setFriendSleep, setFriendWithdraw, friendSleepLoadingStart, friendSleepLoadingEnd,
-  userLoadingEnd
-} from 'slices/user';
+import { FaHome, FaBuilding, FaBriefcase } from "react-icons/fa";
 import { GiNightSleep } from "react-icons/gi";
+import hangjungdong from "components/Common/Address";
+import { getNewFriends, getFriendSleep, getFriendWithdraw } from "firebaseConfig";
+import {
+  setFriendSleep,
+  setFriendWithdraw,
+  friendSleepLoadingEnd,
+  userLoadingEnd,
+} from "slices/user";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter);
+dayjs.tz.setDefault("Asia/Seoul");
 
-import { onAuthStateChanged } from 'firebase/auth';
-import styled from 'styled-components';
-
-const ProtectiveImage = styled(Image)`
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -o-user-select: none;
-  user-select: none;
-  -webkit-user-drag: none;
-  -khtml-user-drag: none;
-  -moz-user-drag: none;
-  -o-user-drag: none;
+// ---------- 스타일 ----------
+const Card = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  height: 440px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  }
 `;
 
-const index = ({ friend }) => {
-  const { user, allFriends } = useSelector(state => state.user);
-  const { sido, sigugun } = hangjungdong;
+const ImageWrap = styled.div`
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #f1f5f9;
+`;
+
+const InfoOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 1.4rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65) 10%, rgba(0, 0, 0, 0) 90%);
+  color: white;
+  backdrop-filter: blur(4px);
+`;
+
+const Nickname = styled.h3`
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+`;
+
+const Meta = styled.p`
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+  color: #e2e8f0;
+`;
+
+const TagGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+`;
+
+const Tag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.4rem 0.8rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  backdrop-filter: blur(3px);
+  svg {
+    font-size: 0.9rem;
+  }
+`;
+
+const Badge = styled.div`
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-weight: 700;
+  padding: 0.35rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+`;
+
+const Status = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1.1rem;
+`;
+
+// ---------- 유틸 ----------
+const parseDate = (v) => {
+  if (!v) return null;
+  if (v.seconds) return dayjs(new Date(v.seconds * 1000)); // Timestamp
+  if (typeof v === "string") return dayjs(v.replace(" ", "T")); // "YYYY-MM-DD HH:mm:ss"
+  return dayjs(v);
+};
+
+// ---------- 컴포넌트 ----------
+const ProfileCard = ({ friend }) => {
+  const { user, allFriends } = useSelector((s) => s.user);
+  const { sido } = hangjungdong;
   const router = useRouter();
   const dispatch = useDispatch();
-  const sigugunList = hangjungdong?.sigugun;
-  const resultArr = [];
-  // const sigugunFunc = useCallback(() => {
-  sigugunList?.map((v) => {
-    v?.sido == friend?.address_sido ? resultArr?.push(v) : null
-  }, [friend?.address_sido])
 
-  const [defaultSido] = sido?.filter((item) => item?.sido == friend?.address_sido, [])
-  const [defaultSigugun] = sigugun?.filter((item) => item?.sido == friend?.address_sido && item?.sigugun == friend?.address_sigugun, [])
+  const [refreshedFriend, setRefreshedFriend] = useState(friend);
+  const [gap, setGap] = useState(0);
+  const [sleeping, setSleeping] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [isExpired, setIsExpired] = useState(false); // ✅ 만료상태
+
+  useEffect(() => {
+    if ((user?.datecard || []).filter(c => /* isActive */ true).length === 0) {
+      getNewFriends();
+    }
+  }, [user?.datecard]);
 
 
-  const resultCompanyArr = [];
-  // const sigugunFunc = useCallback(() => {
-  sigugunList?.map((v) => {
-    v?.sido == friend?.company_location_sido ? resultCompanyArr?.push(v) : null
-  }, [friend?.company_location_sido])
+  // 🔄 상태동기화
+  useEffect(() => {
+    (async () => {
+      const sleep = await getFriendSleep(friend?.userID);
+      if (sleep) dispatch(setFriendSleep({ ...sleep, id: friend?.userID }));
+      const withdraw = await getFriendWithdraw(friend?.userID);
+      if (withdraw) dispatch(setFriendWithdraw({ ...withdraw, id: friend?.userID }));
+      dispatch(friendSleepLoadingEnd());
+      dispatch(userLoadingEnd());
+    })();
+  }, [dispatch, friend?.userID]);
 
-  const [defaultCompanySido] = sido?.filter((item) => item?.sido == friend?.company_location_sido, [])
-  const [defaultCompanySigugun] = sigugun?.filter((item) => item?.sido == friend?.company_location_sido && item?.sigugun == friend?.company_location_sigugun, [])
+  // 🔄 친구 데이터 최신화
+  useEffect(() => {
+    const target = allFriends?.find((v) => v?.userID === friend?.userID);
+    if (target) setRefreshedFriend(target);
+  }, [allFriends, friend?.userID]);
+
+  // 🔄 상태동기화
+  useEffect(() => {
+    setSleeping(refreshedFriend?.date_sleep);
+    setWithdrawing(refreshedFriend?.withdraw);
+  }, [refreshedFriend]);
+
+  // 문자열/타임스탬프 무엇이 오든 KST로 안전 파싱
+  const toKST = (v) => {
+    if (!v) return null;
+    if (v?.seconds) return dayjs.tz(new Date(v.seconds * 1000), "Asia/Seoul"); // Firestore Timestamp
+    if (typeof v === "string") return dayjs.tz(v.replace(" ", "T"), "Asia/Seoul"); // "YYYY-MM-DD HH:mm:ss"
+    return dayjs.tz(v, "Asia/Seoul");
+  };
+
+  // ✅ D-day 계산 + 만료 여부 (교체)
+  useEffect(() => {
+    const calc = () => {
+      const now = dayjs.tz(); // KST now
+      // expired가 있으면 우선 사용, 없으면 card_timestamp + 7일
+      const expiredAtRaw = friend?.expired ? toKST(friend.expired) : toKST(friend?.card_timestamp)?.add(7, "day");
+      if (!expiredAtRaw || !expiredAtRaw.isValid()) {
+        setGap(0);
+        setIsExpired(false);
+        return;
+      }
+
+      // “그 날의 끝”까지 유효하도록 고정
+      const expiredAt = expiredAtRaw.endOf("day");
+
+      // 남은 일수: endOf('day') 기준, 음수 방지
+      const remainDays = Math.max(0, expiredAt.diff(now, "day"));
+      setGap(remainDays);
+
+      // 만료 여부: 오늘 포함 만료 → 숨김
+      // now가 만료일의 끝 이상이면 만료(true)
+      setIsExpired(now.isSameOrAfter(expiredAt));
+    };
+
+    calc();
+    const t = setInterval(calc, 1000 * 60 * 5); // 5분마다 갱신 (30분은 너무 길어 공백 체감됨)
+    return () => clearInterval(t);
+  }, [friend?.expired, friend?.card_timestamp]);
 
   const goDetail = useCallback(() => {
-    if (user) {
-      router.push({
-        pathname: `/date/cards/${friend?.userID}`,
-      });
-    } else {
-      router.push("/")
-    }
-  }, [friend?.userID, router, user])
+    if (user) router.push(`/date/cards/${friend?.userID}`);
+    else router.push("/");
+  }, [friend?.userID, router, user]);
 
-  let today = dayjs();
-  let expiredDay = dayjs(friend?.expired);
+  // ✅ 오늘 포함 만료된 카드 숨김
+  if (isExpired) return null;
 
-  // const friendID = friend?.userID
-  useEffect(() => {
-    async function fetchAndSetUser() {
-      // const authStateListener = onAuthStateChanged(auth, async () => {
-      // dispatch(friendSleepLoadingStart())
-      await getFriendSleep(friend?.userID).then((result) => {
-        result && dispatch(setFriendSleep({ ...result, id: friend?.userID }));
-      })
-      await getFriendWithdraw(friend?.userID).then((result) => {
-        result && dispatch(setFriendWithdraw({ ...result, id: friend?.userID }));
-      })
-    }
-    fetchAndSetUser();
-    dispatch(friendSleepLoadingEnd())
-    dispatch(userLoadingEnd())
-    // return () => {
-    //   authStateListener();
-    // };
-  }, [
-    dispatch, friend?.userID,
-    // friend?.date_sleep, friend?.withdraw
-  ])
+  // ✅ 휴면회원
+  if (sleeping)
+    return (
+      <Card>
+        <ImageWrap>
+          <Status>
+            <GiNightSleep size={34} />
+            휴면 중인 회원입니다.
+          </Status>
+        </ImageWrap>
+      </Card>
+    );
 
+  // ✅ 탈퇴회원
+  if (withdrawing)
+    return (
+      <Card>
+        <ImageWrap>
+          <Status>탈퇴한 회원입니다.</Status>
+        </ImageWrap>
+      </Card>
+    );
 
-  // 이 지ㄹㅏ말까 고ㄴㅐㅆ던거
-  const [dislikes, setDislikes] = useState(false);
-  const [disliked, setDisliked] = useState(false);
-
-  useEffect(() => {
-    const dislikesResults = friend?.disliked?.find((v) => v?.userId === user?.userID) !== undefined
-    setDislikes(dislikesResults)
-    const dislikedResults = friend?.dislikes?.find((v) => v?.userId === user?.userID) !== undefined
-    setDisliked(dislikedResults)
-  }, [friend?.disliked, friend?.dislikes])
-
-  ////////////
-
-  const [refreshedFriend, setRefreshedFriend] = useState("");
-
-  useEffect(() => {
-    async function fetchAndSetUser() {
-      allFriends?.map((v) => (
-        friend?.userID === v?.userID ? setRefreshedFriend(v) : null
-      ))
-    }
-    fetchAndSetUser();
-  }, [allFriends, friend?.userID, refreshedFriend])
-  // console.log(friend, "구ㅅtt")
-  // console.log(disliked, dislikes, "디스이크")
-  const sleeping = refreshedFriend?.date_sleep == true;
-  const withdrawing = refreshedFriend?.withdraw == true;
+  // ✅ 정상회원 카드
   return (
-    <>
-      {sleeping && !withdrawing &&
-        <>
-          <div
-            className="max-w-[380px] my-3 mx-2 w-[100%] opacity-75 rounded-lg shadow-lg hover:shadow-sm ">
-            <div className='w-full text-left relative '>
-              <div className='rounded-lg w-full relative h-[380px] bg-gray-700 flex flex-col items-center justify-center gap-4'>
-                <ProtectiveImage
-                  // alt="empty"
-                  width="0"
-                  height="0"
-                  sizes="100vw"
-                  unoptimized
-                  placeholder="blur"
-                  blurDataURL="data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                  className='absolute top-0 left-0 opacity-30 rounded-lg w-[100%] h-[100%] object-cover blur-xl'
-                  src={friend?.thumbimage[0]}
-                  alt={friend?.thumbimage[0]}
-
-                // src="/image/icon/empty.png"
-                />
-                <GiNightSleep
-                  className='text-white'
-                  size={35}
-                />
-                <span className='text-lg text-white font-semibold'>휴면중인 회원입니다.</span>
-              </div>
-            </div>
-          </div>
-        </>
-      }
-      {withdrawing && !sleeping &&
-        <div
-          // initial={{ opacity: 0 }}
-          // whileInView={{ opacity: 1 }}
-          // viewport={{ once: true }}
-          className="max-w-[380px] my-3 mx-2 w-[100%] bg-pink-50 opacity-75 border-solid border-t-1 border-slate-300 rounded-lg shadow-lg hover:shadow-sm ">
-          <div className='w-full text-left relative '>
-            <div className='w-full relative h-[380px] flex flex-col items-center justify-center gap-4'>
-              <Image
-                alt="empty"
-                width="0"
-                height="0"
-                sizes="100vw"
-                unoptimized
-                className='w-[70px]'
-                src="/image/icon/empty.png" />
-              <span className='text-lg text-slate-500'>탈퇴한 회원입니다.</span>
-            </div>
-          </div>
-        </div>
-      }
-      {
-        // (refreshedFriend?.disliked?.length == 0 || !refreshedFriend?.disliked) &&
-        !disliked &&
-        // !dislikes &&
-        (!sleeping || sleeping == "") && (!withdrawing || withdrawing == "") &&
-        <div
-
-          className="transition-transform duration-300 transform hover:scale-105 max-w-[380px] my-3 mx-2 w-[100%] h-[380px] bg-white shadow-lg hover:shadow-sm border rounded-lgsolid border-b-4 border-blue-300 ">
-          <button
-            className='w-full text-left relative h-[100%]'
-            onClick={goDetail}
-          >
-            <div className='w-full relative h-[100%]'>
-              {friend?.thumbimage?.[0] ?
-                <div className=' w-[100%] h-[100%] rounded-lg flex items-center justify-center bg-slate-700'>
-                  <ProtectiveImage
-                    className="rounded-lg w-[100%] h-[100%] object-cover"
-                    unoptimized
-                    placeholder="blur"
-                    blurDataURL="data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                    width="0"
-                    height="0"
-                    sizes="100vw"
-                    loader={() => friend?.thumbimage?.[0]}
-                    src={friend?.thumbimage[0]}
-                    alt={friend?.thumbimage[0]} />
-                </div>
-                :
-                <div className=' w-[100%] h-[100%] rounded-lg flex items-center justify-center bg-slate-700'>
-                  <ProtectiveImage
-                    className="rounded-lg w-[90%] h-[360px] object-cover blur"
-                    unoptimized
-                    placeholder="blur"
-                    blurDataURL="data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-                    width="0"
-                    height="0"
-                    sizes="100vw"
-                    src="/image/image_error.png"
-                    alt="/image/image_error.png" />
-                </div>
-              }
-              <span className='absolute top-4 right-4 rounded-full px-4 py-2 shadow-md bg-black/50 text-md font-semibold text-white'>D-{Math.ceil(expiredDay?.diff(today, "day", true))}일</span>
-            </div>
-            <div className="absolute bottom-0 rounded-b-lg right-0 left-0  p-4 
-            
-            ">
-              <div className='w-full flex justify-between flow-row items-center gap-2'>
-                <div className="text-2xl text-subColor1 [text-shadow:_1px_1px_1px_gray] font-bold tracking-tight text-white ">{friend?.nickname}
-                </div>
-                <span className='inline-flex items-center rounded-md px-4 py-1.5 text-md font-medium text-center text-sky-700 bg-white hover:bg-white focus:ring-4 focus:outline-none focus:ring-white'>
-                  {friend?.mbti_ei}{friend?.mbti_sn}{friend?.mbti_tf}{friend?.mbti_jp}</span>
-              </div>
-              <p className="mb-2 text-lg tracking-tight text-white text-subColor1 [text-shadow:_1px_1px_1px_gray]">{friend?.birthday?.year}년생</p>
-              <div className="flex w-full items-center justify-start flex-wrap gap-1">
-                <p className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-sky-600/60 hover:bg-sky-800/60 focus:ring-4 focus:outline-none focus:ring-sky-300/60">
-                  <FaHome className='' />
-                  <span className="">{(() => {
-                    switch (friend?.address_sido) {
-                      case '11': return (<span className="">서울특별시</span>)
-                      case '12': return (<span className="">인천광역시</span>)
-                      case '13': return (<span className="">경기도</span>)
-
-                      case '21': return (<span className="">충청북도</span>)
-                      case '22': return (<span className="">대전광역시</span>)
-                      case '23': return (<span className="">세종특별자치시</span>)
-                      case '24': return (<span className="">충청남도</span>)
-
-                      case '32': return (<span className="">강원도</span>)
-
-                      case '41': return (<span className="">광주광역시</span>)
-                      case '42': return (<span className="">전라북도</span>)
-                      case '43': return (<span className="">전라남도</span>)
-
-                      case '51': return (<span className="">대구광역시</span>)
-                      case '52': return (<span className="">경상북도</span>)
-                      case '53': return (<span className="">경상남도</span>)
-                      case '54': return (<span className="">울산광역시</span>)
-                      case '55': return (<span className="">부산광역시</span>)
-
-                      case '60': return (<span className="">제주특별자치도</span>)
-                      default: null;
-                    }
-                  })(friend?.address_sido)}</span>
-                  <span className=''>{defaultSigugun?.codeNm}</span>
-                </p>
-                <p className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-sky-600/60 hover:bg-sky-800/60 focus:ring-4 focus:outline-none focus:ring-sky-300/60 ">
-                  <FaBuilding className='' />
-                  <span className="">{(() => {
-                    switch (friend?.company_location_sido) {
-                      case '11': return (<span className="">서울특별시</span>)
-                      case '12': return (<span className="">인천광역시</span>)
-                      case '13': return (<span className="">경기도</span>)
-
-                      case '21': return (<span className="">충청북도</span>)
-                      case '22': return (<span className="">대전광역시</span>)
-                      case '23': return (<span className="">세종특별자치시</span>)
-                      case '24': return (<span className="">충청남도</span>)
-
-                      case '32': return (<span className="">강원도</span>)
-
-                      case '41': return (<span className="">광주광역시</span>)
-                      case '42': return (<span className="">전라북도</span>)
-                      case '43': return (<span className="">전라남도</span>)
-
-                      case '51': return (<span className="">대구광역시</span>)
-                      case '52': return (<span className="">경상북도</span>)
-                      case '53': return (<span className="">경상남도</span>)
-                      case '54': return (<span className="">울산광역시</span>)
-                      case '55': return (<span className="">부산광역시</span>)
-
-                      case '60': return (<span className="">제주특별자치도</span>)
-                      default: null;
-                    }
-                  })(friend?.company_location_sido)}</span>
-                  <span className=''>{defaultCompanySigugun?.codeNm}</span>
-                </p>
-                <div className="gap-1 inline-flex items-center rounded-md px-3 py-1.5 text-md font-medium text-center text-white bg-blue-600/60 hover:bg-blue-800/60 focus:ring-4 focus:outline-none focus:ring-blue-300/60 ">
-                  <FaBriefcase className='' />
-                  <span className="text-md">{(() => {
-                    switch (friend?.job) {
-                      case '1': return (<span className="">대기업</span>)
-                      case '2': return (<span className="">중견기업</span>)
-                      case '3': return (<span className="">공기업</span>)
-                      case '4': return (<span className="">공무원</span>)
-                      case '5': return (<span className="">공공기관</span>)
-                      case '6': return (<span className="">외국계</span>)
-                      case '7': return (<span className="">전문직</span>)
-                      case '8': return (<span className="">금융권</span>)
-                      case '9': return (<span className="">교육계</span>)
-                      case '10': return (<span className="">프리랜서</span>)
-                      case '11': return (<span className="">사업가</span>)
-                      case '12': return (<span className="">기타</span>)
-                      default: null;
-                    }
-                  })(friend?.job)}</span>
-                </div>
-              </div>
-            </div>
-          </button>
-        </div>
-      }
-    </>
+    <Card onClick={goDetail}>
+      <ImageWrap>
+        <Image
+          src={friend?.thumbimage?.[0] || "/image/image_error.png"}
+          alt={friend?.nickname || "profile"}
+          width={400}
+          height={500}
+          className="object-cover w-full h-full"
+          unoptimized
+        />
+        <Badge>{gap > 0 ? `D-${gap}일` : "오늘 만료"}</Badge>
+        <InfoOverlay>
+          <Nickname>{friend?.nickname}</Nickname>
+          <Meta>
+            {friend?.birthday?.year}년생 ·{" "}
+            {friend?.mbti_ei}
+            {friend?.mbti_sn}
+            {friend?.mbti_tf}
+            {friend?.mbti_jp}
+          </Meta>
+          <TagGroup>
+            <Tag>
+              <FaHome />
+              {sido.find((s) => s.sido === friend?.address_sido)?.codeNm || "거주지"}
+            </Tag>
+            <Tag>
+              <FaBuilding />
+              {sido.find((s) => s.sido === friend?.company_location_sido)?.codeNm ||
+                "근무지"}
+            </Tag>
+            <Tag>
+              <FaBriefcase />
+              {(() => {
+                switch (friend?.job) {
+                  case "1":
+                    return "대기업";
+                  case "2":
+                    return "중견기업";
+                  case "3":
+                    return "공기업";
+                  case "4":
+                    return "공무원";
+                  case "5":
+                    return "공공기관";
+                  case "6":
+                    return "외국계";
+                  case "7":
+                    return "전문직";
+                  case "8":
+                    return "금융권";
+                  case "9":
+                    return "교육계";
+                  case "10":
+                    return "프리랜서";
+                  case "11":
+                    return "사업가";
+                  case "12":
+                    return "기타";
+                  default:
+                    return "직업 정보 없음";
+                }
+              })()}
+            </Tag>
+          </TagGroup>
+        </InfoOverlay>
+      </ImageWrap>
+    </Card>
   );
 };
 
-index.propTypes = {
+ProfileCard.propTypes = {
   friend: PropTypes.object,
 };
 
-export default index;
+export default ProfileCard;

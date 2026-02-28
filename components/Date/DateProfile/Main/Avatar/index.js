@@ -29,7 +29,7 @@ const index = () => {
           <div className='my-2 text-gray-800 leading-4'>
             매력적인 본인의 사진을 올려서 이성에게 어필해주세요!
             <div className='my-3  bg-yellow-50 rounded-lg p-2 w-full'>
-              <p className='text-sm text-slate-600'>📌 최소 2장, 최대 5장까지 업로드 가능</p>
+              <p className='text-sm text-slate-600'>📌 최소 3장, 최대 5장까지 업로드 가능</p>
               <p className='text-sm text-slate-600'>📌 이미지 적정비율 1:1</p>
               <p className='text-sm text-slate-600'>📌 업로드 후, 저장버튼이 생성됩니다.</p>
             </div>

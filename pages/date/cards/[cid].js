@@ -73,6 +73,8 @@ const index = () => {
         religion: docData.religion,
         address_sido: docData.address_sido,
         address_sigugun: docData.address_sigugun,
+        status: docData.status,
+        height: docData.height,
 
         education: docData.education,
         school: docData.school,
@@ -209,6 +211,8 @@ const index = () => {
         religion: docData.religion,
         address_sido: docData.address_sido,
         address_sigugun: docData.address_sigugun,
+        status: docData.status,
+        height: docData.height,
 
         education: docData.education,
         school: docData.school,
@@ -299,13 +303,17 @@ const index = () => {
 
   useEffect(() => {
     if (!user?.userID) return;
-    
-    if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo || !writeThinkInfo) {
+
+    if (!writeThumbImage || !writeBasicInfo || !writeCareerInfo
+      //  || !writeThinkInfo
+    ) {
       alert("모든 정보를 입력해주세요!")
       return router.push("/date/profile");
     }
   }, [user, router, writeBasicInfo,
-    writeCareerInfo, writeThinkInfo, writeThumbImage,
+    writeCareerInfo,
+    writeThumbImage,
+    //  writeThinkInfo, 
     // user?.date_sleep, user?.withdraw, user?.date_profile_finished, user?.date_pending
   ])
 

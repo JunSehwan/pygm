@@ -127,7 +127,7 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, winks, onL
 
   if (!isOpen) { return null; }
 
-  
+
 
 
 
@@ -171,9 +171,9 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, winks, onL
                     <h2 className="text-gray-500 text-md p-3 font-normal tracking-normal leading-tight w-full text-center">
                       윙크를 구입하신다면,
                       <br />
-                      이메일로 입금관련 안내를 즉시 발송드립니다.
+                      입금관련 안내를 즉시 발송드립니다.
                       <br />
-                      무통장 입금 후 3시간 내 윙크가 충전됩니다!</h2>
+                      무통장 입금 후 12시간 이내 윙크가 충전됩니다!</h2>
                   </div>
 
                 </div>
@@ -195,7 +195,7 @@ const Modal = ({ onClose, title, children, visible, widths, subtitle, winks, onL
                     type="submit"
                     onClick={onLike}
                     className='w-full inline-flex justify-center rounded-md border border-transparent shadow-md px-4 py-4 bg-pink-600 text-base font-medium text-white hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500'>
-                    이메일로 안내받기</button>
+                    안내받기</button>
                 </div>
               </Footer>
             </div>

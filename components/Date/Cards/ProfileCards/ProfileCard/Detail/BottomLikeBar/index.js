@@ -5,7 +5,8 @@ import { FaKissWinkHeart } from "react-icons/fa";
 import { MdPlaylistRemove } from "react-icons/md";
 import {
   likeUser, dislikeUser, getDateMatching,
-  sendMailForLike, sendMailForMatch, sendMailForDecline, passUser
+  sendMailForLike, sendMailForMatch, sendMailForDecline, passUser,
+  sendLms
 } from 'firebaseConfig';
 import {
   likeToUser, dislikeToUser,
@@ -112,28 +113,56 @@ const index = (
     setOpenMatchModal(false);
   }, [])
 
+  const [likeLoading, setLikeLoading] = useState(false);
   const onLike = useCallback(async () => {
+    if (likeLoading) return; // 중복 방지
     if (!user?.userID) {
       return alert('로그인이 필요합니다.');
     }
-    await likeUser(friend?.userID, friend?.username)
-    await sendMailForLike(friend?.email, friend?.username, user?.nickname)
-    dispatch(likeToUser({
-      targetId: friend?.userID,
-      targetName: friend?.username,
-      // targetThumbimage: friend?.thumbimage,
-      userId: user?.userID,
-      username: user?.username,
-      // thumbimage: user?.thumbimage,
-    }));
-  }, [dispatch, friend?.userID, friend?.username, friend?.email, user?.nickname,
-    user?.userID, user?.username]);
+    // await likeUser(friend?.userID, friend?.username)
+    // await sendMailForLike(friend?.email, friend?.username, user?.nickname)
+    // dispatch(likeToUser({
+    //   targetId: friend?.userID,
+    //   targetName: friend?.username,
+    //   // targetThumbimage: friend?.thumbimage,
+    //   userId: user?.userID,
+    //   username: user?.username,
+    //   // thumbimage: user?.thumbimage,
+    // }));
+    try {
+      setLikeLoading(true);
+      await likeUser(friend?.userID, friend?.username);
+      await sendMailForLike(friend?.email, friend?.username, user?.nickname); //이메일발송
+      //문자발송
+      const msg = `
+        [피그말리온 올인원소개팅]
+        축하드립니다!
+        ${user?.nickname}님께서 윙크를 보내셨습니다!
+        지금 바로 확인해보세요!
+        https://pygm.co.kr/date/board
+      `;
+      const result = await sendLms(friend?.phonenumber, msg, "올인원소개팅 윙크도착!");
+
+
+      dispatch(likeToUser({
+        targetId: friend?.userID,
+        targetName: friend?.username,
+        userId: user?.userID,
+        username: user?.username,
+      }));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLikeLoading(false);
+    }
+  }, [dispatch, friend?.userID, friend?.username, friend?.email, user?.nickname, user?.userID, user?.username, likeLoading]);
 
   const onPass = useCallback(async () => {
     if (!user?.userID) {
       return alert('로그인이 필요합니다.');
     }
     await passUser(friend?.userID, friend?.username)
+    
     dispatch(dislikeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
@@ -149,6 +178,15 @@ const index = (
     }
     await dislikeUser(friend?.userID, friend?.username)
     await sendMailForDecline(friend?.email, friend?.username, user?.nickname)
+    //문자발송
+    const msg = `
+        [피그말리온 올인원소개팅]
+        아쉽지만 ${user?.nickname}님께서 윙크를 거절하셨습니다.
+        다시 윙크가 반환되었습니다.
+        https://pygm.co.kr/
+      `;
+    const result = await sendLms(friend?.phonenumber, msg, "올인원소개팅 매칭결과 안내!");
+
     dispatch(dislikeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
@@ -172,6 +210,15 @@ const index = (
     }
     await likeUser(friend?.userID, friend?.username)
     await sendMailForMatch(friend?.email, friend?.username, user?.nickname)
+    //문자발송
+    const msg = `
+        [피그말리온 올인원소개팅]
+        축하드립니다! ${user?.nickname}님께서 맞윙크를 보내셨습니다.
+        매칭 결과를 확인해보세요!
+        https://pygm.co.kr/date/board
+      `;
+    const result = await sendLms(friend?.phonenumber, msg, "올인원소개팅 매칭결과 안내!");
+
     dispatch(likeToUser({
       targetId: friend?.userID,
       targetName: friend?.username,
@@ -193,6 +240,7 @@ const index = (
   // const liked = friend?.liked?.find((v) => v?.userId === user?.userID);
   const [likes, setLikes] = useState(false);
   const [liked, setLiked] = useState(false);
+
 
   useEffect(() => {
     const likesResults = friend?.liked?.find((v) => v?.userId === user?.userID) !== undefined
@@ -294,7 +342,7 @@ const index = (
 
       {/* 상대가 나를 좋아했을 때 */}
       {!likes && liked ?
-        user?.wink >= 1 ?
+        (user?.wink ?? 0) >= 1 ? 
           (<BottomBar aria-label="Bottombar"
             className='max-w-[380px] block w-full overflow-y-hidden transition-transform duration-300 ease-in-out z-10 bg-slate-100 fixed bottom-2 shadow-md rounded-md mr-2 ml-2      '>
             <div className="overflow-y-auto w-full mx-auto">
@@ -385,7 +433,7 @@ const index = (
                           <FaKissWinkHeart
                             className="flex-shrink-0 w-6 h-6  transition duration-75 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-white"
                           ></FaKissWinkHeart>
-                          <span className="mt-1 flex-1 whitespace-nowrap">윙크보내기</span>
+                          <span className="mt-1 flex-1 whitespace-nowrap">윙크 구매하기</span>
                         </div>
                       </div>
                     </button>

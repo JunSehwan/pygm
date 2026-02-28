@@ -66,6 +66,8 @@ const index = () => {
         religion: docData.religion,
         address_sido: docData.address_sido,
         address_sigugun: docData.address_sigugun,
+        status: docData.status,
+        height: docData.height,
 
         education: docData.education,
         school: docData.school,
@@ -184,7 +186,9 @@ const index = () => {
         religion: docData.religion,
         address_sido: docData.address_sido,
         address_sigugun: docData.address_sigugun,
-
+        status: docData.status,
+        height: docData.height,
+        
         education: docData.education,
         school: docData.school,
         school_open: docData.school_open,
