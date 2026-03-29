@@ -33,6 +33,7 @@ import {
   EmailAuthProvider,
   signInAnonymously,
 } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 import dayjs from "dayjs";
 
 
@@ -62,9 +63,11 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
+
 export const currentUser = auth.currentUser;
 
-export { app, auth, db };
+export { app, auth, db, storage };
 
 var now = dayjs();
 const nowForCopy = dayjs(now);
@@ -350,22 +353,22 @@ export async function sendMailForSignUp(email, username) {
   try {
     await addDoc(mailRef, {
       to: `${email}`,
-      from: "피그말리온 관리자 - admin@pygmalion.co.kr",
+      from: "차밍수프 관리자 - admin@charmingsoup.co.kr",
       // or to: "someone@example.com
       message: {
-        subject: `${username}님! 피그말리온(PYGMALION) 회원가입을 환영합니다!`,
+        subject: `${username}님! 차밍수프(PYGMALION) 회원가입을 환영합니다!`,
         // text: '메시지를 확인해주세요',
         html: `
         <h1>WELCOME TO JOBCOC!</h1>
         <br/>
         프로필 입력 후에는, 소개팅 또는 일대일 반상회 등 다양한 서비스를 확인할 수 있습니다. 
-        <br/><br/>피그말리온 바로가기: <a href="https://pygmalion.co.kr/">여기를</a> 클릭하세요.`
+        <br/><br/>차밍수프 바로가기: <a href="https://charmingsoup.com/">여기를</a> 클릭하세요.`
       },
       template: {
         name: 'welcome',
         data: {
           fname: 'Nextpus',
-          msg: '자연스럽고 즐거운 만남! 피그말리온'
+          msg: '자연스럽고 즐거운 만남! 차밍수프'
         }
       }
     })
@@ -1958,273 +1961,6 @@ export async function getNewFriends() {
 }
 
 
-// export async function getNewFriends() {
-//   try {
-//     const user = auth.currentUser;
-//     if (!user) {
-//       return alert("로그인 후 가능합니다.")
-//     }
-
-
-//     const result = await getDoc(api.userByIdRef(user.uid));
-//     // if (result.exists()) {
-//     const me = {
-//       ...result.data(),
-//       likes: result.data().likes || [],
-//       liked: result.data().liked || [],
-//       dislikes: result.data().dislikes || [],
-//       disliked: result.data().disliked || [],
-//       userID: user.uid
-//     };
-
-//     // 1. 성 반대인 사람, 처음 가입했던 사람부터
-//     const q = query(api.usersRef,
-//       where("gender", "!=", me?.gender),
-//       orderBy("timestamp", "asc"),
-//     );
-
-//     const querySnapshot = await getDocs(q);
-//     const people = await Promise.all(querySnapshot?.docs?.map(async (doc) => {
-
-//       const man = {
-//         userID: doc.data().id || "",
-//         username: doc.data().username || "",
-//         nickname: doc.data().nickname || "",
-//         email: doc.data().email || "",
-//         birthday: doc.data().birthday || "",
-//         gender: doc.data().gender || "",
-//         thumbimage: doc.data().thumbimage || "",
-//         phonenumber: doc.data().phonenumber || "",
-//         religion: doc.data().religion || "",
-//         address_sido: doc.data().address_sido || "",
-//         address_sigugun: doc.data().address_sigugun || "",
-
-//         education: doc.data().education || "",
-//         school: doc.data().school || "",
-//         school_open: doc.data().school_open || "",
-//         job: doc.data().job || "",
-//         company: doc.data().company || "",
-//         company_open: doc.data().company_open || "",
-//         jobdocument: doc.data().jobdocument || "",
-//         duty: doc.data().duty || "",
-//         salary: doc.data().salary || "",
-//         company_location_sido: doc.data().company_location_sido || "",
-//         company_location_sigugun: doc.data().company_location_sigugun || "",
-
-//         mbti_ei: doc.data().mbti_ei || "",
-//         mbti_sn: doc.data().mbti_sn || "",
-//         mbti_tf: doc.data().mbti_tf || "",
-//         mbti_jp: doc.data().mbti_jp || "",
-
-//         hobby: doc.data().hobby || "",
-//         drink: doc.data().drink || "",
-//         health: doc.data().health || "",
-//         hotplace: doc.data().hotplace || "",
-//         tour: doc.data().tour || "",
-//         tourlike: doc.data().tourlike || "",
-//         tourpurpose: doc.data().tourpurpose || "",
-//         hobbyshare: doc.data().hobbyshare || "",
-//         interest: doc.data().interest || "",
-
-//         opfriend: doc.data().opfriend || "",
-//         friendmeeting: doc.data().friendmeeting || "",
-//         longdistance: doc.data().longdistance || "",
-//         datecycle: doc.data().datecycle || "",
-//         dateromance: doc.data().dateromance || "",
-//         contact: doc.data().contact || "",
-//         contactcycle: doc.data().contactcycle || "",
-//         passwordshare: doc.data().passwordshare || "",
-//         wedding: doc.data().wedding || "",
-//         wedding_dating: doc.data().wedding_dating || "",
-//         prefer_age_min: doc.data().prefer_age_min || "",
-//         prefer_age_max: doc.data().prefer_age_max || "",
-
-//         career_goal: doc.data().career_goal || "",
-//         living_weekend: doc.data().living_weekend || "",
-//         living_consume: doc.data().living_consume || "",
-//         living_pet: doc.data().living_pet || "",
-//         living_tatoo: doc.data().living_tatoo || "",
-//         living_smoke: doc.data().living_smoke || "",
-//         living_charming: doc.data().living_charming || "",
-
-//         religion_important: doc.data().religion_important || "",
-//         religion_visit: doc.data().religion_visit || "",
-//         religion_accept: doc.data().religion_accept || "",
-//         food_taste: doc.data().food_taste || "",
-//         food_like: doc.data().food_like || "",
-//         food_dislike: doc.data().food_dislike || "",
-//         food_vegetarian: doc.data().food_vegetarian || "",
-//         food_spicy: doc.data().food_spicy || "",
-//         food_diet: doc.data().food_diet || "",
-//         wink: doc.data().wink || "",
-//         date_sleep: doc.data().date_sleep || false,
-//         withdraw: doc.data().withdraw || false,
-//         date_lastIntroduce: doc.data().date_lastIntroduce || "",
-//         timestamp: doc.data().timestamp || "",
-
-//         likes: doc.data().likes || [],
-//         liked: doc.data().liked || [],
-//         dislikes: doc.data().dislikes || [],
-//         disliked: doc.data().disliked || [],
-
-//         date_profile_finished: doc.data().date_profile_finished || [],
-//         date_pending: doc.data().date_pending || [],
-
-//         location_distance: Math.abs(parseInt(doc.data().address_sido) - parseInt(me?.address_sido)) || "",
-//         age_gap: Math.abs(parseInt(doc.data().birthday.year) - parseInt(me?.birthday.year)) || "",
-//         age_prefer: Math.abs((parseInt(me?.prefer_age_min) + parseInt(me?.prefer_age_max)) / 2 - ((parseInt(nowForCopy.format('YYYY')) - parseInt(doc.data()?.birthday?.year)))) || ""
-//       }
-//       return man;
-//     }))
-//     // 2. 집 가까운사람
-//     const arrayresult = people?.sort(function (a, b) { return a?.location_distance - b?.location_distance });
-//     // 1. date_sleep : false
-//     // 2. withdraw : false
-//     // 3. 기존에 감겼던애들 : false
-//     // 4. location_Distance 낮은 순
-//     // age_prefer : 0보다 커아햐며 높을수록 좋음
-//     const newArr = [];
-//     arrayresult?.map((v) => (
-//       (!v?.date_sleep || v?.date_sleep == false) &&
-//         (!v?.withdraw || v?.withdraw == false) &&
-//         v?.date_pending == false &&
-//         v?.date_profile_finished == true
-//         ? newArr?.push(v) : null
-//     ))
-//     // like 했던애들 빼기
-//     const likesMinusArr = [];
-//     if (me?.likes?.length !== 0) {
-//       newArr?.map(async (v) => (
-//         await me?.likes?.map(async (m) => (
-//           v?.userID !== m?.userId && likesMinusArr?.push(v)
-//         ))
-//       ))
-//     } else {
-//       newArr?.map(async (v) => (
-//         likesMinusArr?.push(v)
-//       ))
-//     }
-//     // 중복제거
-//     const uniqueLikesMinusArrs = [...new Set(likesMinusArr)];
-//     // like 받은애들 빼기
-//     const likedMinusArr = [];
-//     if (me?.liked?.length !== 0) {
-//       uniqueLikesMinusArrs?.map(async (v) => (
-//         await me?.liked?.map(async (m) => (
-//           v?.userID !== m?.userId && likedMinusArr?.push(v)
-//         ))
-//       ))
-//     } else {
-//       uniqueLikesMinusArrs?.map(async (v) => (
-//         likedMinusArr?.push(v)
-//       ))
-//     }
-//     // 중복제거
-//     const uniqueLikedMinusArrs = [...new Set(likedMinusArr)];
-
-//     // 지역/나이 가까운곳으로
-//     const result1 = uniqueLikedMinusArrs?.sort(function async(a, b) { return a?.age_prefer - b?.age_prefer });
-//     const result2 = result1?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
-//     const brandArr = [];
-//     if (me?.datecard?.length > 0) {
-//       result2?.map(async (v) => (
-//         await me?.datecard?.map(async (m) => (
-//           m?.userID !== v?.userID ?
-//             brandArr?.push({
-//               ...v,
-//               userID: v?.userID,
-//               targetID: user.uid,
-//               targetName: user.displayName,
-//               expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
-//               card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-//             })
-//             : null
-//         )))
-//       )
-//     }
-//     else {
-//       result2?.map(async (v) => (
-//         brandArr?.push({
-//           ...v,
-//           userID: v?.userID,
-//           targetID: user.uid,
-//           targetName: user.displayName,
-//           expired: dayjs(time).add(7, 'day').format('YYYY-MM-DD HH:mm:ss'),
-//           card_timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-//         })
-//       ))
-//     }
-
-//     // 중복제거
-//     const uniqueArrs = Array.from(new Set(brandArr?.map(a => a?.userID)))
-//       ?.map(userID => {
-//         return brandArr?.find(a => a?.userID === userID)
-//       })
-//     const uniqueFromMyDataArrs = [];
-//     await me?.datecard?.map(async (v) => (
-//       uniqueArrs?.map(async (m) => (
-//         v?.userID !== m?.userID && uniqueFromMyDataArrs?.push(m)
-//       ))
-//     ))
-//     uniqueFromMyDataArrs.filter(v => !me?.datecard.includes(v))
-
-
-//     const countArr = []
-//     await me?.datecard?.map(async (v) => (
-//       dayjs(v?.expired)?.isAfter(nowForCopy) && countArr?.push(v)
-//     ))
-
-//     me?.datecard?.map(async (v, i) => (
-//       // uniqueArrs?.filter(async q => await v?.userID !== q?.userID),
-//       uniqueArrs?.forEach(async (item, index) => {
-//         if (item?.userID === v?.userID) {
-//           uniqueArrs?.splice(index, 1)
-//         }
-//       })
-//     )
-//     )
-
-//     // 내 datecard에 넣기
-//     const uniqueArr = uniqueArrs?.slice(0, (3 - (countArr?.length <= 0 ? 0 : countArr?.length)));
-//     const reuniqueArr = uniqueArr?.sort(function async(a, b) { return a?.location_distance - b?.location_distance });
-//     if (me?.datecard?.length === 0 || !me?.datecard) {
-//       await updateDoc(api.userByIdRef(user.uid), {
-//         datecard: arrayUnion(...reuniqueArr),
-//       })
-//     } else {
-//       await updateDoc(api.userByIdRef(user.uid), {
-//         datecard: arrayUnion(...reuniqueArr),
-//       });
-//     }
-
-//     const finalArr = [];
-
-//     const resultMy = await getDoc(api.userByIdRef(user.uid));
-//     const my = {
-//       ...resultMy.data(),
-//       likes: resultMy.data().likes,
-//       liked: resultMy.data().liked,
-//       dislikes: resultMy.data().dislikes,
-//       disliked: resultMy.data().disliked,
-//       datecard: resultMy.data().datecard,
-//       userID: user.uid
-//     };
-
-//     await my?.datecard?.map(async (v) => (
-//       dayjs(v?.expired)?.isAfter(nowForCopy) ?
-//         finalArr?.push(v)
-//         : null
-//     ))
-
-//     return finalArr;
-
-//   } catch (e) {
-//     console.error(e);
-//   }
-// }
-
-
-
 export async function getOldFriends() {
   const user = auth.currentUser;
   if (!user) return (
@@ -2278,115 +2014,6 @@ export async function getFriendWithdraw(friendId) {
   }
 }
 
-// import axios from 'axios';
-
-// export function send_message(phone) {
-//   const accessKey = process.env.NCP_KEY;
-//   const date = Date.now().toString();
-//   axios({
-//     method: "POST",
-//     // request는 uri였지만 axios는 url이다
-//     url: process.env.SERVICE_ID,
-//     headers: {
-//       "Contenc-type": "application/json; charset=utf-8",
-//       "x-ncp-iam-access-key": accessKey,
-//       "x-ncp-apigw-timestamp": date,
-//       // "x-ncp-apigw-signature-v2": signature,
-//     },
-//     // request는 body였지만 axios는 data다
-//     data: {
-//       type: "SMS",
-//       countryCode: "82",
-//       from: phone,
-//       // 원하는 메세지 내용
-//       content: `세환님 가격 예약을 신청해주셔서 감사합니다.`,
-//       messages: [
-//         // 신청자의 전화번호
-//         { to: `${phone}`, },],
-//     },
-//   }).then(res => {
-//   })
-//     .catch(err => {
-//       console.log(err);
-//     })
-//   return ;
-// }
-
-// const request = require('request')
-// import CryptoJS from "crypto-js";
-// export async function send_message(phone) {
-//   try {
-//     const user_phone_number = phone;//수신 전화번호 기입
-//     let resultCode = 404;
-//     const date = Date.now().toString();
-//     const uri = process.env.NEXT_PUBLIC_SERVICE_ID; //서비스 ID
-//     console.log("어디",)
-//     const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;// Secret Key
-//     console.log("어디",)
-//     const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;//Access Key
-//     console.log("어디", accessKey)
-//     const method = "POST";
-//     console.log("어디",)
-//     const space = " ";
-//     console.log("어디",)
-//     const newLine = "\n";
-//     console.log("어디",)
-//     const url = `https://sens.apigw.ntruss.com/sms/v2/services/${uri}/messages`;
-//     console.log("어디",)
-//     const url2 = `/sms/v2/services/${uri}/messages`;
-//     console.log("어디", secretKey)
-//     const hmac = CryptoJS.algo.HMAC.create(CryptoJS?.algo.SHA256, secretKey);
-//     console.log("어디",)
-//     console.log(user_phone_number,
-//       date,
-//       uri,
-//       secretKey,
-//       accessKey,
-//       method,
-//       space,
-//       newLine,
-//       url,
-//       url2,
-//       hmac, "fuck")
-//     hmac.update(method);
-//     hmac.update(space);
-//     hmac.update(url2);
-//     hmac.update(newLine);
-//     hmac.update(date);
-//     hmac.update(newLine);
-//     hmac.update(accessKey);
-//     const hash = hmac?.finalize();
-//     const signature = hash?.toString(CryptoJS.enc.Base64);
-//     console.log(signature, "시그니쳐")
-//     request({
-//       method: method,
-//       json: true,
-//       uri: url,
-//       headers: {
-//         "Contenc-type": "application/json; charset=utf-8",
-//         "x-ncp-iam-access-key": accessKey,
-//         "x-ncp-apigw-timestamp": date,
-//         "x-ncp-apigw-signature-v2": signature,
-//       },
-//       body: {
-//         type: "SMS",
-//         countryCode: "82",
-//         from: "01075781252",
-//         content: "방갑습네다",
-//         messages: [
-//           { to: `${user_phone_number}`, },],
-//       },
-//     },
-//       function (err, res, html) {
-//         if (err) console.error(err);
-//         else { resultCode = 200; }
-//       }
-//     );
-//     return resultCode;
-//   } catch (e) {
-//     console.error(e);
-//   }
-// }
 
 export async function finishDate_Profile() {
   const user = auth.currentUser;
@@ -2453,16 +2080,16 @@ export async function sendMailForLike(email, targetname, nickname) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@pygm.co.kr",
       // or to: "someone@example.com
       message: {
-        subject: `${targetname}님! 피그말리온(PYGMALION)에서 ${nickname}님이 윙크를 보냈습니다!`,
+        subject: `${targetname}님! 차밍수프(PYGMALION)에서 ${nickname}님이 윙크를 보냈습니다!`,
         // text: '메시지를 확인해주세요',
         html: `
-        <h3>안녕하세요 피그말리온입니다!</h3>
+        <h3>안녕하세요 차밍수프입니다!</h3>
         <br/>
        ${nickname}님께서 ${targetname}님에게 윙크를 보냈습니다.😘
-       <p>피그말리온 소개팅 사이트에서 상대방의 프로필을 확인한 다음 응답하실 수 있습니다.</p>
+       <p>차밍수프 소개팅 사이트에서 상대방의 프로필을 확인한 다음 응답하실 수 있습니다.</p>
         <br/><br/>상대방 프로필 보러가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
         <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
         <br/>
@@ -2474,7 +2101,7 @@ export async function sendMailForLike(email, targetname, nickname) {
         name: 'welcome',
         data: {
           fname: 'Pygmalion',
-          msg: '자연스럽고 즐거운 만남! 피그말리온'
+          msg: '자연스럽고 즐거운 만남! 차밍수프'
         }
       }
     })
@@ -2490,17 +2117,17 @@ export async function sendMailForMatch(email, targetname, nickname) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@pygm.co.kr",
       // or to: "someone@example.com
       message: {
-        subject: `${targetname}님! 피그말리온(PYGMALION)에서 ${nickname}님이 맞윙크를 보냈습니다!`,
+        subject: `${targetname}님! 차밍수프(PYGMALION)에서 ${nickname}님이 맞윙크를 보냈습니다!`,
         // text: '메시지를 확인해주세요',
         html: `
-        <h3>안녕하세요 피그말리온입니다!</h3>
+        <h3>안녕하세요 차밍수프입니다!</h3>
         <br/>
         <p>축하드립니다!💞</p>
        ${nickname}님께서 ${targetname}님에게 맞윙크를 보냈습니다.😘
-       <p>피그말리온 소개팅 사이트에서 상대방의 연락처를 확인할 수 있습니다.</p>
+       <p>차밍수프 소개팅 사이트에서 상대방의 연락처를 확인할 수 있습니다.</p>
        <p>상대방의 연락처를 확인 후, 먼저 상대방에게 인사말을 건네보세요!</p>
         <br/><br/>상대방 연락처 보러가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
         <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
@@ -2513,7 +2140,7 @@ export async function sendMailForMatch(email, targetname, nickname) {
         name: 'welcome',
         data: {
           fname: 'Pygmalion',
-          msg: '자연스럽고 즐거운 만남! 피그말리온'
+          msg: '자연스럽고 즐거운 만남! 차밍수프'
         }
       }
     })
@@ -2527,17 +2154,17 @@ export async function sendMailForDecline(email, targetname, nickname) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@pygm.co.kr",
       // or to: "someone@example.com
       message: {
-        subject: `${targetname}님! 피그말리온(PYGMALION)에서 ${nickname}님이 아쉽게도 윙크를 거절하였습니다.`,
+        subject: `${targetname}님! 차밍수프(PYGMALION)에서 ${nickname}님이 아쉽게도 윙크를 거절하였습니다.`,
         // text: '메시지를 확인해주세요',
         html: `
-        <h3>안녕하세요 피그말리온입니다!</h3>
+        <h3>안녕하세요 차밍수프입니다!</h3>
         <br/>
        ${nickname}님께서 ${targetname}님의 윙크를 거절했습니다.
        <p>안타까움을 뒤로하고 윙크를 다시 1개 반납하였습니다.</p>
-        <br/><br/>피그말리온 소개팅 바로가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
+        <br/><br/>차밍수프 소개팅 바로가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
         <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
         <br/>
         <h4>다음 만남을 기약하겠습니다.</h4>
@@ -2549,7 +2176,7 @@ export async function sendMailForDecline(email, targetname, nickname) {
         name: 'welcome',
         data: {
           fname: 'Pygmalion',
-          msg: '자연스럽고 즐거운 만남! 피그말리온'
+          msg: '자연스럽고 즐거운 만남! 차밍수프'
         }
       }
     })
@@ -2564,13 +2191,13 @@ export async function onBuyWink(nickname, email, winks, money) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "피그말리온 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@pygm.co.kr",
       // or to: "someone@example.com
       message: {
-        subject: `${nickname}님! 피그말리온(PYGMALION)에서 윙크구매 관련 안내드립니다.`,
+        subject: `${nickname}님! 차밍수프(PYGMALION)에서 윙크구매 관련 안내드립니다.`,
         // text: '메시지를 확인해주세요',
         html: `
-        <h3>안녕하세요 피그말리온입니다!</h3>
+        <h3>안녕하세요 차밍수프입니다!</h3>
         <br/>
        무통장입금 관련 안내드립니다.
        <p>새로운 인연을 만나기 위해서 저렴하게 윙크를 구매해보세요!</p>
@@ -2589,7 +2216,7 @@ export async function onBuyWink(nickname, email, winks, money) {
        <p>메일을 수신하신 후, 5시간내에 입금을 완료해주세요!</p>
        <p>영업시간 3시간 내 확인 후, 윙크를 드리고 알림메일을 보내드립니다.</p>
        
-        <br/><br/>피그말리온 소개팅 바로가기: <a href="https://pygm.co.kr">여기를</a> 클릭하세요.
+        <br/><br/>차밍수프 소개팅 바로가기: <a href="https://pygm.co.kr">여기를</a> 클릭하세요.
         <p><a href="https://pygm.co.kr">https://pygm.co.kr</a></p>
         <br/>
         <h4>가치있고 즐거운 만남을 기약하겠습니다.</h4>
@@ -2600,7 +2227,7 @@ export async function onBuyWink(nickname, email, winks, money) {
         name: 'welcome',
         data: {
           fname: 'Pygmalion',
-          msg: '자연스럽고 즐거운 만남! 피그말리온'
+          msg: '자연스럽고 즐거운 만남! 차밍수프'
         }
       }
     })
@@ -2608,36 +2235,6 @@ export async function onBuyWink(nickname, email, winks, money) {
     throw new Error('Something went wrong with sending email. Error Message: ', e.message);
   }
 }
-
-
-// export async function sendSms(to, message) {
-//   try {
-//     const auth = getAuth();
-//     const user = auth.currentUser;
-//     const idToken = user ? await user.getIdToken(true) : null;
-
-//     const response = await fetch(
-//       "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendSms",
-//       {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: idToken ? `Bearer ${idToken}` : "",
-//         },
-//         body: JSON.stringify({ to, message }),
-//       }
-//     );
-
-//     const data = await response.json();
-//     if (!response.ok) throw new Error(data.error || "SMS send failed");
-
-//     console.log("✅ SMS 발송 성공:", data);
-//     return data;
-//   } catch (err) {
-//     console.error("❌ SMS 발송 실패:", err);
-//     throw err;
-//   }
-// }
 
 export async function sendSms(to, message) {
   const res = await fetch(
@@ -2657,13 +2254,23 @@ export async function sendSms(to, message) {
 }
 
 
-export async function sendLms(to, message, subject = "피그말리온 안내") {
+export async function sendLms(
+  to,
+  message,
+  subject = "차밍수프 안내",
+  options = {}
+) {
   const res = await fetch(
     "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendLms",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to, message, subject }),
+      body: JSON.stringify({
+        to,
+        message,
+        subject,
+        forceLms: !!options?.forceLms,
+      }),
     }
   );
 
@@ -2686,3 +2293,73 @@ export async function getTestRealCount() {
     return null; // 실패 시 null
   }
 }
+
+// 본인인증 데이터 보관
+export const saveIdentityVerificationToUser = async (uid, payload = {}) => {
+  if (!uid) throw new Error("uid가 필요합니다.");
+
+  const {
+    provider = "PORTONE",
+    phone = "",
+    name = "",
+    birth = "",
+    gender = "",
+    carrier = "",
+    ci = "",
+    di = "",
+  } = payload;
+
+  const userRef = doc(db, "users", uid);
+
+  const updatePayload = {
+    phone_verified: true,
+    phone_verified_at: serverTimestamp(),
+    identity_provider: provider || "PORTONE",
+    identity_carrier: carrier || "",
+    identity_ci: ci || "",
+    identity_di: di || "",
+    identity_name: name || "",
+    identity_birth: birth || "",
+    identity_gender: gender || "",
+    // 기존 필드와 연결 (네 코드베이스 호환용)
+    phonenumber: phone ? String(phone).replace(/[^0-9]/g, "") : "",
+  };
+
+  // 성별/생년월일은 네 기존 users 스키마 필드와 연결 (원하면 여기 커스텀 가능)
+  // gender: 기존 gender 필드와 동일 사용 가능
+  if (gender) updatePayload.gender = gender;
+
+  // 생년월일은 기존 구조가 객체일 수 있어서 문자열 그대로 + 분해값 병행 저장 추천
+  if (birth) {
+    const normalizedBirth = String(birth).replace(/[^0-9]/g, "");
+    updatePayload.birthday = normalizedBirth; // 기존 필드 호환 (문자열 저장)
+  }
+
+  // 이름도 인증값으로 보정하고 싶으면 저장
+  if (name) {
+    updatePayload.username = name;
+  }
+
+  // ✅ 문서가 없어도 생성됨 / 있으면 병합됨
+  await setDoc(userRef, updatePayload, { merge: true });
+
+  return true;
+};
+
+/**
+ * 전화번호 중복 체크 (users.phonenumber 기준)
+ * 반환: true(중복 있음) / false(중복 없음)
+ */
+export const phoneDubCheck = async (phone) => {
+  const normalized = String(phone || "").replace(/[^0-9]/g, "");
+  if (!normalized) return false;
+
+  const q = query(
+    collection(db, "users"),
+    where("phonenumber", "==", normalized),
+    limit(1)
+  );
+
+  const snap = await getDocs(q);
+  return !snap.empty;
+};

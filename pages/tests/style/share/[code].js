@@ -1,0 +1,43 @@
+import Head from "next/head";
+import { useRouter } from "next/router";
+import { typeMetaMap } from "data/tests/styleQuestions";
+
+export default function StyleSharePage() {
+  const router = useRouter();
+  const { code } = router.query;
+
+  const type = typeMetaMap[code] || typeMetaMap.DSLR;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pygm.co.kr";
+  const shareUrl = `${siteUrl}/tests/style/share/${type.code}`;
+  const imageUrl = `${siteUrl}${result.image}`;
+
+  return (
+    <>
+      <Head>
+        <title>{`내 연애스타일 결과: ${type.ko}`}</title>
+        <meta property="og:title" content={`내 연애스타일 결과: ${type.ko}`} />
+        <meta property="og:description" content={type.oneLine.replace(/\n/g, " ")} />
+        <meta property="og:image" content={imageUrl} />
+        <meta property="og:url" content={shareUrl} />
+        <meta property="og:type" content="website" />
+      </Head>
+
+      <main className="min-h-screen bg-white px-5 py-10">
+        <div className="mx-auto max-w-[420px]">
+          <div className="text-[14px] font-bold text-pink-500">공유 결과</div>
+          <h1 className="mt-3 text-[32px] font-black text-slate-900">{type.ko}</h1>
+          <p className="mt-3 whitespace-pre-line text-[15px] leading-6 text-slate-600">
+            {type.summary}
+          </p>
+          <div className="mt-4 overflow-hidden rounded-[18px] bg-slate-50">
+            <img
+              src={result.image}
+              alt={result.ko}
+              className="h-[220px] w-full object-cover sm:h-[250px]"
+            />
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}

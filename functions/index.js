@@ -6,15 +6,17 @@ const cors = require("cors");
 const CryptoJS = require("crypto-js");
 const dayjs = require("dayjs");
 const logger = require("firebase-functions/logger");
-const serviceAccount = require("./serviceAccountKey.json");
 const apps = express();
 
-// Firebase 초기화
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
-apps.use(cors());
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 
+// Firebase 초기화
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+apps.use(cors());
 // Cloud Functions 전역 옵션
 functions.setGlobalOptions({
   region: "asia-northeast3",
@@ -22,6 +24,7 @@ functions.setGlobalOptions({
 });
 
 const log = functions.logger;
+
 
 // ✅ 테스트용 Function
 exports.test = functions.https.onRequest((req, res) => {
@@ -127,14 +130,13 @@ exports.sendLms = onRequest(
   { region: "asia-northeast3", cors: true },
   async (req, res) => {
     try {
-      const { to, message, subject } = req.body;
+      const { to, message, subject, forceLms } = req.body;
 
       if (!to || !message) {
         res.status(400).json({ error: "Missing 'to' or 'message'" });
         return;
       }
 
-      // 환경변수 불러오기
       const serviceId = process.env.NEXT_PUBLIC_NCP_SERVICE_ID;
       const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;
       const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;
@@ -146,10 +148,6 @@ exports.sendLms = onRequest(
       const urlPath = `/sms/v2/services/${serviceId}/messages`;
       const timestamp = Date.now().toString();
 
-      // ✅ 문자 길이에 따라 자동으로 SMS/LMS 선택
-      const messageType = message.length > 90 ? "LMS" : "SMS";
-
-      // ✅ 시그니처 생성
       const hmac = CryptoJS.algo.HMAC.create(CryptoJS.algo.SHA256, secretKey);
       hmac.update(method);
       hmac.update(space);
@@ -160,10 +158,17 @@ exports.sendLms = onRequest(
       hmac.update(accessKey);
       const signature = hmac.finalize().toString(CryptoJS.enc.Base64);
 
-      // ✅ 이모지 제거
-      const cleanMessage = message.replace(/([\uD800-\uDBFF][\uDC00-\uDFFF])/g, "");
+      const cleanMessage = String(message || "").replace(
+        /([\uD800-\uDBFF][\uDC00-\uDFFF])/g,
+        ""
+      );
 
-      // ✅ 요청 본문
+      const getByteLength = (str = "") =>
+        Buffer.byteLength(String(str), "utf8");
+
+      const messageType =
+        forceLms || getByteLength(cleanMessage) > 90 ? "LMS" : "SMS";
+
       const payload = {
         type: messageType,
         countryCode: "82",
@@ -173,7 +178,6 @@ exports.sendLms = onRequest(
         messages: [{ to }],
       };
 
-      // ✅ API 호출
       const response = await axios.post(
         `https://sens.apigw.ntruss.com${urlPath}`,
         payload,
@@ -198,3 +202,160 @@ exports.sendLms = onRequest(
     }
   }
 );
+
+// 이미 admin.initializeApp() 되어 있으면 중복 호출하지 마세요.
+const PORTONE_API_SECRET = defineSecret("PORTONE_API_SECRET");
+
+exports.verifyIdentityResult = onCall(
+  {
+    region: "asia-northeast3",
+    secrets: [PORTONE_API_SECRET],
+    timeoutSeconds: 60,
+  },
+  async (request) => {
+    try {
+      const data = request.data || {};
+      const { identityVerificationId, requestedPhone } = data;
+
+      if (!identityVerificationId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "identityVerificationId가 필요합니다."
+        );
+      }
+
+      const portoneSecret = PORTONE_API_SECRET.value();
+      if (!portoneSecret) {
+        throw new HttpsError(
+          "failed-precondition",
+          "PortOne API Secret이 설정되지 않았습니다."
+        );
+      }
+
+      const endpoint =
+        "https://api.portone.io/identity-verifications/" +
+        encodeURIComponent(identityVerificationId);
+
+      const res = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          Authorization: `PortOne ${portoneSecret}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        console.error("PortOne API error:", json);
+        throw new HttpsError("internal", "포트원 인증결과 조회 실패");
+      }
+
+      const verification = json?.identityVerification || json?.data || json;
+
+      const status =
+        verification?.status ||
+        verification?.identityVerificationStatus ||
+        verification?.result ||
+        "";
+
+      const isVerified =
+        status === "VERIFIED" ||
+        status === "SUCCEEDED" ||
+        status === "COMPLETED" ||
+        verification?.verified === true;
+
+      if (!isVerified) {
+        return {
+          verified: false,
+          message: "본인인증이 완료 상태가 아닙니다.",
+          status,
+        };
+      }
+
+      const phone =
+        verification?.phone ||
+        verification?.phoneNumber ||
+        verification?.customer?.phoneNumber ||
+        "";
+
+      const name =
+        verification?.name ||
+        verification?.fullName ||
+        verification?.customer?.fullName ||
+        "";
+
+      const birth =
+        verification?.birth ||
+        verification?.birthDate ||
+        verification?.birthday ||
+        "";
+
+      let gender = verification?.gender || "";
+      if (gender === "M" || gender === "male") gender = "male";
+      if (gender === "F" || gender === "female") gender = "female";
+
+      const carrier = verification?.carrier || verification?.telecom || "";
+      const ci = verification?.ci || verification?.CI || "";
+      const di = verification?.di || verification?.DI || "";
+
+      // 입력번호와 결과번호 비교
+      if (requestedPhone && phone) {
+        const req = String(requestedPhone).replace(/[^0-9]/g, "");
+        const got = String(phone).replace(/[^0-9]/g, "");
+        if (req && got && req !== got) {
+          return {
+            verified: false,
+            message: "입력한 연락처와 본인인증 결과 연락처가 일치하지 않습니다.",
+          };
+        }
+      }
+
+      return {
+        verified: true,
+        provider: "PORTONE",
+        phone,
+        name,
+        birth,
+        gender,
+        carrier,
+        ci,
+        di,
+      };
+    } catch (err) {
+      console.error("verifyIdentityResult error:", err);
+
+      if (err instanceof HttpsError) throw err;
+
+      throw new HttpsError(
+        "internal",
+        err?.message || "본인인증 검증 중 오류가 발생했습니다."
+      );
+    }
+  }
+);
+
+const {
+  sendCompanyVerificationCode,
+  verifyCompanyVerificationCode,
+} = require("./companyVerification");
+
+const {
+  sendPasswordResetCodeByPhone,
+  verifyPasswordResetCodeByPhone,
+  completePasswordResetByPhone,
+} = require("./passwordResetPhone");
+
+const { deleteCurrentUserAccount } = require("./accountDelete");
+
+exports.expireArenaInterests = require("./arenaInterestExpiry").expireArenaInterests;
+
+exports.sendCompanyVerificationCode = sendCompanyVerificationCode;
+exports.verifyCompanyVerificationCode = verifyCompanyVerificationCode;
+
+exports.sendPasswordResetCodeByPhone = sendPasswordResetCodeByPhone;
+exports.verifyPasswordResetCodeByPhone = verifyPasswordResetCodeByPhone;
+exports.completePasswordResetByPhone = completePasswordResetByPhone;
+
+
+exports.deleteCurrentUserAccount = deleteCurrentUserAccount;

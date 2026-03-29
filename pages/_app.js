@@ -13,6 +13,7 @@ import Proptypes from 'prop-types';
 import * as gtag from "lib/gtag";
 import { GoogleTagManager } from '@next/third-parties/google'
 import { GoogleAnalytics } from '@next/third-parties/google'
+import StyleGuestResultSync from "components/Tests/Style/StyleGuestResultSync";
 
 export const GOOGLE_TAG = process.env.NEXT_PUBLIC_GOOGLE_TAG;
 export const GOOGLE_ANAL = process.env.NEXT_PUBLIC_GOOGLE_ANAL;
@@ -21,6 +22,7 @@ const _app = ({ Component, pageProps, ...rest }) => {
 
   const router = useRouter()
   const { store, props } = wrapper.useWrappedStore(rest);
+
 
   //우클릭 방지
   useEffect(() => {
@@ -38,10 +40,10 @@ const _app = ({ Component, pageProps, ...rest }) => {
   });
 
   // 리라우팅시 root페이지로 이동(동적페이지) - 방지를 위함
-  useEffect(() => {
-    router.push(window.location.href)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // useEffect(() => {
+  //   router.push(window.location.href)
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [])
 
   useEffect(() => {
     const handleRouteChange = (url) => {
@@ -56,8 +58,25 @@ const _app = ({ Component, pageProps, ...rest }) => {
   return (
     <>
       <GlobalStyle />
+      <StyleGuestResultSync />
       <Script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></Script>
+      <Script // 본인인증관련
+        src="https://cdn.portone.io/v2/browser-sdk.js"
+        strategy="afterInteractive"
+      />
+      <Script
+        src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+        strategy="afterInteractive"
+        crossOrigin="anonymous"
+      />
 
+      <div id="fb-root" />
+
+      <Script
+        src="https://connect.facebook.net/en_US/sdk.js"
+        strategy="afterInteractive"
+        crossOrigin="anonymous"
+      />
       <Head>
         <title>추억과 즐거움으로 이성을 만나다! 피그말리온</title>
         <meta charSet="utf-8" />
