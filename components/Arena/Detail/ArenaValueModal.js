@@ -9,7 +9,7 @@ function SectionCard({ section, defaultOpen = false }) {
   if (!section?.items?.length) return null;
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-[14px] border border-solid border-slate-200 bg-white">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}

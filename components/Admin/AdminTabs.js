@@ -3,6 +3,7 @@ import React from "react";
 const TAB_ITEMS = [
   { key: "overview", label: "대시보드" },
   { key: "users", label: "회원 승인" },
+  { key: "memberList", label: "전체 회원" },
   { key: "cards", label: "카드 승인" },
   { key: "reports", label: "신고 검토" },
   { key: "payments", label: "결제 확인" },
@@ -12,6 +13,7 @@ const TAB_ITEMS = [
 export default function AdminTabs({ activeTab, onChange, counts = {} }) {
   const getCount = (key) => {
     if (key === "users") return counts.pendingUsers || 0;
+    if (key === "memberList") return counts.totalUsers || 0;
     if (key === "cards") return counts.pendingCards || 0;
     if (key === "reports") return counts.pendingReports || 0;
     if (key === "payments") return counts.pendingPayments || 0;
@@ -31,19 +33,18 @@ export default function AdminTabs({ activeTab, onChange, counts = {} }) {
               key={item.key}
               type="button"
               onClick={() => onChange(item.key)}
-              className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-md px-3 text-[13px] font-semibold transition ${
-                active
+              className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-md px-3 text-[13px] font-semibold transition ${active
                   ? "bg-violet-600 text-white"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-              }`}
+                }`}
               style={{ cursor: "pointer" }}
             >
               <span>{item.label}</span>
+
               {item.key !== "overview" ? (
                 <span
-                  className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] ${
-                    active ? "bg-white/20 text-white" : "bg-white text-slate-500"
-                  }`}
+                  className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] ${active ? "bg-white/20 text-white" : "bg-white text-slate-500"
+                    }`}
                 >
                   {count}
                 </span>

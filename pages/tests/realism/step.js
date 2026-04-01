@@ -506,7 +506,7 @@ export default function RealismStepPage() {
             </div>
           )}
 
-          <div style={styles.footer}>© pygm.co.kr · tests/realism</div>
+          <div style={styles.footer}>© charmingsoup.com · tests/realism</div>
         </div>
       </div>
       <style jsx global>{`

@@ -29,6 +29,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { signOut } from "slices/user";
 import { getProfileCompletionDetail } from "lib/profileCompletion";
 import AuthRequiredModal from "components/Common/AuthRequiredModal";
+import { FiLogOut, FiX } from "react-icons/fi";
 
 const NAV_ITEMS = [
   {
@@ -150,58 +151,91 @@ function CenterConfirmModal({
   onClose,
   loading = false,
 }) {
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose?.();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>
-      <motion.div
-        className="absolute inset-0 z-[180] flex items-center justify-center bg-black/45 px-5"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-        onClick={onClose}
-      >
+      {open ? (
         <motion.div
-          className="w-full max-w-[340px] overflow-hidden rounded-[22px] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]"
-          initial={{ opacity: 0, y: 10, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.97 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-          onClick={(e) => e.stopPropagation()}
+          className="absolute inset-0 z-[180] flex items-center justify-center bg-black/45 px-5 backdrop-blur-[2px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          onClick={onClose}
         >
-          <div className="px-5 pb-5 pt-5">
-            <div className="break-keep text-[22px] font-bold tracking-[-0.02em] text-zinc-900">
-              {title}
-            </div>
-
-            <p className="mt-3 break-keep text-[15px] leading-6 text-zinc-500">
-              {description}
-            </p>
-          </div>
-
-          <div className="px-5 pb-5">
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={loading}
-              style={{ cursor: loading ? "default" : "pointer" }}
-              className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 text-[16px] font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
-            >
-              {loading ? "처리 중..." : confirmLabel}
-            </button>
-
+          <motion.div
+            className="relative w-full max-w-[348px] overflow-hidden rounded-md border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+            initial={{ opacity: 0, y: 14, scale: 0.965 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.97 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={onClose}
               style={{ cursor: "pointer" }}
-              className="mt-3 flex h-12 w-full items-center justify-center rounded-md border border-zinc-200 bg-white text-[15px] font-semibold text-zinc-700 transition hover:text-zinc-900"
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-zinc-50 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+              aria-label="닫기"
             >
-              {cancelLabel}
+              <FiX className="text-[18px]" />
             </button>
-          </div>
+
+            
+
+            <div className="px-5 py-5">
+              <div className="px-5 pb-5 pt-5">
+                <div className="flex items-center gap-3">
+                  {/* <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+                    <FiLogOut className="text-[19px]" />
+                  </div> */}
+
+                  <div className="min-w-0 flex-1 pr-8">
+                    <div className="break-keep text-[21px] font-bold tracking-[-0.03em] text-zinc-900">
+                      {title}
+                    </div>
+
+                    <p className="mt-2 break-keep text-[14px] leading-6 text-zinc-500">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading}
+                style={{ cursor: loading ? "default" : "pointer" }}
+                className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 text-[16px] font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
+              >
+                {loading ? "처리 중..." : confirmLabel}
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                style={{ cursor: loading ? "default" : "pointer" }}
+                className="mt-3 flex h-11 w-full items-center justify-center rounded-md bg-transparent text-[15px] font-semibold text-zinc-500 transition hover:text-zinc-900 disabled:opacity-50"
+              >
+                {cancelLabel}
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      ) : null}
     </AnimatePresence>
   );
 }
@@ -234,17 +268,19 @@ function BottomSheetFrame({ children, onClose }) {
   );
 }
 
-export default function BottomNavbar({ contained = false }) {
+export default function BottomNavbar({ contained = true }) {
   const router = useRouter();
   const dispatch = useDispatch();
   const userState = useSelector((state) => state.user);
-  const reduxUser = userState?.user || {};
+  const reduxUser = userState?.user ?? null;
 
   const [profileUser, setProfileUser] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingOpen, setSettingOpen] = useState(false);
   const [purchaseMenuOpen, setPurchaseMenuOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [accountManageOpen, setAccountManageOpen] = useState(false);
+
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authRedirect, setAuthRedirect] = useState("/");
@@ -267,7 +303,10 @@ export default function BottomNavbar({ contained = false }) {
 
   useEffect(() => {
     if (!resolvedUid) {
-      setProfileUser({});
+      setProfileUser((prev) => {
+        if (!prev || Object.keys(prev).length === 0) return prev;
+        return {};
+      });
       return;
     }
 
@@ -281,7 +320,7 @@ export default function BottomNavbar({ contained = false }) {
 
         const data = snap.data() || {};
         setProfileUser({
-          ...reduxUser,
+          ...(reduxUser || {}),
           ...data,
           userID: resolvedUid,
           uid: resolvedUid,
@@ -293,8 +332,8 @@ export default function BottomNavbar({ contained = false }) {
       }
     );
 
-    return () => unsubscribe && unsubscribe();
-  }, [resolvedUid, reduxUser]);
+    return () => unsubscribe();
+  }, [resolvedUid, reduxUser?.userID, reduxUser?.uid]);
 
   const rawCompletion = useMemo(() => {
     return getProfileCompletionDetail(profileUser || {});
@@ -344,6 +383,7 @@ export default function BottomNavbar({ contained = false }) {
     if (!menuOpen) {
       setSettingOpen(false);
       setPurchaseMenuOpen(false);
+      setAccountManageOpen(false);
     }
   }, [menuOpen]);
 
@@ -351,6 +391,7 @@ export default function BottomNavbar({ contained = false }) {
     setMenuOpen(false);
     setSettingOpen(false);
     setPurchaseMenuOpen(false);
+    setAccountManageOpen(false);
   }, []);
 
   const guardedNavigate = useCallback(
@@ -406,8 +447,7 @@ export default function BottomNavbar({ contained = false }) {
   return (
     <>
       <div
-        className={`relative shrink-0 border-t border-zinc-200 bg-white shadow-[0_-10px_24px_rgba(15,23,42,0.08)] ${contained ? "" : ""
-          }`}
+        className={`absolute inset-x-0 bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white shadow-[0_-10px_24px_rgba(15,23,42,0.08)]`}
       >
         <div className="grid h-[64px] grid-cols-5">
           {NAV_ITEMS.map((item) => {
@@ -579,35 +619,50 @@ export default function BottomNavbar({ contained = false }) {
               label="지인 차단"
               onClick={() => guardedNavigate("/setting/block", true)}
             />
-            <MenuRow
-              icon={PiLockKeyDuotone}
-              label="비밀번호 변경"
-              onClick={() => guardedNavigate("/password/forgot", true)}
-            />
-            {/* <MenuRow
-              icon={PiLockKeyDuotone}
-              label="비밀번호 변경"
-              onClick={() => guardedNavigate("/setting/password/change", true)}
-            /> */}
+
+            
 
             <MenuRow
               icon={PiFileTextDuotone}
               label="이용약관 / 개인정보 처리방침"
               onClick={() => guardedNavigate("/about/service", true)}
             />
-
             <MenuRow
-              icon={PiSignOutDuotone}
-              label="로그아웃"
-              onClick={() => setLogoutOpen(true)}
+              icon={PiUserDuotone}
+              label="계정 관리"
+              onClick={() => setAccountManageOpen((prev) => !prev)}
+              rightNode={
+                <PiCaretDownBold
+                  className={`shrink-0 text-[16px] text-zinc-400 transition ${accountManageOpen ? "rotate-180" : ""
+                    }`}
+                />
+              }
             />
 
-            <MenuRow
-              icon={PiTrashDuotone}
-              label="계정 삭제"
-              muted
-              onClick={() => guardedNavigate("/account/delete", true)}
-            />
+            <AnimatePresence initial={false}>
+              {accountManageOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="overflow-hidden"
+                >
+                  <SubMenuRow
+                    label="비밀번호 변경"
+                    onClick={() => guardedNavigate("/password/forgot", true)}
+                  />
+                  <SubMenuRow
+                    label="로그아웃"
+                    onClick={() => setLogoutOpen(true)}
+                  />
+                  <SubMenuRow
+                    label="계정 삭제"
+                    onClick={() => guardedNavigate("/account/delete", true)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </BottomSheetFrame>
       )}

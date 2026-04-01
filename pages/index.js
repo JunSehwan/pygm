@@ -203,18 +203,18 @@ const IndexPage = () => {
 
         <meta
           name="keywords"
-          content="차밍그라운드, 차밍랩, 소개팅, 연애, 매칭, 연애테스트, 성향테스트"
+          content="차밍수프, 소개팅, 연애, 매칭, 연애테스트, 성향테스트"
         />
         <meta
           name="description"
-          content="매너와 인성, 연애스타일까지 확인하는 차밍그라운드 매칭 서비스"
+          content="매너와 인성, 연애스타일까지 확인하는 차밍수프 매칭 서비스"
         />
 
-        <meta name="application-name" content="차밍그라운드" />
-        <meta name="msapplication-tooltip" content="차밍그라운드(Charming Ground)" />
+        <meta name="application-name" content="차밍수프" />
+        <meta name="msapplication-tooltip" content="차밍수프(Charming Ground)" />
 
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="차밍그라운드 | 검증된 매칭" />
+        <meta property="og:title" content="차밍수프 | 검증된 매칭" />
         <meta
           property="og:description"
           content="불편한 대화와 애매한 약속을 줄이기 위해 매너 데이터를 먼저 확인합니다."
@@ -223,7 +223,7 @@ const IndexPage = () => {
         <meta property="og:url" content="https://pygm.co.kr" />
 
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="차밍그라운드 | 검증된 매칭" />
+        <meta name="twitter:title" content="차밍수프 | 검증된 매칭" />
         <meta
           name="twitter:description"
           content="자기진단과 매너/인성 기반으로 더 자연스럽게 만나는 매칭"
@@ -232,7 +232,24 @@ const IndexPage = () => {
         <meta name="twitter:domain" content="pygm.co.kr" />
       </Head>
 
-      {nowLoading || loading ? <LoadingPage /> : <Landing />}
+      <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
+        <div className="relative min-h-screen overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 hidden md:block">
+            <div className="absolute left-1/2 top-[-80px] h-[260px] w-[260px] -translate-x-[260px] rounded-full bg-[#697DE8]/16 blur-3xl" />
+            <div className="absolute left-1/2 top-[120px] h-[280px] w-[280px] translate-x-[120px] rounded-full bg-[#B4D8E9]/28 blur-3xl" />
+            <div className="absolute left-1/2 bottom-[40px] h-[240px] w-[240px] -translate-x-[120px] rounded-full bg-[#8CA3EA]/20 blur-3xl" />
+          </div>
+
+          <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
+            <section
+              id="app-surface"
+              className="relative w-full max-w-[390px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+            >
+              <Landing />
+            </section>
+          </div>
+        </div>
+      </main>
     </>
   );
 };

@@ -31,6 +31,7 @@ import ProfileCompletePromptModal, {
 } from "components/Common/ProfileCompletePromptModal";
 
 import { isBlockedTargetUser } from "lib/userBlockRules";
+import { isAdminMatchExposureBlocked } from "lib/arena";
 
 const SHOW_PENDING_FOR_DEV = false;
 
@@ -173,7 +174,15 @@ async function loadUsersMapByIds(uids = []) {
 
 function isVisibleCard(card) {
   if (card.visibilityTarget !== "male") return false;
-  if (card.creatorGender !== "female") return false;
+
+  const creatorGender = String(card.creatorGender || "").toLowerCase();
+  const isAdminCreated =
+    creatorGender === "admin" ||
+    card.creatorUid === "admin" ||
+    card.creatorNickname === "관리자" ||
+    card.creatorUsername === "관리자";
+
+  if (creatorGender !== "female" && !isAdminCreated) return false;
 
   if (SHOW_PENDING_FOR_DEV) {
     return (
@@ -298,6 +307,7 @@ export default function CardsListIndexPage() {
         const nextCards = visibleCards.filter((card) => {
           const creator = creatorMap[card.creatorUid];
           if (!creator) return false;
+          if (isAdminMatchExposureBlocked(creator)) return false;
           return !isBlockedTargetUser(user, creator);
         });
 
@@ -476,6 +486,7 @@ export default function CardsListIndexPage() {
             const answerer = answererMap[answer.answererUid] || null;
 
             if (!card || !answerer) return null;
+            if (isAdminMatchExposureBlocked(answerer)) return null;
             if (isBlockedTargetUser(user, answerer)) return null;
 
             return {
@@ -540,24 +551,28 @@ export default function CardsListIndexPage() {
             </div>
 
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-6">
-              <section
-                id="app-surface"
-                className="relative flex min-h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:min-h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
-              >
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <CardListContainer
-                    user={user}
-                    cards={cards}
-                    answeredCardIds={answeredCardIds}
-                    showPendingForDev={SHOW_PENDING_FOR_DEV}
-                    femaleReviewItems={femaleReviewItems}
-                    femaleReactionByAnswerId={femaleReactionByAnswerId}
-                    femaleReportedAnswererUids={femaleReportedAnswererUids}
-                  />
-                </div>
+                <section
+                  id="app-surface"
+                  className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                >
+                  <div className="min-h-0 flex-1">
+                    <CardListContainer
+                      user={user}
+                      cards={cards}
+                      answeredCardIds={answeredCardIds}
+                      showPendingForDev={SHOW_PENDING_FOR_DEV}
+                      femaleReviewItems={femaleReviewItems}
+                      femaleReactionByAnswerId={femaleReactionByAnswerId}
+                      femaleReportedAnswererUids={femaleReportedAnswererUids}
+                    />
+                  </div>
 
-                {showNavbar && <BottomNavbar contained />}
-              </section>
+                  {showNavbar ? (
+                    <div className="shrink-0">
+                      <BottomNavbar contained />
+                    </div>
+                  ) : null}
+                </section>
             </div>
           </div>
         </main>

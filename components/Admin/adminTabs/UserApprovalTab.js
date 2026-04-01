@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FiSearch, FiCheckCircle, FiUser } from "react-icons/fi";
+import { FiSearch, FiCheckCircle, FiUser, FiGift } from "react-icons/fi";
 import {
   formatDateTime,
   formatLocationValue,
@@ -12,15 +12,20 @@ import {
   isNewApprovalTarget,
 } from "../adminUtils";
 
+const SPOON_OPTIONS = [0, 3, 5, 10, 20, 30, 50];
+
 export default function UserApprovalTab({
   users = [],
   onApproveUser,
   onBulkApproveLegacyUsers,
+  onBulkGrantLegacySpoons,
   onOpenUserDetail,
   approvingUserId = "",
   bulkApproving = false,
+  bulkGrantingLegacySpoons = false,
 }) {
   const [keyword, setKeyword] = useState("");
+  const [rewardMap, setRewardMap] = useState({});
 
   const filteredUsers = useMemo(() => {
     const q = keyword.trim().toLowerCase();
@@ -55,9 +60,22 @@ export default function UserApprovalTab({
     [filteredUsers]
   );
 
+  const getRewardValue = (user) => {
+    const userId = user?.id || user?.uid || "";
+    return Number(rewardMap[userId] ?? 0);
+  };
+
+  const setRewardValue = (user, value) => {
+    const userId = user?.id || user?.uid || "";
+    setRewardMap((prev) => ({
+      ...prev,
+      [userId]: Number(value || 0),
+    }));
+  };
+
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+      <div className="rounded-md border border-slate-200 bg-white px-2 py-4 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-violet-50 text-violet-600">
             <FiUser className="text-[22px]" />
@@ -95,6 +113,15 @@ export default function UserApprovalTab({
           >
             기존 가입자 일괄 승인 ({legacyTargets.length})
           </button>
+          <button
+            type="button"
+            onClick={onBulkGrantLegacySpoons}
+            disabled={bulkGrantingLegacySpoons || legacyTargets.length === 0}
+            style={{ cursor: bulkGrantingLegacySpoons || legacyTargets.length === 0 ? "default" : "pointer" }}
+            className="flex h-12 items-center justify-center rounded-md bg-violet-600 px-5 text-[15px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50"
+          >
+            기존 가입자 스푼 8개 보정 ({legacyTargets.length})
+          </button>
         </div>
       </div>
 
@@ -107,7 +134,9 @@ export default function UserApprovalTab({
               key={user.id}
               user={user}
               approving={approvingUserId === user.id}
-              onApprove={() => onApproveUser(user)}
+              rewardValue={getRewardValue(user)}
+              onRewardChange={(value) => setRewardValue(user, value)}
+              onApprove={() => onApproveUser(user, getRewardValue(user))}
               onDetail={() => onOpenUserDetail?.(user)}
               tone="emerald"
             />
@@ -130,7 +159,9 @@ export default function UserApprovalTab({
               key={user.id}
               user={user}
               approving={approvingUserId === user.id}
-              onApprove={() => onApproveUser(user)}
+              rewardValue={getRewardValue(user)}
+              onRewardChange={(value) => setRewardValue(user, value)}
+              onApprove={() => onApproveUser(user, getRewardValue(user))}
               onDetail={() => onOpenUserDetail?.(user)}
               tone="slate"
             />
@@ -148,7 +179,7 @@ function Section({ title, count, tone, children }) {
       : "bg-slate-100 text-slate-700";
 
   return (
-    <section className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+    <section className="rounded-md border border-slate-200 bg-white px-2 py-4 shadow-sm">
       <div className="flex items-center gap-2">
         <FiCheckCircle className={`text-[18px] ${tone === "violet" ? "text-violet-600" : "text-slate-500"}`} />
         <h4 className="text-[18px] font-bold text-slate-900">{title}</h4>
@@ -161,7 +192,15 @@ function Section({ title, count, tone, children }) {
   );
 }
 
-function UserCard({ user, onApprove, onDetail, approving = false, tone = "emerald" }) {
+function UserCard({
+  user,
+  onApprove,
+  onDetail,
+  approving = false,
+  tone = "emerald",
+  rewardValue = 0,
+  onRewardChange,
+}) {
   const primaryImage = getUserPrimaryImage(user);
   const thumbImages = getUserThumbImages(user);
   const mbti = getUserMbti(user);
@@ -172,7 +211,7 @@ function UserCard({ user, onApprove, onDetail, approving = false, tone = "emeral
       : "bg-emerald-600 hover:bg-emerald-700";
 
   return (
-    <div className="rounded-md border border-slate-200 bg-white px-4 py-4">
+    <div className="rounded-md border border-solid border-slate-200 bg-white px-1 py-4">
       <div className="flex flex-col gap-4">
         <div className="flex items-start gap-4">
           <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-md bg-slate-100">
@@ -219,6 +258,31 @@ function UserCard({ user, onApprove, onDetail, approving = false, tone = "emeral
           <InfoLine label="사진 수" value={`${thumbImages.length}장`} />
         </div>
 
+        <div className="rounded-md border border-violet-100 bg-violet-50/60 px-3 py-3">
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-violet-700">
+            <FiGift className="text-[15px]" />
+            승인 이벤트 스푼 지급
+          </div>
+
+          <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+            <select
+              value={rewardValue}
+              onChange={(e) => onRewardChange?.(Number(e.target.value))}
+              className="h-11 rounded-md border border-violet-200 bg-white px-3 text-[14px] text-slate-900 outline-none"
+            >
+              {SPOON_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value === 0 ? "지급 안 함" : `${value}개 지급`}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex h-11 items-center rounded-md bg-white px-3 text-[13px] font-semibold text-slate-600 ring-1 ring-violet-100">
+              {rewardValue > 0 ? `+${rewardValue}` : "0"}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -236,7 +300,7 @@ function UserCard({ user, onApprove, onDetail, approving = false, tone = "emeral
             style={{ cursor: approving ? "default" : "pointer" }}
             className={`flex h-11 items-center justify-center rounded-md px-4 text-[15px] font-semibold text-white transition disabled:opacity-50 ${approveClass}`}
           >
-            {approving ? "처리 중..." : "가입 승인"}
+            {approving ? "처리 중..." : rewardValue > 0 ? `승인 + ${rewardValue}개` : "가입 승인"}
           </button>
         </div>
       </div>

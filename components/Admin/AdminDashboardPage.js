@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
   limit,
   onSnapshot,
   query,
+  serverTimestamp,
+  setDoc,
 } from "firebase/firestore";
 import { db, sendLms } from "firebaseConfig";
 import AdminFrame from "./AdminFrame";
@@ -14,6 +17,7 @@ import AdminTabs from "./AdminTabs";
 import UserDetailModal from "./UserDetailModal";
 import AdminOverviewTab from "./adminTabs/AdminOverviewTab";
 import UserApprovalTab from "./adminTabs/UserApprovalTab";
+import UserListTab from "./adminTabs/UserListTab";
 import CardApprovalTab from "./adminTabs/CardApprovalTab";
 import ReportReviewTab from "./adminTabs/ReportReviewTab";
 import PaymentTab from "./adminTabs/PaymentTab";
@@ -24,14 +28,18 @@ import {
   bulkApproveLegacyUsers,
   confirmPayment,
   getDisplayName,
+  getReasonLabelByCode,
   getUserApprovalState,
   getUserDocId,
   isPendingCard,
   normalizeQuestionType,
   rejectCard,
+  rejectUser,
   resolveReportAction,
   saveGeneratedCards,
   toMillis,
+  CARD_REJECTION_REASONS,
+  USER_REJECTION_REASONS,
 } from "./adminUtils";
 import { ActionButton } from "./AdminCommon";
 
@@ -68,12 +76,14 @@ export default function AdminDashboardPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [busyUserId, setBusyUserId] = useState("");
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkGrantingLegacySpoons, setBulkGrantingLegacySpoons] = useState(false);
   const [busyApproveCardId, setBusyApproveCardId] = useState("");
   const [busyRejectCardId, setBusyRejectCardId] = useState("");
   const [generatedCards, setGeneratedCards] = useState([]);
   const [savingGeneratedCards, setSavingGeneratedCards] = useState(false);
   const [busyReportKey, setBusyReportKey] = useState("");
   const [busyPaymentId, setBusyPaymentId] = useState("");
+  const [memberKeyword, setMemberKeyword] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -110,7 +120,7 @@ export default function AdminDashboardPage() {
     if (!isAdmin) return;
 
     const unsubUsers = onSnapshot(
-      query(collection(db, "users"), limit(200)),
+      query(collection(db, "users")),
       (snapshot) => {
         setUsers(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
@@ -120,7 +130,7 @@ export default function AdminDashboardPage() {
     );
 
     const unsubCards = onSnapshot(
-      query(collection(db, "charmingCards"), limit(200)),
+      query(collection(db, "charmingCards")),
       (snapshot) => {
         setCards(
           snapshot.docs.map((item) => {
@@ -139,7 +149,7 @@ export default function AdminDashboardPage() {
     );
 
     const unsubArenaReports = onSnapshot(
-      query(collection(db, "arenaReports"), limit(200)),
+      query(collection(db, "arenaReports")),
       (snapshot) => {
         setArenaReports(
           snapshot.docs.map((item) => ({
@@ -155,7 +165,7 @@ export default function AdminDashboardPage() {
     );
 
     const unsubCardReports = onSnapshot(
-      query(collection(db, "charmingCardAnswerReports"), limit(200)),
+      query(collection(db, "charmingCardAnswerReports")),
       (snapshot) => {
         setCardReports(
           snapshot.docs.map((item) => ({
@@ -171,7 +181,7 @@ export default function AdminDashboardPage() {
     );
 
     const unsubPayments = onSnapshot(
-      query(collection(db, "spoonDepositRequests"), limit(200)),
+      query(collection(db, "spoonDepositRequests")),
       (snapshot) => {
         setPayments(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
@@ -181,7 +191,7 @@ export default function AdminDashboardPage() {
     );
 
     const unsubMatches = onSnapshot(
-      query(collection(db, "arenaMatches"), limit(200)),
+      query(collection(db, "arenaMatches")),
       (snapshot) => {
         setMatches(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       },
@@ -228,14 +238,6 @@ export default function AdminDashboardPage() {
           toMillis(a.createdAt || a.updatedAt || a.timestamp)
       );
   }, [users]);
-
-  const approvalTabUsers = useMemo(() => {
-    return [...pendingUsers, ...legacyUsers].sort(
-      (a, b) =>
-        toMillis(b.createdAt || b.updatedAt || b.timestamp) -
-        toMillis(a.createdAt || a.updatedAt || a.timestamp)
-    );
-  }, [pendingUsers, legacyUsers]);
 
   const pendingCards = useMemo(() => {
     return [...cards]
@@ -284,6 +286,7 @@ export default function AdminDashboardPage() {
     () => ({
       pendingUsers: pendingUsers.length,
       legacyUsers: legacyUsers.length,
+      totalUsers: users.length,
       pendingCards: pendingCards.length,
       pendingReports: reportItems.length,
       pendingPayments: pendingPayments.length,
@@ -292,6 +295,7 @@ export default function AdminDashboardPage() {
     [
       pendingUsers.length,
       legacyUsers.length,
+      users.length,
       pendingCards.length,
       reportItems.length,
       pendingPayments.length,
@@ -303,7 +307,7 @@ export default function AdminDashboardPage() {
     ? `관리자 UID: ${firebaseUser.uid}`
     : "관리자 확인 중";
 
-  const handleApproveUser = async (item) => {
+  const handleApproveUser = async (item, bonusSpoons = 0) => {
     try {
       setBusyUserId(getUserDocId(item));
       await approveUser({
@@ -311,12 +315,45 @@ export default function AdminDashboardPage() {
         item,
         adminUid: firebaseUser?.uid || "",
         sendLms,
+        bonusSpoons,
       });
-      alert(`${getDisplayName(item)} 회원을 승인했어요.`);
+
+      alert(
+        bonusSpoons > 0
+          ? `${getDisplayName(item)} 회원을 승인하고 스푼 ${bonusSpoons}개를 지급했어요.`
+          : `${getDisplayName(item)} 회원을 승인했어요.`
+      );
       setSelectedUser(null);
     } catch (error) {
       console.error("[admin] approve user error:", error);
       alert("회원 승인 처리 중 문제가 발생했어요.");
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
+  const handleRejectUser = async (item, reasonCode) => {
+    const reasonText = getReasonLabelByCode(USER_REJECTION_REASONS, reasonCode);
+    if (!reasonCode || !reasonText) {
+      alert("거절 사유를 선택해주세요.");
+      return;
+    }
+
+    try {
+      setBusyUserId(getUserDocId(item));
+      await rejectUser({
+        db,
+        item,
+        adminUid: firebaseUser?.uid || "",
+        sendLms,
+        reasonCode,
+        reasonText,
+      });
+      alert(`${getDisplayName(item)} 회원을 거절했어요.`);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error("[admin] reject user error:", error);
+      alert("회원 거절 처리 중 문제가 발생했어요.");
     } finally {
       setBusyUserId("");
     }
@@ -339,6 +376,72 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleBulkGrantLegacySpoons = async () => {
+    try {
+      setBulkGrantingLegacySpoons(true);
+
+      const targets = legacyUsers.filter((item) => {
+        const currentFree = Number(item?.spoon_free || 0);
+        return currentFree < 8;
+      });
+
+      for (const item of targets) {
+        const userId = getUserDocId(item);
+        if (!userId) continue;
+
+        const currentTotal = Number(item?.spoon || 0);
+        const currentFree = Number(item?.spoon_free || 0);
+        const currentPaid = Number(item?.spoon_paid || 0);
+        const amount = 8 - currentFree;
+
+        if (amount <= 0) continue;
+
+        await setDoc(
+          doc(db, "users", userId),
+          {
+            spoon: currentTotal + amount,
+            spoon_free: currentFree + amount,
+            spoon_paid: currentPaid,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        await addDoc(collection(db, "spoonHistories"), {
+          uid: userId,
+          type: "admin_legacy_bulk_grant",
+          amount,
+          balanceBefore: currentTotal,
+          balanceAfter: currentTotal + amount,
+          spoonFreeBefore: currentFree,
+          spoonFreeAfter: currentFree + amount,
+          spoonPaidBefore: currentPaid,
+          spoonPaidAfter: currentPaid,
+          grantedBy: firebaseUser?.uid || "",
+          title: "기존 가입자 일괄 스푼 지급",
+          createdAt: serverTimestamp(),
+        });
+
+        await addDoc(collection(db, "notifications"), {
+          targetUid: userId,
+          type: "admin_legacy_bulk_grant",
+          title: "기존 가입자 스푼이 지급됐어요",
+          body: `스푼 ${amount}개가 지급됐어요.`,
+          href: "/store",
+          isRead: false,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      alert(`기존 가입자 ${targets.length}명에게 스푼 보정을 완료했어요.`);
+    } catch (error) {
+      console.error("[admin] bulk grant legacy spoons error:", error);
+      alert("기존 가입자 스푼 지급 중 문제가 발생했어요.");
+    } finally {
+      setBulkGrantingLegacySpoons(false);
+    }
+  };
+
   const handleApproveCard = async (card) => {
     try {
       setBusyApproveCardId(card.id);
@@ -358,13 +461,23 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleRejectCard = async (card) => {
+  const handleRejectCard = async (card, reasonCode) => {
+    const reasonText = getReasonLabelByCode(CARD_REJECTION_REASONS, reasonCode);
+    if (!reasonCode || !reasonText) {
+      alert("반려 사유를 선택해주세요.");
+      return;
+    }
+
     try {
       setBusyRejectCardId(card.id);
       await rejectCard({
         db,
         card,
         adminUid: firebaseUser?.uid || "",
+        sendLms,
+        creatorUser: usersById[card.creatorUid] || null,
+        reasonCode,
+        reasonText,
       });
       alert("차밍카드를 반려했어요.");
     } catch (error) {
@@ -431,16 +544,130 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleToggleExposure = async (item, shouldBlock) => {
+    const userId = getUserDocId(item);
+    if (!userId) {
+      alert("회원 문서 ID를 찾지 못했어요.");
+      return;
+    }
+
+    try {
+      setBusyUserId(userId);
+
+      await setDoc(
+        doc(db, "users", userId),
+        {
+          adminMatchExposureBlocked: !!shouldBlock,
+          adminMatchExposureUpdatedAt: serverTimestamp(),
+          adminMatchExposureUpdatedBy: firebaseUser?.uid || "",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      alert(
+        shouldBlock
+          ? `${getDisplayName(item)} 회원을 프로필 노출 금지 처리했어요.`
+          : `${getDisplayName(item)} 회원의 프로필 노출 금지를 해제했어요.`
+      );
+    } catch (error) {
+      console.error("[admin] toggle exposure error:", error);
+      alert("프로필 노출 설정 변경 중 문제가 발생했어요.");
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
+  const handleGrantSpoons = async (item, amount) => {
+    const userId = getUserDocId(item);
+    const spoonAmount = Number(amount || 0);
+
+    if (!userId) {
+      alert("회원 문서 ID를 찾지 못했어요.");
+      return;
+    }
+
+    if (!spoonAmount || spoonAmount <= 0) {
+      alert("지급할 스푼 수량을 확인해주세요.");
+      return;
+    }
+
+    try {
+      setBusyUserId(userId);
+
+      const currentTotal = Number(item?.spoon || 0);
+      const currentFree = Number(item?.spoon_free || 0);
+      const currentPaid = Number(item?.spoon_paid || 0);
+
+      await setDoc(
+        doc(db, "users", userId),
+        {
+          spoon: currentTotal + spoonAmount,
+          spoon_free: currentFree + spoonAmount,
+          spoon_paid: currentPaid,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      await addDoc(collection(db, "spoonHistories"), {
+        uid: userId,
+        type: "admin_manual_grant",
+        amount: spoonAmount,
+        balanceBefore: currentTotal,
+        balanceAfter: currentTotal + spoonAmount,
+        spoonFreeBefore: currentFree,
+        spoonFreeAfter: currentFree + spoonAmount,
+        spoonPaidBefore: currentPaid,
+        spoonPaidAfter: currentPaid,
+        grantedBy: firebaseUser?.uid || "",
+        title: "관리자 수동 스푼 지급",
+        createdAt: serverTimestamp(),
+      });
+
+      await addDoc(collection(db, "notifications"), {
+        targetUid: userId,
+        type: "admin_manual_spoon_grant",
+        title: "운영 보상 스푼이 지급됐어요",
+        body: `스푼 ${spoonAmount}개가 지급됐어요.`,
+        href: "/store",
+        isRead: false,
+        createdAt: serverTimestamp(),
+      });
+
+      alert(`${getDisplayName(item)} 회원에게 스푼 ${spoonAmount}개를 지급했어요.`);
+    } catch (error) {
+      console.error("[admin] grant spoons error:", error);
+      alert("스푼 지급 중 문제가 발생했어요.");
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
   const renderTab = () => {
     if (activeTab === "users") {
       return (
         <UserApprovalTab
           users={[...pendingUsers, ...legacyUsers]}
           onApproveUser={handleApproveUser}
+          onRejectUser={handleRejectUser}
           onBulkApproveLegacyUsers={handleBulkApproveLegacy}
+          onBulkGrantLegacySpoons={handleBulkGrantLegacySpoons}
           onOpenUserDetail={(item) => setSelectedUser(item)}
           approvingUserId={busyUserId}
           bulkApproving={bulkApproving}
+          bulkGrantingLegacySpoons={bulkGrantingLegacySpoons}
+        />
+      );
+    }
+
+    if (activeTab === "memberList") {
+      return (
+        <UserListTab
+          users={users}
+          keyword={memberKeyword}
+          onKeywordChange={setMemberKeyword}
+          onOpenUserDetail={(item) => setSelectedUser(item)}
         />
       );
     }
@@ -514,8 +741,25 @@ export default function AdminDashboardPage() {
         open={!!selectedUser}
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
-        onApprove={selectedUser ? () => handleApproveUser(selectedUser) : null}
-        approving={busyUserId === getUserDocId(selectedUser || {})}
+        onApprove={
+          selectedUser && activeTab === "users"
+            ? (bonusSpoons) => handleApproveUser(selectedUser, bonusSpoons)
+            : null
+        }
+        approving={
+          busyUserId ===
+          ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
+        }
+        onToggleExposure={handleToggleExposure}
+        togglingExposure={
+          busyUserId ===
+          ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
+        }
+        onGrantSpoons={handleGrantSpoons}
+        grantingSpoons={
+          busyUserId ===
+          ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
+        }
       />
     </>
   );

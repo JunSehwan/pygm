@@ -19,7 +19,9 @@ import {
   getJobLabel,
   getProfileImage,
   getResidenceLabel,
+  isAdminMatchExposureBlocked,
 } from "lib/arena";
+import { isBlockedTargetUser } from "lib/userBlockRules";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const INTEREST_EXPIRE_MS = 3 * DAY_MS;
@@ -350,6 +352,8 @@ export default function BoardPage() {
 
             const otherUser = userMap[otherUid];
             if (!otherUser) return null;
+            if (isAdminMatchExposureBlocked(otherUser)) return null;
+            if (isBlockedTargetUser(currentUser || {}, otherUser)) return null;
 
             const contactStatus = getContactStatus(match, myUid);
 
@@ -369,6 +373,8 @@ export default function BoardPage() {
           .map((interest) => {
             const otherUser = userMap[interest?.maleUid];
             if (!otherUser) return null;
+            if (isAdminMatchExposureBlocked(otherUser)) return null;
+            if (isBlockedTargetUser(currentUser || {}, otherUser)) return null;
 
             return buildBoardCardItem({
               id: `sent_${interest.id}`,
@@ -383,6 +389,8 @@ export default function BoardPage() {
           .map((interest) => {
             const otherUser = userMap[interest?.femaleUid];
             if (!otherUser) return null;
+            if (isAdminMatchExposureBlocked(otherUser)) return null;
+            if (isBlockedTargetUser(currentUser || {}, otherUser)) return null;
 
             return buildBoardCardItem({
               id: `received_${interest.id}`,

@@ -474,11 +474,11 @@ export default function ProfileMainPage({ user }) {
       <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-slate-50 md:h-[760px]">
         <div className="shrink-0 border-b border-slate-200 bg-white">
           <div className="flex items-center justify-between px-5 pb-4 pt-5">
-            <div className="text-[24px] font-bold tracking-[-0.03em] text-slate-900">
+            <div className="text-[20px] font-bold tracking-[-0.03em] text-slate-900">
               내 프로필
             </div>
             <button type="button" onClick={() => router.back()} className="text-slate-700">
-              <FiArrowLeft className="text-[24px]" />
+              <FiArrowLeft className="text-[20px]" />
             </button>
           </div>
 

@@ -1,52 +1,51 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { auth } from "firebaseConfig";
-import AuthRequiredModal from "./AuthRequiredModal";
+import { useSelector } from "react-redux";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import LoginRequiredGateModal from "components/Common/LoginRequiredGateModal";
 
-export default function RequireAuth({
-  redirect = "/",
-  children = null,
-  fallback = null,
-}) {
+export default function RequireAuth({ children }) {
+  const reduxUser = useSelector((state) => state.user?.user ?? null);
+
   const [mounted, setMounted] = useState(false);
-  const [checked, setChecked] = useState(false);
-  const [firebaseUser, setFirebaseUser] = useState(undefined);
-  const [open, setOpen] = useState(false);
-
-  const hasChildren = useMemo(() => React.Children.count(children) > 0, [children]);
+  const [authReady, setAuthReady] = useState(false);
+  const [firebaseUid, setFirebaseUid] = useState("");
 
   useEffect(() => {
     setMounted(true);
-
-    const unsubscribe = auth?.onAuthStateChanged?.((user) => {
-      setFirebaseUser(user || null);
-      setChecked(true);
-
-      if (!user) {
-        setOpen(true);
-      } else {
-        setOpen(false);
-      }
-    });
-
-    return () => unsubscribe && unsubscribe();
   }, []);
 
-  if (!mounted || !checked) {
-    return fallback;
-  }
+  useEffect(() => {
+    const auth = getAuth();
 
-  if (firebaseUser) {
-    return hasChildren ? <>{children}</> : null;
-  }
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      setFirebaseUid(firebaseUser?.uid || "");
+      setAuthReady(true);
+    });
+
+    return () => unsub();
+  }, []);
+
+  const isLoggedIn = useMemo(() => {
+    const reduxUid = reduxUser?.userID || reduxUser?.uid || "";
+    return !!(reduxUid || firebaseUid);
+  }, [reduxUser, firebaseUid]);
+
+  if (!mounted || !authReady) return null;
 
   return (
     <>
-      {hasChildren ? fallback : null}
-      <AuthRequiredModal
-        open={open}
-        onClose={() => setOpen(false)}
-        redirect={redirect}
-      />
+      <div
+        className={
+          isLoggedIn
+            ? "transition"
+            : "pointer-events-none select-none blur-[7px] opacity-35 transition"
+        }
+        aria-hidden={!isLoggedIn}
+      >
+        {children}
+      </div>
+
+      {!isLoggedIn ? <LoginRequiredGateModal open /> : null}
     </>
   );
 }

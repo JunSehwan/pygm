@@ -11,7 +11,7 @@ import { SummaryCard, SectionCard, InfoRow } from "../AdminCommon";
 export default function AdminOverviewTab({ counts }) {
   return (
     <div className="space-y-4">
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-2">
         <SummaryCard icon={PiUsersThreeDuotone} title="가입 승인 대기" value={`${counts.pendingUsers}명`} accent="violet" />
         <SummaryCard icon={PiCardsDuotone} title="카드 승인 대기" value={`${counts.pendingCards}건`} accent="blue" />
         <SummaryCard icon={PiSealWarningDuotone} title="신고 검토" value={`${counts.pendingReports}건`} accent="rose" />

@@ -26,6 +26,7 @@ import {
 } from "slices/user";
 
 import { isBlockedTargetUser } from "lib/userBlockRules";
+import { isAdminMatchExposureBlocked } from "lib/arena";
 
 function serializeTimestamp(value) {
   if (!value) return null;
@@ -262,6 +263,7 @@ export default function CardReviewIndexPage() {
         const visibleAnswers = filteredAnswers.filter((answer) => {
           const answerer = nextAnswererMap[answer.answererUid];
           if (!answerer) return false;
+          if (isAdminMatchExposureBlocked(answerer)) return false;
           return !isBlockedTargetUser(user, answerer);
         });
 
@@ -287,7 +289,7 @@ export default function CardReviewIndexPage() {
     return () => {
       mounted = false;
     };
-  }, [user?.userID]);
+  }, [user?.userID, user]);
 
   const isFemale = useMemo(() => {
     const gender = user?.gender || "";

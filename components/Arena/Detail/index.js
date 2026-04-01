@@ -43,6 +43,20 @@ import {
 } from "./arenaDetailUtils";
 import { getUserDocId } from "lib/arena";
 
+function getSpoonState(user = {}) {
+  const total = Math.max(Number(user?.spoon || 0), 0);
+  const free = Math.max(Number(user?.spoon_free || 0), 0);
+  const paid = Math.max(
+    Number.isFinite(Number(user?.spoon_paid))
+      ? Number(user?.spoon_paid || 0)
+      : Math.max(total - free, 0),
+    0
+  );
+
+  return { total, free, paid };
+}
+
+
 const LIKE_COST = 8;
 
 export default function ArenaDetailScreen({
@@ -222,7 +236,8 @@ export default function ArenaDetailScreen({
 
       const meSnap = await getDoc(doc(db, "users", myUid));
       const meData = meSnap.exists() ? meSnap.data() || {} : {};
-      const currentSpoon = Number(meData?.spoon || 0);
+      const spoonState = getSpoonState(meData);
+      const currentSpoon = spoonState.total;
 
       setLatestSpoon(currentSpoon);
 
@@ -232,16 +247,27 @@ export default function ArenaDetailScreen({
         return;
       }
 
+      const deductFree = Math.min(spoonState.free, LIKE_COST);
+      const deductPaid = LIKE_COST - deductFree;
+
       await updateDoc(doc(db, "users", myUid), {
         spoon: increment(-LIKE_COST),
+        spoon_free: increment(-deductFree),
+        spoon_paid: increment(-deductPaid),
       });
 
       await addDoc(collection(db, "spoonHistories"), {
         uid: myUid,
         type: "arena_like_send",
         amount: -LIKE_COST,
-        balanceBefore: currentSpoon,
-        balanceAfter: currentSpoon - LIKE_COST,
+        balanceBefore: spoonState.total,
+        balanceAfter: spoonState.total - LIKE_COST,
+        spoonFreeBefore: spoonState.free,
+        spoonFreeAfter: spoonState.free - deductFree,
+        spoonPaidBefore: spoonState.paid,
+        spoonPaidAfter: spoonState.paid - deductPaid,
+        deductedFree: deductFree,
+        deductedPaid: deductPaid,
         targetUid,
         createdAt: serverTimestamp(),
       });

@@ -1,5 +1,7 @@
+import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
 import React, { useMemo } from "react";
 import { FiEdit2, FiInfo, FiLock } from "react-icons/fi";
+import { PiCameraDuotone, PiSparkleFill } from "react-icons/pi";
 
 function cn(...arr) {
   return arr.filter(Boolean).join(" ");
@@ -178,12 +180,19 @@ export default function ProfileBasicTab({
       <div className="rounded-md border border-slate-200 bg-white px-3 py-3">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[13px] font-bold text-[#6e7ee8]">프로필사진</div>
+
           <button
             type="button"
             onClick={onOpenPhotoModal}
-            className="rounded-full bg-[#eef2ff] px-4 py-2 text-[15px] font-bold text-[#3655ff]"
+            className="group inline-flex items-center gap-2 rounded-full border border-violet-200 bg-gradient-to-b from-violet-50 to-indigo-50 px-4 py-2 text-sm font-bold text-violet-700 shadow-[0_8px_20px_rgba(139,92,246,0.14)] transition hover:-translate-y-[1px] hover:border-violet-300 hover:from-violet-100 hover:to-indigo-100 hover:shadow-[0_12px_28px_rgba(139,92,246,0.20)] active:translate-y-0 active:scale-[0.98]"
+            style={{ cursor: "pointer" }}
           >
-            사진 수정하기
+            <span className="relative flex h-5 w-5 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-violet-100">
+              <PiCameraDuotone className="text-[14px] text-violet-600" />
+              <PiSparkleFill className="absolute -right-0.5 -top-0.5 text-[10px] text-pink-400" />
+            </span>
+
+            <span className="tracking-[-0.01em] text-xs">사진수정</span>
           </button>
         </div>
 
@@ -202,7 +211,16 @@ export default function ProfileBasicTab({
                   className="relative h-[120px] overflow-hidden rounded-md bg-slate-200"
                 >
                   {url ? (
-                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <ImageWithSkeleton
+                      src={url}
+                      alt={`프로필 사진 ${index + 1}`}
+                      fill
+                      className="h-full w-full"
+                      imageClassName="object-cover"
+                      fallbackSrc="/image/logo.png"
+                      unoptimized
+                      sizes="(max-width: 768px) 50vw, 220px"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-400">
                       <FiInfo className="text-[26px]" />
@@ -223,7 +241,16 @@ export default function ProfileBasicTab({
                   className="relative h-[88px] overflow-hidden rounded-md bg-slate-200"
                 >
                   {url ? (
-                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <ImageWithSkeleton
+                      src={url}
+                      alt={`프로필 사진 ${index + 1}`}
+                      fill
+                      className="h-full w-full"
+                      imageClassName="object-cover"
+                      fallbackSrc="/image/logo.png"
+                      unoptimized
+                      sizes="120px"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-400">
                       <FiInfo className="text-[20px]" />

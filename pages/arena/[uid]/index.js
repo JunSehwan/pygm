@@ -8,7 +8,12 @@ import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import AuthRequiredModal from "components/Common/AuthRequiredModal";
 import ArenaDetailScreen from "components/Arena/Detail";
 import { db } from "firebaseConfig";
-import { getArenaBadgeInfo, getUserDocId, getValueMatchPercent } from "lib/arena";
+import {
+  getArenaBadgeInfo,
+  getUserDocId,
+  getValueMatchPercent,
+  isAdminMatchExposureBlocked,
+} from "lib/arena";
 import { isBlockedTargetUser } from "lib/userBlockRules";
 
 export default function ArenaDetailPage() {
@@ -78,6 +83,14 @@ export default function ArenaDetailPage() {
           userID: targetSnap.id,
           ...targetSnap.data(),
         };
+
+        if (isAdminMatchExposureBlocked(userData)) {
+          if (mounted) {
+            setTargetUser(null);
+            router.replace("/arena");
+          }
+          return;
+        }
 
         if (viewerReady && viewer?.userID && isBlockedTargetUser(viewer, userData)) {
           if (mounted) {

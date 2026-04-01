@@ -34,6 +34,19 @@ import {
   getUserDocId,
 } from "lib/arena";
 
+function getSpoonState(user = {}) {
+  const total = Math.max(Number(user?.spoon || 0), 0);
+  const free = Math.max(Number(user?.spoon_free || 0), 0);
+  const paid = Math.max(
+    Number.isFinite(Number(user?.spoon_paid))
+      ? Number(user?.spoon_paid || 0)
+      : Math.max(total - free, 0),
+    0
+  );
+
+  return { total, free, paid };
+}
+
 const ACCEPT_COST = 8;
 const RESPONSE_LIMIT_HOURS = 72;
 
@@ -479,7 +492,8 @@ export default function ArenaMaleReceivedView({
 
       const meSnap = await getDoc(doc(db, "users", maleUid));
       const meData = meSnap.exists() ? meSnap.data() || {} : {};
-      const currentSpoon = Number(meData?.spoon || 0);
+      const spoonState = getSpoonState(meData);
+      const currentSpoon = spoonState.total;
 
       if (currentSpoon < ACCEPT_COST) {
         setAcceptOpen(false);
@@ -487,16 +501,27 @@ export default function ArenaMaleReceivedView({
         return;
       }
 
+      const deductFree = Math.min(spoonState.free, ACCEPT_COST);
+      const deductPaid = ACCEPT_COST - deductFree;
+
       await updateDoc(doc(db, "users", maleUid), {
         spoon: increment(-ACCEPT_COST),
+        spoon_free: increment(-deductFree),
+        spoon_paid: increment(-deductPaid),
       });
 
       await addDoc(collection(db, "spoonHistories"), {
         uid: maleUid,
         type: "arena_like_accept",
         amount: -ACCEPT_COST,
-        balanceBefore: currentSpoon,
-        balanceAfter: currentSpoon - ACCEPT_COST,
+        balanceBefore: spoonState.total,
+        balanceAfter: spoonState.total - ACCEPT_COST,
+        spoonFreeBefore: spoonState.free,
+        spoonFreeAfter: spoonState.free - deductFree,
+        spoonPaidBefore: spoonState.paid,
+        spoonPaidAfter: spoonState.paid - deductPaid,
+        deductedFree: deductFree,
+        deductedPaid: deductPaid,
         targetUid: femaleUid,
         interestId: interest.id,
         createdAt: serverTimestamp(),

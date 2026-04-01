@@ -7,7 +7,7 @@ export default function StyleSharePage() {
   const { code } = router.query;
 
   const type = typeMetaMap[code] || typeMetaMap.DSLR;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pygm.co.kr";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://charmingsoup.com";
   const shareUrl = `${siteUrl}/tests/style/share/${type.code}`;
   const imageUrl = `${siteUrl}${result.image}`;
 

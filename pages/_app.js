@@ -1,69 +1,67 @@
-import React, { useEffect } from 'react';
-import Head from 'next/head';
-import { ThemeProvider } from 'styled-components';
-import GlobalStyle, { theme } from './styles/global';
+import React, { useEffect } from "react";
+import Head from "next/head";
+import { ThemeProvider } from "styled-components";
+import GlobalStyle, { theme } from "./styles/global";
 import AOS from "aos";
-import 'aos/dist/aos.css';
-import { useRouter } from 'next/router';
+import "aos/dist/aos.css";
+import { useRouter } from "next/router";
 import { wrapper } from "store/index";
-import 'tailwindcss/tailwind.css'
-import Script from 'next/script';
-import { Provider } from 'react-redux';
-import Proptypes from 'prop-types';
+import "tailwindcss/tailwind.css";
+import Script from "next/script";
+import { Provider } from "react-redux";
+import Proptypes from "prop-types";
 import * as gtag from "lib/gtag";
-import { GoogleTagManager } from '@next/third-parties/google'
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import StyleGuestResultSync from "components/Tests/Style/StyleGuestResultSync";
+import LoadingPage from "components/Common/Loading";
+import { useLoading } from "components/Common/useLoading";
 
 export const GOOGLE_TAG = process.env.NEXT_PUBLIC_GOOGLE_TAG;
 export const GOOGLE_ANAL = process.env.NEXT_PUBLIC_GOOGLE_ANAL;
 
 const _app = ({ Component, pageProps, ...rest }) => {
+  const router = useRouter();
+  const { store } = wrapper.useWrappedStore(rest);
+  const nowLoading = useLoading();
 
-  const router = useRouter()
-  const { store, props } = wrapper.useWrappedStore(rest);
-
-
-  //우클릭 방지
   useEffect(() => {
     document.oncontextmenu = function () {
       return false;
-    }
-  }, [])
-
+    };
+  }, []);
 
   useEffect(() => {
     AOS.init({
       delay: 400,
       duration: 800,
     });
-  });
-
-  // 리라우팅시 root페이지로 이동(동적페이지) - 방지를 위함
-  // useEffect(() => {
-  //   router.push(window.location.href)
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [])
+  }, []);
 
   useEffect(() => {
     const handleRouteChange = (url) => {
-      gtag.pageview(url)
-    }
-    router.events.on('routeChangeComplete', handleRouteChange)
+      gtag.pageview(url);
+    };
+
+    router.events.on("routeChangeComplete", handleRouteChange);
+
     return () => {
-      router.events.off('routeChangeComplete', handleRouteChange)
-    }
-  }, [router.events])
+      router.events.off("routeChangeComplete", handleRouteChange);
+    };
+  }, [router.events]);
 
   return (
     <>
       <GlobalStyle />
       <StyleGuestResultSync />
-      <Script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></Script>
-      <Script // 본인인증관련
+
+      <Script src="https://unpkg.com/aos@2.3.1/dist/aos.js" />
+
+      <Script
         src="https://cdn.portone.io/v2/browser-sdk.js"
         strategy="afterInteractive"
       />
+
       <Script
         src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
         strategy="afterInteractive"
@@ -77,6 +75,7 @@ const _app = ({ Component, pageProps, ...rest }) => {
         strategy="afterInteractive"
         crossOrigin="anonymous"
       />
+
       <Head>
         <title>추억과 즐거움으로 이성을 만나다! 피그말리온</title>
         <meta charSet="utf-8" />
@@ -100,12 +99,16 @@ const _app = ({ Component, pageProps, ...rest }) => {
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
         <meta name="theme-color" content="#ffffff" />
-        <meta name="naver-site-verification" content="703be80d3c30d67edfd91f465ba95a258fd65d96" />
-
+        <meta
+          name="naver-site-verification"
+          content="703be80d3c30d67edfd91f465ba95a258fd65d96"
+        />
       </Head>
+
       <ThemeProvider theme={theme}>
         <Provider store={store}>
           <Component {...pageProps} />
+          {nowLoading ? <LoadingPage /> : null}
           <GoogleTagManager gtmId={GOOGLE_TAG} />
           <GoogleAnalytics gaId={GOOGLE_ANAL} />
         </Provider>
@@ -117,6 +120,6 @@ const _app = ({ Component, pageProps, ...rest }) => {
 _app.Proptypes = {
   Component: Proptypes.elementType,
   store: Proptypes.object,
-}
+};
 
 export default _app;

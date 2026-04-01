@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { FiX } from "react-icons/fi";
 import hangjungdongDefault, { hangjungdong as hangjungdongNamed } from "components/Common/Address";
 
 const hangjungdong = hangjungdongNamed || hangjungdongDefault;
@@ -38,7 +39,8 @@ function FloatingInput({
   suffix,
 }) {
   const [focused, setFocused] = useState(false);
-  const active = focused || (value !== undefined && value !== null && String(value).length > 0);
+  const active =
+    focused || (value !== undefined && value !== null && String(value).length > 0);
 
   if (multiline) {
     return (
@@ -60,7 +62,7 @@ function FloatingInput({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={active ? placeholder : ""}
-          className="h-28 w-full resize-none rounded-md border border-slate-200 bg-white px-4 pb-3 pt-6 text-[15px] text-slate-800 outline-none placeholder:text-slate-350 focus:border-violet-300"
+          className="h-28 w-full resize-none rounded-md border border-slate-200 bg-white px-4 pb-3 pt-6 text-[15px] text-slate-800 outline-none placeholder:text-slate-350 transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
         />
       </div>
     );
@@ -89,7 +91,7 @@ function FloatingInput({
           onBlur={() => setFocused(false)}
           placeholder={active ? placeholder : ""}
           className={cn(
-            "h-[58px] w-full rounded-md border border-slate-200 bg-white px-4 pt-5 text-[15px] text-slate-800 outline-none placeholder:text-slate-350 focus:border-violet-300",
+            "h-[58px] w-full rounded-md border border-slate-200 bg-white px-4 pt-5 text-[15px] text-slate-800 outline-none placeholder:text-slate-350 transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100",
             suffix ? "pr-12" : ""
           )}
         />
@@ -116,9 +118,10 @@ function RadioGroup({ options, value, onChange }) {
             className={cn(
               "rounded-md border px-3 py-3 text-[14px] font-medium transition",
               active
-                ? "border-violet-300 bg-violet-50 text-violet-700"
-                : "border-slate-200 bg-white text-slate-600"
+                ? "border-violet-300 bg-violet-50 text-violet-700 shadow-[0_4px_14px_rgba(139,92,246,0.10)]"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             )}
+            style={{ cursor: "pointer" }}
           >
             {item.label}
           </button>
@@ -135,7 +138,7 @@ function SelectGroup({ label, value, options, onChange }) {
       <select
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="h-[52px] w-full rounded-md border border-slate-200 bg-white px-4 text-[15px] text-slate-800 outline-none focus:border-violet-300"
+        className="h-[52px] w-full rounded-md border border-slate-200 bg-white px-4 text-[15px] text-slate-800 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
       >
         <option value="">선택</option>
         {options.map((item) => (
@@ -160,6 +163,7 @@ function MbtiPicker({ value, onChange }) {
   return (
     <div>
       <div className="mb-3 text-[13px] font-semibold text-slate-600">MBTI 선택</div>
+
       <div className="grid grid-cols-2 gap-2">
         {MBTI_GROUPS.map((pair, groupIndex) =>
           pair.map((item) => {
@@ -171,10 +175,18 @@ function MbtiPicker({ value, onChange }) {
                 onClick={() => pick(groupIndex, item.key)}
                 className={cn(
                   "rounded-md border p-3 text-left transition",
-                  active ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"
+                  active
+                    ? "border-violet-300 bg-violet-50 shadow-[0_4px_14px_rgba(139,92,246,0.10)]"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
                 )}
+                style={{ cursor: "pointer" }}
               >
-                <p className={cn("text-[15px] font-black", active ? "text-violet-700" : "text-slate-700")}>
+                <p
+                  className={cn(
+                    "text-[15px] font-black",
+                    active ? "text-violet-700" : "text-slate-700"
+                  )}
+                >
                   {item.key}
                 </p>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-600">
@@ -187,7 +199,7 @@ function MbtiPicker({ value, onChange }) {
         )}
       </div>
 
-      <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="mt-4 rounded-md border border-violet-100 bg-violet-50/60 px-3 py-3">
         <p className="text-[12px] font-semibold text-slate-500">선택 결과</p>
         <p className="mt-1 text-[20px] font-black tracking-widest text-slate-900">
           {parsed.map((v) => v || "_").join("")}
@@ -233,7 +245,7 @@ function AddressPicker({ label, value, onChange }) {
               sigugunCode: "",
             });
           }}
-          className="h-[52px] w-full rounded-md border border-slate-200 bg-white px-4 text-[15px] text-slate-800 outline-none focus:border-violet-300"
+          className="h-[52px] w-full rounded-md border border-slate-200 bg-white px-4 text-[15px] text-slate-800 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
         >
           <option value="">시/도 선택</option>
           {sidoOptions.map((item) => (
@@ -257,7 +269,7 @@ function AddressPicker({ label, value, onChange }) {
             });
           }}
           disabled={!value?.sidoCode}
-          className="h-[52px] w-full rounded-md border border-slate-200 bg-white px-4 text-[15px] text-slate-800 outline-none focus:border-violet-300 disabled:bg-slate-100 disabled:text-slate-400"
+          className="h-[52px] w-full rounded-md border border-slate-200 bg-white px-4 text-[15px] text-slate-800 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100 disabled:text-slate-400"
         >
           <option value="">시/군(구) 선택</option>
           {sigugunOptions.map((item) => (
@@ -280,11 +292,12 @@ function VisibilityBox({ title, visible, setVisible }) {
           type="button"
           onClick={() => setVisible(true)}
           className={cn(
-            "rounded-md border px-3 py-3 text-[14px] font-medium",
+            "rounded-md border px-3 py-3 text-[14px] font-medium transition",
             visible
-              ? "border-violet-300 bg-violet-50 text-violet-700"
-              : "border-slate-200 bg-white text-slate-600"
+              ? "border-violet-300 bg-violet-50 text-violet-700 shadow-[0_4px_14px_rgba(139,92,246,0.10)]"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           )}
+          style={{ cursor: "pointer" }}
         >
           공개
         </button>
@@ -292,11 +305,12 @@ function VisibilityBox({ title, visible, setVisible }) {
           type="button"
           onClick={() => setVisible(false)}
           className={cn(
-            "rounded-md border px-3 py-3 text-[14px] font-medium",
+            "rounded-md border px-3 py-3 text-[14px] font-medium transition",
             !visible
-              ? "border-violet-300 bg-violet-50 text-violet-700"
-              : "border-slate-200 bg-white text-slate-600"
+              ? "border-violet-300 bg-violet-50 text-violet-700 shadow-[0_4px_14px_rgba(139,92,246,0.10)]"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           )}
+          style={{ cursor: "pointer" }}
         >
           비공개
         </button>
@@ -319,7 +333,9 @@ export default function ProfileFieldModal({
 }) {
   const [draftValue, setDraftValue] = useState(value || "");
   const [companyPublic, setCompanyPublic] = useState(extra?.companyPublic ?? true);
-  const [educationPublic, setEducationPublic] = useState(extra?.educationPublic ?? true);
+  const [educationPublic, setEducationPublic] = useState(
+    extra?.educationPublic ?? true
+  );
   const [schoolName, setSchoolName] = useState(extra?.schoolName || "");
 
   useEffect(() => {
@@ -346,6 +362,19 @@ export default function ProfileFieldModal({
     extra?.educationValue,
   ]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !saving) {
+        onClose?.();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, saving, onClose]);
+
   const savePayload = useMemo(() => {
     if (type === "company") {
       return {
@@ -369,43 +398,71 @@ export default function ProfileFieldModal({
     return typeof draftValue === "string" ? draftValue.trim() : draftValue;
   }, [companyPublic, draftValue, educationPublic, schoolName, type]);
 
+  const headerTitle = title ? `${title} 수정` : "정보 수정";
+
   return (
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-[10000] flex items-end justify-center bg-black/40 px-4 pb-4 md:items-center"
+          className="fixed inset-0 z-[10000] flex items-end justify-center bg-slate-950/45 px-3 pb-3 backdrop-blur-[2px] md:items-center md:px-4 md:pb-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={saving ? undefined : onClose}
         >
           <motion.div
-            className="w-full max-w-[390px] overflow-hidden rounded-md bg-white shadow-2xl"
-            initial={{ opacity: 0, y: 18, scale: 0.99 }}
+            className="w-full max-w-[420px] overflow-hidden rounded-[22px] border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]"
+            initial={{ opacity: 0, y: 24, scale: 0.985 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.99 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            exit={{ opacity: 0, y: 14, scale: 0.99 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-slate-200 px-5 py-4">
-              <div className="text-[22px] font-bold tracking-[-0.03em] text-slate-900">
-                {title}을 입력해주세요.
+            <div className="border-b border-slate-100 bg-gradient-to-b from-violet-50 via-white to-white px-5 pb-4 pt-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-bold text-violet-700">
+                    기본정보
+                  </div>
+
+                  <div className="mt-3 text-[22px] font-black tracking-[-0.03em] text-slate-900">
+                    {headerTitle}
+                  </div>
+
+                  {description ? (
+                    <p className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-500">
+                      {description}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[13px] leading-6 text-slate-500">
+                      내용을 입력한 뒤 저장하면 프로필에 바로 반영돼요.
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={saving}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:opacity-60"
+                  style={{ cursor: "pointer" }}
+                  aria-label="닫기"
+                >
+                  <FiX className="text-[18px]" />
+                </button>
               </div>
-              {description ? (
-                <p className="mt-2 whitespace-pre-line text-[14px] leading-6 text-slate-500">
-                  {description}
-                </p>
-              ) : null}
             </div>
 
-            <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-5">
+            <div className="max-h-[68vh] space-y-4 overflow-y-auto px-5 py-5">
               {(type === "text" || type === "number" || type === "company") && (
                 <FloatingInput
                   label={title}
                   value={draftValue}
                   onChange={(e) => {
                     if (type === "number") {
-                      setDraftValue(String(e.target.value || "").replace(/[^0-9]/g, ""));
+                      setDraftValue(
+                        String(e.target.value || "").replace(/[^0-9]/g, "")
+                      );
                       return;
                     }
                     setDraftValue(e.target.value);
@@ -433,9 +490,7 @@ export default function ProfileFieldModal({
                 />
               )}
 
-              {type === "mbti" && (
-                <MbtiPicker value={draftValue} onChange={setDraftValue} />
-              )}
+              {type === "mbti" && <MbtiPicker value={draftValue} onChange={setDraftValue} />}
 
               {type === "address" && (
                 <AddressPicker
@@ -478,12 +533,13 @@ export default function ProfileFieldModal({
               )}
             </div>
 
-            <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+            <div className="border-t border-slate-100 bg-white px-5 pb-5 pt-4">
               <button
                 type="button"
                 onClick={() => onSave(savePayload)}
                 disabled={saving}
-                className="h-12 w-full rounded-md bg-[#ff4338] text-[16px] font-bold text-white disabled:opacity-60"
+                className="h-12 w-full rounded-md bg-violet-600 text-[16px] font-bold text-white shadow-[0_10px_24px_rgba(124,58,237,0.24)] transition hover:bg-violet-700 disabled:opacity-60"
+                style={{ cursor: "pointer" }}
               >
                 {saving ? "저장중..." : "저장하기"}
               </button>
@@ -493,7 +549,8 @@ export default function ProfileFieldModal({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="w-full pb-4 text-center text-[15px] font-medium text-slate-400 disabled:opacity-60"
+              className="w-full pb-5 text-center text-[15px] font-medium text-slate-400 transition hover:text-slate-600 disabled:opacity-60"
+              style={{ cursor: "pointer" }}
             >
               취소
             </button>

@@ -24,21 +24,21 @@ export default function StyleTestIntro({
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-white">
-      {/* 상단 고정 */}
-      <div className="border-b border-slate-200 bg-white px-5 pb-4 pt-5">
+      <div className="shrink-0 border-b border-slate-200 bg-white px-5 pb-4 pt-5">
         <div className="flex w-full items-center justify-between">
+          <div className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-[12px] font-bold text-pink-500">
+            연애스타일 진단
+          </div>
           <button
             type="button"
             onClick={onBack}
             style={{ cursor: "pointer" }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
           >
             <FiArrowLeft className="text-[22px]" />
           </button>
 
-          <div className="inline-flex items-center rounded-full bg-pink-50 px-3 py-1 text-[12px] font-bold text-pink-500">
-            연애스타일 진단
-          </div>
+          
         </div>
 
         <h1 className="mt-4 break-keep text-[28px] font-bold leading-[1.12] text-slate-900">
@@ -52,8 +52,7 @@ export default function StyleTestIntro({
         </p>
       </div>
 
-      {/* 본문만 스크롤 */}
-      <div className="min-h-0 overflow-y-auto bg-white px-4 pb-4 pt-4 sm:px-5">
+      <div className="min-h-0 overflow-y-auto overscroll-contain bg-white px-4 pb-4 pt-4 sm:px-5">
         <div className="space-y-4">
           <div className="rounded-[13px] bg-gradient-to-b from-slate-50 to-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
             <p className="mt-1 text-center break-keep text-[14px] leading-6 text-violet-500">
@@ -114,17 +113,16 @@ export default function StyleTestIntro({
               </button>
             ) : (
               <div className="flex h-[50px] items-center justify-center rounded-[16px] border border-emerald-200 bg-emerald-50 text-[13px] font-bold text-emerald-600">
-                로그인 중
+                로그인 중
               </div>
             )}
           </div>
 
-          <div className="h-4" />
+          <div className="h-2" />
         </div>
       </div>
 
-      {/* 시작 버튼 고정 */}
-      <div className="border-t border-slate-200 bg-white px-4 pb-3 pt-3">
+      <div className="shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={onStart}

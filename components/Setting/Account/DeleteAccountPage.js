@@ -71,16 +71,16 @@ function ReasonOption({ item, selected, onClick }) {
       type="button"
       onClick={onClick}
       style={{ cursor: "pointer" }}
-      className={`w-full rounded-md border border-solid px-4 py-2 text-left transition ${selected
-          ? "border-violet-300 bg-violet-50"
-          : "border-slate-200 bg-white hover:bg-slate-50"
+      className={`w-full rounded-md border border-solid px-4 py-3 text-left transition ${selected
+        ? "border-violet-300 bg-violet-50"
+        : "border-slate-200 bg-white hover:bg-slate-50"
         }`}
     >
       <div className="flex items-start gap-3">
         <div
           className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${selected
-              ? "border-violet-500 bg-violet-500 text-white"
-              : "border-slate-300 bg-white text-transparent"
+            ? "border-violet-500 bg-violet-500 text-white"
+            : "border-slate-300 bg-white text-transparent"
             }`}
         >
           <PiCheckCircleFill className="text-[12px]" />
@@ -112,8 +112,8 @@ function CheckRow({ checked, onToggle, children }) {
     >
       <div
         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${checked
-            ? "border-violet-500 bg-violet-500 text-white"
-            : "border-slate-300 bg-white text-transparent"
+          ? "border-violet-500 bg-violet-500 text-white"
+          : "border-slate-300 bg-white text-transparent"
           }`}
       >
         <PiCheckCircleFill className="text-[12px]" />
@@ -238,7 +238,7 @@ export default function DeleteAccountPage() {
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <div className="space-y-4 pb-6">
+              <div className="space-y-4 pb-2">
                 <section className="rounded-md border border-rose-100 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_55%,#fff7ed_100%)] px-4 py-4 shadow-sm">
                   <div className="flex items-start gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white/80">
@@ -348,23 +348,21 @@ export default function DeleteAccountPage() {
                   </div>
                 </section>
               </div>
+            <div className="inset-x-0 pb-[64px] z-30 border-t border-slate-200 pt-2">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                style={{ cursor: canSubmit ? "pointer" : "default" }}
+                className="flex h-12 w-full items-center justify-center rounded-md bg-rose-500 text-[14px] font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
+              >
+                {saving ? "계정 삭제 중..." : "계정 삭제하기"}
+              </button>
+            </div>
             </div>
 
-            <div className="shrink-0 border-t border-slate-200 bg-white">
-              <div className="px-4 pb-3 pt-3">
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                  style={{ cursor: canSubmit ? "pointer" : "default" }}
-                  className="flex h-12 w-full items-center justify-center rounded-md bg-rose-500 text-[14px] font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
-                >
-                  {saving ? "계정 삭제 중..." : "계정 삭제하기"}
-                </button>
-              </div>
 
-              <BottomNavbar contained />
-            </div>
+            <BottomNavbar contained />
           </section>
         </div>
       </div>

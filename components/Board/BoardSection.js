@@ -5,6 +5,8 @@ import {
   PiLockKeyDuotone,
   PiPhoneDuotone,
 } from "react-icons/pi";
+import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
+
 
 function EmptyIllustration() {
   return (
@@ -19,9 +21,9 @@ function EmptyIllustration() {
 
 function EmptyState({ title, description }) {
   return (
-    <div className="rounded-[16px] border border-slate-200 px-5 py-8 text-center">
+    <div className="rounded-[16px] border border-slate-200 px-5 py-4 text-center">
       <EmptyIllustration />
-      <div className="mt-4 break-keep text-[17px] font-bold tracking-[-0.02em] text-zinc-900">
+      <div className="mt-4 break-keep text-[17px] font-bold tracking-[-0.02em] text-zinc-500">
         {title}
       </div>
       <div className="mt-2 whitespace-pre-line break-keep text-[13px] leading-6 text-slate-500">
@@ -163,14 +165,17 @@ function BoardProfileCard({ item, onClick }) {
       style={{ cursor: "pointer" }}
     >
       <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-        <div className="relative h-[232px] w-full bg-slate-100">
-          <Image
+        <div className="relative h-[232px] w-full overflow-hidden bg-slate-100">
+          <ImageWithSkeleton
             src={item?.image || "/image/logo.png"}
             alt={item?.name || "프로필"}
             fill
-            className="object-cover object-center"
-            style={{ objectPosition: "center 100%" }}
+            className="h-full w-full"
+            imageClassName="object-cover object-center"
+            objectPosition="center 100%"
+            fallbackSrc="/image/logo.png"
             unoptimized
+            sizes="(max-width: 768px) 100vw, 430px"
           />
 
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent px-3 pb-3 pt-10">

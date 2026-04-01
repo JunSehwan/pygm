@@ -64,14 +64,16 @@ export default function StyleTestSurvey({
   return (
     <div className="relative flex h-screen min-h-screen flex-col bg-white md:h-[760px] md:min-h-[760px]">
       <div className="px-5 pt-5 pb-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-        >
-          <FiArrowLeft className="text-[22px]" />
-        </button>
-
+        <div className="w-full flex justify-between items-center mb-3">
+          <div className="font-bold text-gray-500 text-lg">테스트 진행중</div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+          >
+            <FiArrowLeft className="text-[22px]" />
+          </button>
+        </div>
         <div className="mb-1 flex items-center justify-between">
           <div className="text-[12px] font-light text-pink-500">
             {answeredCount} / {questions.length}
@@ -107,7 +109,7 @@ export default function StyleTestSurvey({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(index * 0.015, 0.15) }}
                 className={`rounded-[24px] border px-4 py-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)] transition ${isAnswered
-                  ? "border-pink-200 bg-pink-50/40"
+                  ? "border-pink-200 bg-slate-200/60"
                   : "border-slate-200 bg-white"
                   }`}
               >
@@ -120,7 +122,7 @@ export default function StyleTestSurvey({
                   </div> */}
                 </div>
 
-                <div className="mt-3 text-[16px] font-black leading-6 tracking-[-0.02em] text-slate-900">
+                <div className="mt-3 text-[16px] font-medium leading-6 text-slate-700 break-keep">
                   {question.text}
                 </div>
 

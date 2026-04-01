@@ -117,22 +117,19 @@ exports.deleteCurrentUserAccount = onCall(
 
       /**
        * 연관 데이터 정리 규칙
-       * 실제 컬렉션명이 다르면 여기만 수정하면 됨
+       * 차밍카드는 남기고,
+       * 답변 / 반응 / 관심 / 알림 / 차단 / 결제 등만 삭제
        */
       const cleanupRules = [
-        // 차밍카드
-        { collection: "charmingCards", field: "creatorUid" },
-        { collection: "charmingCards", field: "uid" },
-
         // 차밍카드 답변
         { collection: "charmingCardAnswers", field: "creatorUid" },
         { collection: "charmingCardAnswers", field: "answererUid" },
         { collection: "charmingCardAnswers", field: "uid" },
 
-        // 차밍카드 반응
-        { collection: "charmingCardAnswerReactions", field: "uid" },
-        { collection: "charmingCardAnswerReactions", field: "creatorUid" },
-        { collection: "charmingCardAnswerReactions", field: "answererUid" },
+        // // 차밍카드 반응
+        // { collection: "charmingCardAnswerReactions", field: "uid" },
+        // { collection: "charmingCardAnswerReactions", field: "creatorUid" },
+        // { collection: "charmingCardAnswerReactions", field: "answererUid" },
 
         // 아레나 / 관심 / 보드 / 알림
         { collection: "arenaInterests", field: "fromUid" },

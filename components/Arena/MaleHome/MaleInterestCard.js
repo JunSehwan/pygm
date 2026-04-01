@@ -18,6 +18,7 @@ import {
   isIdentityVerified,
   isCompanyVerified,
 } from "components/Arena/Detail/arenaDetailUtils";
+import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
 
 function getRemainLabel(expiresAt) {
   if (!expiresAt) return "72시간";
@@ -89,14 +90,16 @@ export default function MaleInterestCard({ item, onClick }) {
       className="w-full shrink-0 overflow-hidden rounded-[18px] border border-slate-200 bg-white text-left shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
       style={{ cursor: "pointer" }}
     >
-      <div className="relative h-[260px] w-full bg-slate-100">
-        <Image
+      <div className="relative h-[260px] w-full overflow-hidden bg-slate-100">
+        <ImageWithSkeleton
           src={mainPhoto}
           alt={summary?.name || "상대 프로필"}
           fill
-          className="object-cover object-center"
-          style={{ objectPosition: "center 100%" }}
+          className="h-full w-full"
+          imageClassName="object-cover object-center"
+          fallbackSrc="/image/logo.png"
           unoptimized
+          sizes="(max-width: 768px) 100vw, 430px"
         />
 
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[96px] bg-gradient-to-b from-black/28 via-black/10 to-transparent" />

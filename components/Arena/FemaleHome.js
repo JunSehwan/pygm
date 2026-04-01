@@ -33,6 +33,7 @@ import {
   getArenaBadgeTooltip,
   getArenaBadgeImage,
 } from "lib/arena";
+import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
 
 function getBirthYear(user = {}) {
   const year = Number(user?.birthday?.year || 0);
@@ -202,13 +203,16 @@ function MatchCard({ offerCard, onOpen }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
     >
-      <div className="relative h-[250px] w-full bg-slate-100">
-        <Image
+      <div className="relative h-[250px] w-full overflow-hidden bg-slate-100">
+        <ImageWithSkeleton
           src={image}
           alt={nickname}
           fill
-          className="object-cover"
+          className="h-full w-full"
+          imageClassName="object-cover"
+          fallbackSrc="/image/logo.png"
           unoptimized
+          sizes="(max-width: 768px) 100vw, 430px"
         />
 
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[92px] bg-gradient-to-b from-black/28 via-black/12 to-transparent" />

@@ -19,6 +19,7 @@ import { db } from "firebaseConfig";
 import {
   ensureArenaOffers,
   getArenaOfferCardsByFemaleUid,
+  isAdminMatchExposureBlocked,
   isArenaBlockedUser,
 } from "lib/arena";
 import { isBlockedTargetUser } from "lib/userBlockRules";
@@ -169,6 +170,10 @@ export default function ArenaPage() {
           const femaleUser = femaleMap[item.femaleUid];
           if (!femaleUser) return null;
 
+          if (isAdminMatchExposureBlocked(femaleUser)) {
+            return null;
+          }
+
           if (isBlockedTargetUser(viewerUser || {}, femaleUser)) {
             return null;
           }
@@ -220,6 +225,7 @@ export default function ArenaPage() {
             ? result.offerCards.filter((item) => {
               const maleUser = item?.male || null;
               if (!maleUser) return false;
+              if (isAdminMatchExposureBlocked(maleUser)) return false;
               return !isBlockedTargetUser(baseUser, maleUser);
             })
             : [];

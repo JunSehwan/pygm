@@ -1,15 +1,14 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import {
-  PiArrowLeft,
+  PiArrowCounterClockwiseBold,
   PiEnvelopeSimple,
+  PiEye,
+  PiEyeSlash,
   PiLockKey,
   PiWarningCircleFill,
-  PiHeadset,
-  PiSparkleDuotone,
-  PiHeartStraightFill,
-  PiCheckCircleFill,
 } from "react-icons/pi";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "firebaseConfig";
@@ -29,9 +28,86 @@ function getErrorMessage(errorCode = "") {
   }
 }
 
+function cn(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function UnderlineInput({
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  error,
+  inputRef,
+  onKeyDown,
+  autoComplete,
+  leftIcon,
+  rightSlot,
+}) {
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="relative flex items-center">
+        {leftIcon ? (
+          <div className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400">
+            {leftIcon}
+          </div>
+        ) : null}
+
+        <input
+          ref={inputRef}
+          type={type}
+          value={value}
+          onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className={cn(
+            "h-[52px] w-full appearance-none rounded-none border-0 border-b bg-transparent text-[15px] text-slate-900 outline-none ring-0 shadow-none transition placeholder:text-slate-400 focus:outline-none focus:ring-0 focus:shadow-none",
+            leftIcon ? "pl-10" : "pl-0",
+            rightSlot ? "pr-10" : "pr-0",
+            error
+              ? "border-rose-300"
+              : focused
+                ? "border-violet-400"
+                : "border-slate-200"
+          )}
+          style={{
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            boxShadow: "none",
+            borderTop: "0",
+            borderLeft: "0",
+            borderRight: "0",
+            borderRadius: "0",
+          }}
+        />
+
+        {rightSlot ? (
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+            {rightSlot}
+          </div>
+        ) : null}
+      </div>
+
+      {error ? (
+        <div className="flex items-start gap-1.5 text-[12px] text-rose-500">
+          <PiWarningCircleFill className="mt-[1px] shrink-0 text-[14px]" />
+          <span>{error}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Login() {
   const router = useRouter();
+
   const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,27 +115,23 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (emailInputRef.current) {
-      emailInputRef.current.focus();
-    }
+    emailInputRef.current?.focus();
   }, []);
 
   const canSubmit = useMemo(() => {
     return !!email.trim() && !!password.trim() && !loading;
   }, [email, password, loading]);
 
-  const setField = useCallback((key, value) => {
-    if (key === "email") setEmail(value);
-    if (key === "password") setPassword(value);
-
+  const clearFieldError = useCallback((field) => {
     setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
       const next = { ...prev };
-      delete next[key];
+      delete next[field];
       return next;
     });
-    setSubmitError("");
   }, []);
 
   const validate = useCallback(() => {
@@ -74,7 +146,7 @@ export default function Login() {
 
   const handleSubmit = useCallback(
     async (e) => {
-      e.preventDefault();
+      if (e) e.preventDefault();
 
       if (!validate()) return;
 
@@ -94,157 +166,148 @@ export default function Login() {
     [email, password, router, validate]
   );
 
+  const handleEmailChange = useCallback(
+    (e) => {
+      setEmail(e.target.value);
+      clearFieldError("email");
+      setSubmitError("");
+    },
+    [clearFieldError]
+  );
+
+  const handlePasswordChange = useCallback(
+    (e) => {
+      setPassword(e.target.value);
+      clearFieldError("password");
+      setSubmitError("");
+    },
+    [clearFieldError]
+  );
+
+  const handleEmailKeyDown = useCallback((e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      passwordInputRef.current?.focus();
+    }
+  }, []);
+
+  const handlePasswordKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit]
+  );
+
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col bg-white">
-        <header className="shrink-0 border-b border-zinc-200 bg-white px-5 pb-5 pt-4">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              style={{ cursor: "pointer" }}
-              className="flex h-10 w-10 items-center justify-center rounded-md transition hover:bg-slate-100"
-            >
-              <PiArrowLeft className="text-[20px] text-zinc-800" />
-            </button>
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <style jsx global>{`
+  input,
+  textarea,
+  select {
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+  }
 
-            <div>
-              <div className="text-[20px] font-bold tracking-[-0.02em] text-zinc-900">
-                로그인
-              </div>
-              <div className="mt-0.5 text-[13px] text-zinc-500">
-                다시 돌아오신 걸 환영해요
-              </div>
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+  }
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  caret-color: #0f172a !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+`}</style>
+
+      <header className="shrink-0 px-6 pb-2 pt-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-[20px] font-black tracking-[-0.04em] text-slate-900">
+            로그인
+          </h1>
+
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-2 text-[14px] font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            style={{ cursor: "pointer" }}
+          >
+            <PiArrowCounterClockwiseBold className="text-[15px]" />
+            뒤로가기
+          </button>
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10 pt-2">
+        <div className="mx-auto flex h-full w-full max-w-[340px] flex-col">
+          <div className="flex flex-col items-center py-12">
+            <div className="relative flex h-[122px] w-[122px] items-center justify-center overflow-hidden rounded-[24px] bg-white">
+              <Image
+                src="/logo/logo.png"
+                alt="차밍수프 로고"
+                fill
+                className="object-contain p-2"
+                unoptimized
+              />
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-md bg-gradient-to-br from-violet-600 via-violet-500 to-fuchsia-400 p-[1px]">
-            <div className="relative rounded-md bg-gradient-to-br from-violet-600 via-violet-500 to-fuchsia-400 px-5 py-5 text-white">
-              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-              <div className="absolute -bottom-8 left-[-10px] h-24 w-24 rounded-full bg-pink-200/20 blur-2xl" />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <UnderlineInput
+              type="email"
+              value={email}
+              onChange={handleEmailChange}
+              placeholder="이메일"
+              error={fieldErrors.email}
+              inputRef={emailInputRef}
+              onKeyDown={handleEmailKeyDown}
+              autoComplete="email"
+              leftIcon={<PiEnvelopeSimple className="text-[18px]" />}
+            />
 
-              <div className="relative z-10 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold text-white/95 backdrop-blur-sm">
-                    <PiSparkleDuotone className="text-[14px]" />
-                    CharmingSoup
-                  </div>
-
-                  <div className="mt-3 text-[22px] font-bold tracking-[-0.03em] leading-[1.3]">
-                    다시 이어지는
-                    <br />
-                    당신의 연결
-                  </div>
-
-                  <p className="mt-3 break-keep text-[13px] leading-6 text-white/90">
-                    가입한 이메일로 로그인하고
-                    <br />
-                    매칭과 프로필 흐름을 이어가보세요.
-                  </p>
-                </div>
-
-                <div className="shrink-0 rounded-2xl bg-white/14 p-3 backdrop-blur-sm">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/12">
-                    <PiHeartStraightFill className="text-[22px] text-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative z-10 mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <div className="rounded-md bg-white/12 px-3 py-2 backdrop-blur-sm">
-                  <div className="text-[11px] font-medium text-white/75">프로필</div>
-                  <div className="mt-1 text-[13px] font-semibold text-white">
-                    나답게 소개
-                  </div>
-                </div>
-
-                <div className="rounded-md bg-white/12 px-3 py-2 backdrop-blur-sm">
-                  <div className="text-[11px] font-medium text-white/75">매칭</div>
-                  <div className="mt-1 text-[13px] font-semibold text-white">
-                    더 자연스럽게 연결
-                  </div>
-                </div>
-
-                <div className="rounded-md bg-white/12 px-3 py-2 backdrop-blur-sm">
-                  <div className="text-[11px] font-medium text-white/75">차밍카드</div>
-                  <div className="mt-1 text-[13px] font-semibold text-white">
-                    가치관부터 확인
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto px-5 pb-8 pt-6">
-          <div className="rounded-md border border-violet-100 bg-violet-50 px-4 py-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white">
-                <PiCheckCircleFill className="text-[20px] text-violet-600" />
-              </div>
-
-              <div className="min-w-0">
-                <div className="text-[16px] font-semibold text-zinc-900">
-                  차밍수프 계정으로 로그인
-                </div>
-                <p className="mt-2 break-keep text-[14px] leading-6 text-zinc-600">
-                  회원가입 때 사용한 이메일과 비밀번호로
-                  <br />
-                  바로 로그인할 수 있어요.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label className="mb-2 block text-[14px] font-semibold text-zinc-800">
-                이메일
-              </label>
-              <div className="flex h-12 items-center gap-3 rounded-md border border-zinc-200 bg-white px-4 transition focus-within:border-violet-500">
-                <PiEnvelopeSimple className="shrink-0 text-[18px] text-zinc-400" />
-                <input
-                  ref={emailInputRef}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setField("email", e.target.value)}
-                  placeholder="가입한 이메일을 입력해주세요"
-                  className="h-full w-full bg-transparent text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400"
-                />
-              </div>
-              {fieldErrors.email ? (
-                <div className="mt-2 flex items-start gap-2 text-[13px] text-rose-500">
-                  <PiWarningCircleFill className="mt-[1px] shrink-0 text-[15px]" />
-                  <span>{fieldErrors.email}</span>
-                </div>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[14px] font-semibold text-zinc-800">
-                비밀번호
-              </label>
-              <div className="flex h-12 items-center gap-3 rounded-md border border-zinc-200 bg-white px-4 transition focus-within:border-violet-500">
-                <PiLockKey className="shrink-0 text-[18px] text-zinc-400" />
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setField("password", e.target.value)}
-                  placeholder="비밀번호를 입력해주세요"
-                  className="h-full w-full bg-transparent text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400"
-                />
-              </div>
-              {fieldErrors.password ? (
-                <div className="mt-2 flex items-start gap-2 text-[13px] text-rose-500">
-                  <PiWarningCircleFill className="mt-[1px] shrink-0 text-[15px]" />
-                  <span>{fieldErrors.password}</span>
-                </div>
-              ) : null}
-            </div>
+            <UnderlineInput
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={handlePasswordChange}
+              placeholder="비밀번호"
+              error={fieldErrors.password}
+              inputRef={passwordInputRef}
+              onKeyDown={handlePasswordKeyDown}
+              autoComplete="current-password"
+              leftIcon={<PiLockKey className="text-[18px]" />}
+              rightSlot={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:text-slate-600"
+                  style={{ cursor: "pointer" }}
+                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                >
+                  {showPassword ? (
+                    <PiEyeSlash className="text-[18px]" />
+                  ) : (
+                    <PiEye className="text-[18px]" />
+                  )}
+                </button>
+              }
+            />
 
             {submitError ? (
-              <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] leading-5 text-rose-600">
+              <div className="rounded-[14px] bg-rose-50 px-4 py-3 text-[12px] leading-5 text-rose-600 ring-1 ring-rose-100">
                 {submitError}
               </div>
             ) : null}
@@ -252,51 +315,31 @@ export default function Login() {
             <button
               type="submit"
               disabled={!canSubmit}
+              className="mt-3 flex h-[48px] w-full items-center justify-center rounded-full bg-violet-600 text-[16px] font-bold text-white transition hover:bg-violet-700 disabled:opacity-50"
               style={{ cursor: canSubmit ? "pointer" : "default" }}
-              className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 text-[15px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50"
             >
               {loading ? "로그인 중..." : "로그인"}
             </button>
           </form>
 
-          <div className="mt-6 rounded-md border border-zinc-200 bg-white p-4">
-            <div className="text-[14px] font-semibold text-zinc-900">
-              도움이 필요하신가요?
-            </div>
+          <div className="mt-12 space-y-5 text-center">
+            <Link
+              href="/password/forgot"
+              className="block text-[14px] font-medium text-slate-400 transition hover:text-violet-600"
+            >
+              비밀번호를 잃어버리셨나요? 비밀번호 재설정
+            </Link>
 
-            <div className="mt-3 flex flex-col gap-3">
-              <Link
-                href="/password/forgot"
-                className="text-[14px] font-medium text-violet-600"
-              >
-                비밀번호 찾기
-              </Link>
-
-              <button
-                type="button"
-                onClick={() =>
-                  window.open(
-                    "https://open.kakao.com/o/sAJwMNCe",
-                    "_blank",
-                    "noopener,noreferrer"
-                  )
-                }
-                style={{ cursor: "pointer" }}
-                className="flex items-center gap-2 text-left text-[14px] font-medium text-zinc-600"
-              >
-                <PiHeadset className="text-[16px]" />
-                가입 이메일이 기억나지 않나요? 고객센터로 문의하기
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center text-[14px] text-zinc-500">
-            아직 계정이 없다면{" "}
-            <Link href="/signup" className="font-semibold text-violet-600">
-              회원가입
+            <Link
+              href="/signup"
+              className="block text-[14px] font-medium text-slate-400 transition hover:text-violet-600"
+            >
+              아직 회원가입을 안하셨어요? 회원가입
             </Link>
           </div>
-        </main>
+
+          <div className="flex-1" />
+        </div>
       </div>
     </div>
   );

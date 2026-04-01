@@ -413,7 +413,7 @@ export default function SurveySlideModal({
                   type="button"
                   disabled={saving}
                   onClick={() => onSave(buildSurveyPatch(section, draft))}
-                  className="h-12 w-full rounded-md bg-violet-500 text-[16px] font-bold text-white disabled:opacity-60"
+                  className="h-12 w-full rounded-md bg-violet-500 hover:bg-violet-600 text-[16px] font-bold text-white disabled:opacity-60"
                 >
                   {saving ? "저장중..." : "저장하기"}
                 </button>
@@ -421,7 +421,7 @@ export default function SurveySlideModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="my-3 w-full text-center text-[15px] font-medium text-slate-400"
+                  className="py-4 hover:bg-slate-100 mt-2 w-full text-center text-[15px] font-medium text-slate-400"
                 >
                   닫기
                 </button>

@@ -75,7 +75,7 @@ export default function ArenaReportModal({
       {open ? (
         <>
           <motion.div
-            className="absolute inset-0 z-40 bg-black/34"
+            className="fixed inset-0 z-[1290] bg-black/34"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -87,7 +87,7 @@ export default function ArenaReportModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.985 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute inset-x-0 bottom-0 z-50 flex max-h-[84%] flex-col rounded-t-[18px] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)]"
+            className="fixed inset-x-0 bottom-0 z-[1300] mx-auto flex max-h-[84%] w-full max-w-[430px] flex-col rounded-t-[18px] bg-white shadow-[0_-18px_60px_rgba(15,23,42,0.18)]"
           >
             <div className="shrink-0 border-b border-slate-200">
               <div className="flex h-[58px] items-center justify-between px-4">

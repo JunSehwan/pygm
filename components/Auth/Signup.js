@@ -49,12 +49,8 @@ export default function Signup() {
     form.passwordCheck.length > 0 &&
     form.password === form.passwordCheck;
 
-  // 디버그 필요 시 사용 (리마운트 확인용)
   useEffect(() => {
-    // console.log("[Signup] mounted");
-    return () => {
-      // console.log("[Signup] unmounted");
-    };
+    return () => { };
   }, []);
 
   const canSubmit = useMemo(() => {
@@ -100,7 +96,6 @@ export default function Signup() {
       return next;
     });
 
-    // 연락처 변경 시 본인인증 상태 초기화
     if (key === "tel") {
       setPhoneVerified(false);
       setPhoneVerifyError("");
@@ -177,11 +172,7 @@ export default function Signup() {
       if (!sdkResult?.ok) {
         const msg = sdkResult?.message || "본인인증 창 호출에 실패했습니다.";
 
-        // 사용자 취소는 조용한 안내 처리
-        if (
-          msg.includes("취소") ||
-          sdkResult?.code === "FAILURE_TYPE_PG"
-        ) {
+        if (msg.includes("취소") || sdkResult?.code === "FAILURE_TYPE_PG") {
           setPhoneVerifyError("본인인증이 취소되었습니다. 다시 진행해주세요.");
           return;
         }
@@ -223,11 +214,8 @@ export default function Signup() {
 
       setForm((prev) => ({
         ...prev,
-        // 테스트모드에서는 name이 빈값일 수 있으므로 기존값 유지 fallback
         username: verified?.name || prev.username,
-        // 인증 성별 우선 (테스트모드에서 빈값이면 기존값 유지)
         gender: verified?.gender || prev.gender,
-        // 인증 번호 우선
         tel: verified?.phone
           ? String(verified.phone).replace(/[^0-9]/g, "")
           : prev.tel,
@@ -251,14 +239,12 @@ export default function Signup() {
     try {
       setLoading(true);
 
-      // 1) 이메일 중복 체크
       const dup = await emailDubCheck(form.email);
       if (dup?.length) {
         setErrors((prev) => ({ ...prev, email: "이미 등록된 이메일입니다." }));
         return;
       }
 
-      // 2) 본인인증 완료 확인
       if (!identityVerifiedData?.verified) {
         setErrors((prev) => ({
           ...prev,
@@ -267,7 +253,6 @@ export default function Signup() {
         return;
       }
 
-      // 3) 전화번호 중복 체크 (인증값 우선)
       const finalPhone = String(identityVerifiedData?.phone || form.tel || "").replace(
         /[^0-9]/g,
         ""
@@ -282,14 +267,12 @@ export default function Signup() {
         return;
       }
 
-      // 4) 회원가입 데이터 준비
       const finalGender = identityVerifiedData?.gender || form.gender;
       const finalName = identityVerifiedData?.name || form.username;
       const nicknameToUse = form.nickname?.trim();
 
-      const birthdayPlaceholder = { year: 1990 }; // createAccount 시그니처 유지용
+      const birthdayPlaceholder = { year: 1990 };
 
-      // 5) Auth + 기본 user 생성
       const res = await createAccount(
         form.email,
         form.password,
@@ -305,7 +288,6 @@ export default function Signup() {
         return;
       }
 
-      // 6) 본인인증 결과를 Firestore users/{uid}에 병합 저장
       await saveIdentityVerificationToUser(res.uid, {
         provider: identityVerifiedData?.provider || "PORTONE",
         phone: finalPhone,
@@ -317,7 +299,6 @@ export default function Signup() {
         di: identityVerifiedData?.di || "",
       });
 
-      // 7) Redux 반영 (전역 auth 가드가 반응할 수 있음)
       dispatch(
         signUp({
           email: form.email,
@@ -337,7 +318,6 @@ export default function Signup() {
         })
       );
 
-      // 8) 문자 발송은 비동기로 (회원가입 UX를 막지 않음)
       sendLms(
         finalPhone,
         `[차밍수프] ${finalName}님, 회원가입이 완료되었습니다.\nhttps://charmingsoup.com`
@@ -345,7 +325,6 @@ export default function Signup() {
         console.error("sendLms error:", smsErr);
       });
 
-      // 9) ✅ 완료모달 대신 바로 웰컴 페이지로 이동 (리마운트 이슈 회피)
       router.replace("/welcome");
       return;
     } catch (err) {
@@ -357,19 +336,19 @@ export default function Signup() {
   };
 
   return (
-    <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
-      <div className="relative min-h-screen overflow-hidden">
+    <main className="h-[100dvh] overflow-hidden bg-white md:bg-[#f6f7fb]">
+      <div className="relative h-full overflow-hidden">
         <div className="pointer-events-none absolute inset-0 hidden md:block">
           <div className="absolute left-1/2 top-[-80px] h-[260px] w-[260px] -translate-x-[260px] rounded-full bg-pink-200/40 blur-3xl" />
           <div className="absolute left-1/2 top-[120px] h-[280px] w-[280px] translate-x-[120px] rounded-full bg-sky-200/40 blur-3xl" />
           <div className="absolute left-1/2 bottom-[40px] h-[240px] w-[240px] -translate-x-[120px] rounded-full bg-rose-100/50 blur-3xl" />
         </div>
 
-        <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
+        <div className="relative mx-auto flex h-full w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
           <section
             className="
-              w-full max-w-[390px] overflow-hidden bg-white
-              md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80
+              h-full w-full max-w-[390px] overflow-hidden bg-white
+              md:h-[720px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80
               md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]
             "
           >

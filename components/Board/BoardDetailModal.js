@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import {
   PiArrowLeft,
   PiBriefcaseDuotone,
@@ -11,6 +10,7 @@ import {
   PiWarningCircleDuotone,
 } from "react-icons/pi";
 
+import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
 import ArenaBasicInfoList from "components/Arena/Detail/ArenaBasicInfoList";
 import ArenaValueModal from "components/Arena/Detail/ArenaValueModal";
 import {
@@ -20,6 +20,7 @@ import {
   isIdentityVerified,
 } from "components/Arena/Detail/arenaDetailUtils";
 import { getDisplayName } from "lib/arena";
+
 
 const STYLE_TYPE_CODE_TO_INDEX = {
   SMRP: 1,
@@ -277,7 +278,7 @@ function PhotoViewer({ photoList = [] }) {
   const [index, setIndex] = useState(0);
   const scrollRef = useRef(null);
 
-  const safePhotos = photoList.length ? photoList : ["/image/logo.png"];
+  const safePhotos = photoList.length ? photoList : ["/image/profile/default.png"];
 
   useEffect(() => {
     setIndex(0);
@@ -316,15 +317,18 @@ function PhotoViewer({ photoList = [] }) {
         {safePhotos.map((photo, idx) => (
           <div
             key={`board-photo-${idx}`}
-            className="relative h-[340px] min-w-full snap-center bg-slate-100"
+            className="relative h-[340px] min-w-full snap-center overflow-hidden bg-slate-100"
           >
-            <Image
+            <ImageWithSkeleton
               src={photo}
               alt={`프로필 사진 ${idx + 1}`}
               fill
-              className="object-cover"
-              style={{ objectPosition: "center center" }}
+              className="h-full w-full"
+              imageClassName="object-cover"
+              fallbackSrc="/image/logo.png"
               unoptimized
+              priority={idx === 0}
+              sizes="(max-width: 768px) 100vw, 430px"
             />
           </div>
         ))}
@@ -358,13 +362,15 @@ function PhotoViewer({ photoList = [] }) {
                     }`}
                   style={{ cursor: "pointer" }}
                 >
-                  <Image
+                  <ImageWithSkeleton
                     src={photo}
                     alt={`썸네일 ${idx + 1}`}
                     fill
-                    className="object-cover"
-                    style={{ objectPosition: "center center" }}
+                    className="h-full w-full"
+                    imageClassName="object-cover"
+                    fallbackSrc="/image/logo.png"
                     unoptimized
+                    sizes="56px"
                   />
                 </button>
               ))}
@@ -382,8 +388,8 @@ function ActionButton({ children, onClick, strong = false }) {
       type="button"
       onClick={onClick}
       className={`inline-flex h-11 w-full items-center justify-center rounded-md text-[14px] font-bold transition ${strong
-          ? "bg-violet-500 text-white hover:bg-violet-600"
-          : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+        ? "bg-violet-500 text-white hover:bg-violet-600"
+        : "bg-slate-200 text-slate-700 hover:bg-slate-300"
         }`}
       style={{ cursor: "pointer" }}
     >
@@ -512,17 +518,17 @@ function ContactCard({ item, onOpenGuide }) {
           <div className="mt-1 text-[12px] font-medium text-slate-500">
             {contactVisible
               ? `${contactStatus?.dDayLabel || "D-7"} · 7일 뒤 연락처는 비공개 처리됩니다`
-              : "연락처 공개 기간이 종료되어 비공개 처리되었어요."}
+              : "연락처 공개 기간 종료, 비공개 처리"}
           </div>
         </div>
 
         <button
           type="button"
           onClick={onOpenGuide}
-          className="inline-flex h-10 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-100"
+          className="inline-flex h-10 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-100"
           style={{ cursor: "pointer" }}
         >
-          <PiInfoDuotone className="text-[15px]" />
+          <PiInfoDuotone className="text-[12px]" />
           매칭가이드
         </button>
       </div>
@@ -614,6 +620,7 @@ export default function BoardDetailModal({
   viewer,
   onClose,
   onOpenGuide,
+  onOpenReport,
 }) {
   const [valueOpen, setValueOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
@@ -662,14 +669,29 @@ export default function BoardDetailModal({
                       : getDisplayName(otherUser || {}) || "프로필 상세"}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-900 hover:bg-slate-100"
-                    style={{ cursor: "pointer" }}
-                  >
-                    <PiArrowLeft className="text-[22px]" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {item?.sectionType === "matched" ? (
+                      <button
+                        type="button"
+                        onClick={onOpenReport}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-rose-500 hover:bg-rose-50"
+                        style={{ cursor: "pointer" }}
+                        aria-label="신고하기"
+                        title="신고하기"
+                      >
+                        <PiWarningCircleDuotone className="text-[15px]" />
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-900 hover:bg-slate-100"
+                      style={{ cursor: "pointer" }}
+                    >
+                      <PiArrowLeft className="text-[22px]" />
+                    </button>
+                  </div>
                 </div>
               </header>
 
@@ -742,22 +764,7 @@ export default function BoardDetailModal({
                   </div>
                 </div>
 
-                <ArenaBasicInfoList
-                  summary={{
-                    ...summary,
-                    mbti: mbti || summary?.mbti,
-                    job: getJobText(otherUser) || summary?.job,
-                    homeArea: getResidenceText(otherUser) || summary?.homeArea,
-                    companyArea: getWorkAreaText(otherUser) || summary?.companyArea,
-                    education: getEducationText(otherUser) || summary?.education,
-                    height: getHeightText(otherUser) || summary?.height,
-                    salary: getSalaryText(otherUser) || summary?.salary,
-                    religion: getReligionText(otherUser) || summary?.religion,
-                    maritalStatus:
-                      getMaritalStatusText(otherUser) || summary?.maritalStatus,
-                    hobby: normalizeInterestText(otherUser) || summary?.hobby,
-                  }}
-                />
+                <ArenaBasicInfoList user={otherUser} />
 
                 {item?.sectionType === "matched" ? (
                   <ContactCard item={item} onOpenGuide={onOpenGuide} />

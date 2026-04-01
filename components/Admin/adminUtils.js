@@ -2,12 +2,57 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   increment,
   serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
+
+export const SIGNUP_APPROVAL_FREE_SPOON = 10;
+export const CHARMINGSOUP_URL = "https://charmingsoup.com";
+
+function getSpoonSnapshot(user = {}) {
+  const total = Math.max(Number(user?.spoon || 0), 0);
+  const free = Math.max(Number(user?.spoon_free || 0), 0);
+  const paid = Math.max(
+    Number.isFinite(Number(user?.spoon_paid))
+      ? Number(user?.spoon_paid || 0)
+      : Math.max(total - free, 0),
+    0
+  );
+
+  return {
+    total,
+    free,
+    paid,
+  };
+}
+
+function buildSmsMessage(lines = []) {
+  const cleaned = lines
+    .map((line) => String(line || "").trim())
+    .filter(Boolean);
+
+  return ["[차밍수프]", ...cleaned, CHARMINGSOUP_URL].join("\n");
+}
+
+export const USER_REJECTION_REASONS = [
+  { code: "photo_face", label: "프로필 사진에 본인 얼굴 확인이 필요해요" },
+  { code: "photo_rule", label: "프로필 사진이 기준에 맞지 않아요" },
+  { code: "basic_info", label: "기본 정보 확인이 필요해요" },
+  { code: "profile_text", label: "자기소개/입력 정보 보완이 필요해요" },
+  { code: "auth_check", label: "인증 정보 확인이 필요해요" },
+];
+
+export const CARD_REJECTION_REASONS = [
+  { code: "unclear", label: "질문 의도가 조금 더 분명하면 좋아요" },
+  { code: "too_short", label: "내용이 조금 더 구체적이면 좋아요" },
+  { code: "expression", label: "표현을 조금만 다듬어주세요" },
+  { code: "policy", label: "운영 기준에 맞게 수정이 필요해요" },
+  { code: "retry", label: "내용 보완 후 다시 등록해주세요" },
+];
 
 export function toMillis(value) {
   if (!value) return 0;
@@ -276,6 +321,11 @@ export function getUserApprovalState(user = {}) {
   return "none";
 }
 
+export function getReasonLabelByCode(list = [], code = "") {
+  const found = list.find((item) => item.code === code);
+  return found?.label || "";
+}
+
 function normalizePhone(phone = "") {
   return String(phone).replace(/[^0-9]/g, "");
 }
@@ -292,6 +342,9 @@ export async function approveUser({ db, item, adminUid, sendLms }) {
   const userId = getUserDocId(item);
   if (!userId) throw new Error("user id not found");
 
+  const spoonReward = SIGNUP_APPROVAL_FREE_SPOON;
+  const spoonState = getSpoonSnapshot(item);
+
   await setDoc(
     doc(db, "users", userId),
     {
@@ -300,15 +353,35 @@ export async function approveUser({ db, item, adminUid, sendLms }) {
       approvedAt: serverTimestamp(),
       approvedBy: adminUid || "",
       updatedAt: serverTimestamp(),
+      spoon: spoonState.total + spoonReward,
+      spoon_free: spoonState.free + spoonReward,
+      spoon_paid: spoonState.paid,
+      rejectReasonCode: "",
+      rejectReasonText: "",
     },
     { merge: true }
   );
+
+  await addDoc(collection(db, "spoonHistories"), {
+    uid: userId,
+    type: "signup_approval_free_grant",
+    amount: spoonReward,
+    balanceBefore: spoonState.total,
+    balanceAfter: spoonState.total + spoonReward,
+    spoonFreeBefore: spoonState.free,
+    spoonFreeAfter: spoonState.free + spoonReward,
+    spoonPaidBefore: spoonState.paid,
+    spoonPaidAfter: spoonState.paid,
+    grantedBy: adminUid || "",
+    title: "가입 승인 무료 스푼 지급",
+    createdAt: serverTimestamp(),
+  });
 
   await createNotification(db, {
     targetUid: userId,
     type: "signup_approved",
     title: "가입 승인이 완료됐어요",
-    body: "이제 서비스 이용을 계속 진행할 수 있어요.",
+    body: `무료 스푼 ${spoonReward}개가 지급됐어요.`,
     href: "/welcome",
   });
 
@@ -316,8 +389,57 @@ export async function approveUser({ db, item, adminUid, sendLms }) {
   if (phone && typeof sendLms === "function") {
     await sendLms(
       phone,
-      `[차밍수프]\n가입 승인이 완료됐어요.\n이제 서비스를 이용하실 수 있어요.`,
+      buildSmsMessage([
+        "가입 승인이 완료됐어요.",
+        `무료 스푼 ${spoonReward}개 지급`,
+      ]),
       "차밍수프 가입 승인",
+      { forceLms: true }
+    );
+  }
+}
+
+export async function rejectUser({
+  db,
+  item,
+  adminUid,
+  sendLms,
+  reasonCode = "",
+  reasonText = "",
+}) {
+  const userId = getUserDocId(item);
+  if (!userId) throw new Error("user id not found");
+  if (!reasonCode || !reasonText) throw new Error("reject reason not found");
+
+  await setDoc(
+    doc(db, "users", userId),
+    {
+      signupApproved: false,
+      adminApprovalStatus: "rejected",
+      pendingStatus: "rejected",
+      rejectedAt: serverTimestamp(),
+      rejectedBy: adminUid || "",
+      updatedAt: serverTimestamp(),
+      rejectReasonCode: reasonCode,
+      rejectReasonText: reasonText,
+    },
+    { merge: true }
+  );
+
+  await createNotification(db, {
+    targetUid: userId,
+    type: "signup_rejected",
+    title: "가입 검토 결과가 등록됐어요",
+    body: `${reasonText}`,
+    href: "/profile/setup",
+  });
+
+  const phone = normalizePhone(item?.phonenumber || item?.phoneNumber || "");
+  if (phone && typeof sendLms === "function") {
+    await sendLms(
+      phone,
+      buildSmsMessage(["가입 검토 결과", reasonText, "수정 후 다시 등록해주세요."]),
+      "차밍수프 가입 검토",
       { forceLms: true }
     );
   }
@@ -362,6 +484,8 @@ export async function approveCard({ db, card, adminUid, sendLms, creatorUser }) 
     approvedAt: serverTimestamp(),
     approvedBy: adminUid || "",
     updatedAt: serverTimestamp(),
+    rejectReasonCode: "",
+    rejectReasonText: "",
   });
 
   if (card?.creatorUid) {
@@ -369,7 +493,7 @@ export async function approveCard({ db, card, adminUid, sendLms, creatorUser }) 
       targetUid: card.creatorUid,
       type: "card_approved",
       title: "차밍카드가 승인됐어요",
-      body: "작성한 카드가 공개 상태로 전환됐어요.",
+      body: "작성한 카드가 공개됐어요.",
       href: `/cards/${card.id}`,
     });
 
@@ -380,7 +504,7 @@ export async function approveCard({ db, card, adminUid, sendLms, creatorUser }) 
     if (phone && typeof sendLms === "function") {
       await sendLms(
         phone,
-        `[차밍수프]\n작성하신 차밍카드가 승인됐어요.\n지금 반응을 확인해보세요.`,
+        buildSmsMessage(["차밍카드가 승인됐어요."]),
         "차밍카드 승인",
         { forceLms: true }
       );
@@ -388,7 +512,17 @@ export async function approveCard({ db, card, adminUid, sendLms, creatorUser }) 
   }
 }
 
-export async function rejectCard({ db, card, adminUid }) {
+export async function rejectCard({
+  db,
+  card,
+  adminUid,
+  sendLms,
+  creatorUser,
+  reasonCode = "",
+  reasonText = "",
+}) {
+  if (!reasonCode || !reasonText) throw new Error("reject reason not found");
+
   await updateDoc(doc(db, "charmingCards", card.id), {
     status: "rejected",
     adminApprovalStatus: "rejected",
@@ -396,6 +530,8 @@ export async function rejectCard({ db, card, adminUid }) {
     rejectedAt: serverTimestamp(),
     rejectedBy: adminUid || "",
     updatedAt: serverTimestamp(),
+    rejectReasonCode: reasonCode,
+    rejectReasonText: reasonText,
   });
 
   if (card?.creatorUid) {
@@ -403,9 +539,22 @@ export async function rejectCard({ db, card, adminUid }) {
       targetUid: card.creatorUid,
       type: "card_rejected",
       title: "차밍카드 검토 결과가 등록됐어요",
-      body: "수정 후 다시 등록해주세요.",
+      body: reasonText,
       href: "/cards/list",
     });
+
+    const phone = normalizePhone(
+      creatorUser?.phonenumber || creatorUser?.phoneNumber || ""
+    );
+
+    if (phone && typeof sendLms === "function") {
+      await sendLms(
+        phone,
+        buildSmsMessage(["차밍카드 검토 결과", reasonText, "수정 후 다시 등록해주세요."]),
+        "차밍카드 검토",
+        { forceLms: true }
+      );
+    }
   }
 }
 
@@ -490,44 +639,40 @@ export async function resolveReportAction({
     await setDoc(
       doc(db, "users", targetUid),
       {
-        adminPenaltyStatus: "suspended",
+        suspended: true,
         suspendedAt: serverTimestamp(),
+        suspendedBy: adminUid || "",
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
   }
 
-  await createNotification(db, {
-    targetUid,
-    type: `report_${nextStatus}`,
-    title: "운영 검토 결과가 반영됐어요",
-    body:
-      action === "warn"
-        ? "주의 안내가 등록됐어요."
-        : action === "suspend"
-          ? "이용 제한이 적용됐어요."
-          : action === "dismiss"
-            ? "신고가 기각 처리됐어요."
-            : "검토가 완료됐어요.",
-    href: "/setting",
-  });
-
-  const foundUser = Array.isArray(users)
-    ? users.find((item) => getUserDocId(item) === targetUid)
+  const targetUser = Array.isArray(users)
+    ? users.find((user) => getUserDocId(user) === targetUid)
     : null;
 
-  const phone = normalizePhone(
-    foundUser?.phonenumber || foundUser?.phoneNumber || ""
-  );
+  if (action === "suspend") {
+    await createNotification(db, {
+      targetUid,
+      type: "report_reviewed",
+      title: "이용 제한 안내",
+      body: "운영팀 검토 결과 이용이 제한되었어요.",
+      href: "/setting/block",
+    });
 
-  if (phone && typeof sendLms === "function" && action !== "dismiss") {
-    await sendLms(
-      phone,
-      `[차밍수프]\n운영정책 검토 결과가 반영됐어요.\n앱에서 자세한 내용을 확인해주세요.`,
-      "차밍수프 운영 안내",
-      { forceLms: true }
+    const phone = normalizePhone(
+      targetUser?.phonenumber || targetUser?.phoneNumber || ""
     );
+
+    if (phone && typeof sendLms === "function") {
+      await sendLms(
+        phone,
+        buildSmsMessage(["운영팀 검토 결과", "이용이 제한되었어요."]),
+        "차밍수프 이용 제한 안내",
+        { forceLms: true }
+      );
+    }
   }
 }
 
@@ -537,10 +682,17 @@ export async function confirmPayment({ db, item, adminUid, sendLms }) {
   const spoonAmount = Number(item?.spoonAmount || 0);
   if (!spoonAmount) throw new Error("spoon amount not found");
 
+  const userRef = doc(db, "users", item.uid);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.exists() ? userSnap.data() || {} : {};
+  const spoonState = getSpoonSnapshot(userData);
+
   await setDoc(
-    doc(db, "users", item.uid),
+    userRef,
     {
-      spoon: increment(spoonAmount),
+      spoon: spoonState.total + spoonAmount,
+      spoon_paid: spoonState.paid + spoonAmount,
+      spoon_free: spoonState.free,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -560,6 +712,12 @@ export async function confirmPayment({ db, item, adminUid, sendLms }) {
     requestId: item.id,
     title: "운영자 수동 충전",
     description: `${spoonAmount}개 충전`,
+    balanceBefore: spoonState.total,
+    balanceAfter: spoonState.total + spoonAmount,
+    spoonFreeBefore: spoonState.free,
+    spoonFreeAfter: spoonState.free,
+    spoonPaidBefore: spoonState.paid,
+    spoonPaidAfter: spoonState.paid + spoonAmount,
     createdAt: serverTimestamp(),
   });
 
@@ -567,7 +725,7 @@ export async function confirmPayment({ db, item, adminUid, sendLms }) {
     targetUid: item.uid,
     type: "spoon_charge_completed",
     title: `스푼 ${spoonAmount}개가 충전됐어요`,
-    body: "지금 바로 관심 보내기 또는 차밍카드를 확인해보세요.",
+    body: "스토어에서 결제 내역을 확인해보세요.",
     href: "/store/history",
   });
 
@@ -575,7 +733,7 @@ export async function confirmPayment({ db, item, adminUid, sendLms }) {
   if (phone && typeof sendLms === "function") {
     await sendLms(
       phone,
-      `[차밍수프]\n스푼 ${spoonAmount}개가 충전됐어요.\n지금 바로 관심 보내기와 차밍카드를 확인해보세요.`,
+      buildSmsMessage([`스푼 ${spoonAmount}개 충전 완료`]),
       "차밍수프 충전 완료",
       { forceLms: true }
     );
@@ -593,7 +751,6 @@ export function normalizeCardText(value = "") {
 export function isDuplicateDraft(candidate = {}, existingCards = [], currentDrafts = []) {
   const titleKey = normalizeCardText(candidate.title || "");
   const bodyKey = normalizeCardText(candidate.body || candidate.guide || "");
-
   const compareList = [...existingCards, ...currentDrafts];
 
   return compareList.some((item) => {
@@ -602,11 +759,9 @@ export function isDuplicateDraft(candidate = {}, existingCards = [], currentDraf
 
     if (titleKey && itemTitle && titleKey === itemTitle) return true;
     if (bodyKey && itemBody && bodyKey === itemBody) return true;
-
     if (titleKey && itemTitle && (titleKey.includes(itemTitle) || itemTitle.includes(titleKey))) {
       return true;
     }
-
     return false;
   });
 }
@@ -623,213 +778,124 @@ export function createRecommendedCardCandidate(seedIndex = 0) {
         "처음 만난 사람과 어색할 때 나는?",
       ],
       bodies: [
-        "소개팅이나 첫 만남에서 분위기가 조금 어색해졌을 때 나는 보통 어떻게 하나요?",
-        "대화 흐름이 잠깐 끊겼을 때 내 반응에 가장 가까운 것은 무엇인가요?",
-        "낯선 자리에서 어색함이 느껴질 때 나는 어떤 편인가요?",
+        "소개팅이나 첫 만남에서 분위기가 조금 어색할 때, 내가 보통 먼저 하는 행동에 가장 가까운 선택지를 골라보세요.",
+        "낯선 사람과 만났을 때 내가 분위기를 풀어가는 방식에 가장 가까운 답을 골라보세요.",
+        "서로 아직 어색한 순간에 내가 자연스럽게 꺼내는 반응과 가장 비슷한 선택지를 골라보세요.",
       ],
       guides: [
-        "좋아 보이는 답보다 실제 내 모습에 가까운 답을 골라주세요.",
-        "말주변보다 분위기를 대하는 태도가 궁금해요.",
-        "첫인상에서 드러나는 자연스러운 스타일 기준으로 골라주세요.",
+        "가볍게 생각하고 가장 평소와 가까운 답을 골라주세요.",
+        "실제 소개팅 상황을 떠올리며 답해주세요.",
       ],
       options: [
-        [
-          "가벼운 농담으로 분위기를 푼다",
-          "질문을 던지며 대화를 이어간다",
-          "상대가 말할 때까지 천천히 기다린다",
-          "나도 어색해서 말이 줄어드는 편이다",
-        ],
-        [
-          "내가 먼저 화제를 꺼낸다",
-          "상대 반응을 보며 자연스럽게 맞춘다",
-          "편한 주제가 나올 때까지 기다린다",
-          "표정과 리액션으로 분위기를 부드럽게 만든다",
-        ],
-      ],
-      textBodies: [
-        "어색한 분위기를 풀기 위해 내가 자주 쓰는 방법이 있다면 적어주세요.",
-        "첫 만남에서 상대를 편하게 해주기 위해 내가 신경 쓰는 부분이 있다면 적어주세요.",
+        ["가벼운 농담으로 분위기를 푼다", "상대가 편해질 때까지 질문을 이어간다", "잠깐 쉬어가는 화제를 꺼낸다", "상대 반응을 보며 천천히 맞춘다"],
+        ["내 얘기부터 조금 꺼낸다", "상대가 말하기 쉬운 질문을 한다", "먹는 것·취미 같은 편한 주제로 돌린다", "굳이 무리하지 않고 자연스럽게 둔다"],
       ],
     },
     {
       key: "value",
       label: "가치관",
       titles: [
-        "오래 만날 사람을 볼 때 중요한 건?",
-        "관계가 오래가려면 가장 중요한 건?",
-        "연애에서 결국 중요해지는 건?",
-        "편안한 관계를 위해 꼭 필요한 건?",
+        "연애에서 내가 더 중요하게 보는 건?",
+        "상대를 볼 때 가장 먼저 보는 기준은?",
+        "호감이 커지는 순간은 언제일까?",
       ],
       bodies: [
-        "오래 만날 수 있는 사람인지 판단할 때 가장 중요하게 보는 기준은 무엇인가요?",
-        "연애가 깊어질수록 더 중요하다고 느끼는 요소는 무엇인가요?",
-        "처음보다 시간이 지날수록 중요해지는 기준은 무엇인가요?",
+        "연애할 때 내가 가장 중요하게 생각하는 기준에 가까운 선택지를 골라보세요.",
+        "좋아하는 사람이 생길 때 내 기준과 가장 가까운 답을 선택해주세요.",
       ],
       guides: [
-        "조건보다 실제 관계에서 중요하다고 느끼는 쪽에 가깝게 골라주세요.",
-        "나를 포장하지 말고 진짜 기준으로 답해주세요.",
-        "짧은 만남보다 오래 가는 관계 기준으로 골라주세요.",
+        "정답은 없어요. 가장 솔직한 답을 선택해주세요.",
+        "이상적인 모습보다 실제 내 기준으로 골라주세요.",
       ],
       options: [
-        [
-          "대화가 잘 통하는지",
-          "생활습관이 잘 맞는지",
-          "책임감과 성실함",
-          "감정 표현 방식이 잘 맞는지",
-        ],
-        [
-          "가치관이 비슷한지",
-          "함께 있을 때 편안한지",
-          "배려와 예의가 있는지",
-          "미래 방향이 비슷한지",
-        ],
-      ],
-      textBodies: [
-        "내가 오래 만날 수 있는 사람이라고 느끼는 기준을 적어주세요.",
-        "관계가 깊어질수록 꼭 맞아야 한다고 생각하는 부분을 적어주세요.",
+        ["대화가 편한 사람", "배려가 느껴지는 사람", "생활 리듬이 잘 맞는 사람", "미래 방향이 비슷한 사람"],
+        ["센스 있는 말투", "따뜻한 태도", "꾸준한 연락", "책임감 있는 모습"],
       ],
     },
     {
       key: "date",
       label: "연애",
       titles: [
-        "호감이 생기면 나는?",
-        "썸에서 마음이 생기기 시작하면 나는?",
-        "상대가 마음에 들 때 내 스타일은?",
-        "첫 만남 뒤 호감이 남으면 나는?",
+        "연락 텀에 대한 내 스타일은?",
+        "데이트 직후 내가 더 호감 느끼는 건?",
+        "호감 표현을 받으면 나는?",
       ],
       bodies: [
-        "첫 만남 이후 호감이 생겼을 때 나는 보통 어떤 반응을 보이나요?",
-        "상대가 마음에 들기 시작하면 나는 어떤 편인가요?",
-        "소개팅 이후 관심이 생겼을 때 내 행동과 가장 가까운 것은 무엇인가요?",
+        "연애 초반 연락 스타일에 대해 내 성향과 가까운 답을 골라보세요.",
+        "상대와 만난 뒤 어떤 행동에서 더 호감을 느끼는지 골라보세요.",
       ],
       guides: [
-        "용기 있어 보이는 답보다 실제 행동과 가까운 답을 골라주세요.",
-        "마음이 생겼을 때의 솔직한 반응으로 답해주세요.",
-        "나도 모르게 나오는 연애 스타일에 가깝게 골라주세요.",
+        "평소 내 연애 습관에 가깝게 답해주세요.",
+        "좋아 보이는 답보다 실제 내 스타일을 골라주세요.",
       ],
       options: [
-        [
-          "먼저 연락한다",
-          "상대 반응을 보고 조심스럽게 다가간다",
-          "직접 표현은 잘 못하지만 티가 난다",
-          "마음이 있어도 표현이 느린 편이다",
-        ],
-        [
-          "티 나게 표현하는 편이다",
-          "자연스럽게 대화 기회를 만든다",
-          "상대가 편해질 때까지 기다린다",
-          "호감이 있어도 확신 전엔 조심한다",
-        ],
-      ],
-      textBodies: [
-        "상대에게 호감이 생겼을 때 내가 보이는 신호가 있다면 적어주세요.",
-        "마음이 생겼을 때 나는 보통 어떻게 표현하는지 적어주세요.",
+        ["자주 짧게 연락하는 게 좋다", "하루 한두 번 깊게 연락하는 게 좋다", "상황 맞춰 자연스럽게 연락하면 된다", "연락보다 실제 만남이 더 중요하다"],
+        ["집 도착했냐고 챙겨줄 때", "다음 만남을 먼저 이야기할 때", "오늘 즐거웠다고 표현할 때", "부담 없이 자연스럽게 대할 때"],
       ],
     },
     {
       key: "lifestyle",
       label: "생활",
       titles: [
-        "주말 데이트에서 더 끌리는 쪽은?",
-        "편하게 가까워지기 좋은 데이트는?",
-        "내가 좋아하는 데이트 분위기는?",
-        "연애 초반 더 편한 데이트는?",
+        "주말을 보내는 내 방식은?",
+        "생활 패턴이 잘 맞는다는 건?",
+        "연애할 때 중요한 생활 요소는?",
       ],
       bodies: [
-        "주말 데이트를 한다면 어떤 분위기의 시간을 가장 좋아하나요?",
-        "상대와 자연스럽게 가까워지기 좋은 데이트 코스는 어떤 쪽인가요?",
-        "연애 초반에 가장 편하다고 느끼는 데이트 스타일은 무엇인가요?",
+        "내 생활 패턴과 가장 가까운 선택지를 골라보세요.",
+        "상대와 잘 맞는다고 느끼는 생활 요소를 골라보세요.",
       ],
       guides: [
-        "멋있어 보이는 답보다 실제로 편한 쪽을 골라주세요.",
-        "나의 생활 리듬에 가까운 취향으로 골라주세요.",
-        "현실적으로 가장 자주 선호할 답을 골라주세요.",
+        "평소 생활 리듬을 떠올리며 답해주세요.",
+        "지금 내 생활 기준으로 선택해주세요.",
       ],
       options: [
-        [
-          "맛집/카페처럼 편한 코스",
-          "전시/공연처럼 취향이 보이는 코스",
-          "산책/드라이브처럼 여유 있는 코스",
-          "집 근처에서 가볍게 보는 코스",
-        ],
-        [
-          "조용히 대화할 수 있는 곳",
-          "활동적인 체험이 있는 곳",
-          "풍경 보며 걷는 코스",
-          "짧고 부담 없는 만남",
-        ],
-      ],
-      textBodies: [
-        "내가 편하게 가까워질 수 있는 데이트 분위기를 적어주세요.",
-        "연애 초반 가장 좋아하는 데이트 스타일을 적어주세요.",
+        ["집에서 쉬는 시간이 꼭 필요하다", "밖에 나가야 에너지가 난다", "그날 기분 따라 유동적이다", "사람 만나며 보내는 걸 좋아한다"],
+        ["수면 패턴", "식습관", "정리정돈 습관", "돈 쓰는 방식"],
       ],
     },
     {
       key: "marriage",
       label: "결혼관",
       titles: [
-        "결혼 전에 꼭 맞아야 하는 건?",
-        "결혼을 생각하면 가장 중요해지는 건?",
-        "결혼 전 현실적으로 가장 크게 보는 건?",
-        "결혼 전에 꼭 확인하고 싶은 건?",
+        "결혼을 생각할 때 가장 중요한 건?",
+        "오래 가는 관계에 필요하다고 보는 건?",
+        "현실적인 만남에서 중요한 요소는?",
       ],
       bodies: [
-        "결혼을 생각할 때 현실적으로 가장 중요하다고 느끼는 요소는 무엇인가요?",
-        "결혼 전 꼭 맞아야 한다고 생각하는 부분은 무엇인가요?",
-        "연애와 다르게 결혼에서는 더 중요하다고 느끼는 기준은 무엇인가요?",
+        "결혼이나 장기적인 관계를 생각할 때 가장 중요하게 보는 기준을 골라보세요.",
+        "현실적인 관계에서 꼭 필요하다고 느끼는 요소를 골라보세요.",
       ],
       guides: [
-        "이상적인 답보다 현실적으로 가장 크게 보는 기준을 골라주세요.",
-        "실제 결혼을 생각했을 때 중요도가 높은 쪽으로 골라주세요.",
-        "현실적인 기준으로 답해주세요.",
+        "가볍게 떠오르는 기준보다 실제로 중요하게 느끼는 걸 골라주세요.",
+        "이상형보다 현실적인 기준으로 답해주세요.",
       ],
       options: [
-        [
-          "경제관념과 소비 습관",
-          "생활 방식과 집안일 감각",
-          "대화와 갈등 해결 방식",
-          "가족관계와 책임감",
-        ],
-        [
-          "미래 계획이 비슷한지",
-          "정서적으로 안정감을 주는지",
-          "현실 감각이 맞는지",
-          "함께 있을 때 편안한지",
-        ],
-      ],
-      textBodies: [
-        "결혼 전에 꼭 맞아야 한다고 생각하는 부분을 적어주세요.",
-        "연애보다 결혼에서 더 중요하다고 느끼는 기준을 적어주세요.",
+        ["대화와 정서적 안정감", "생활 습관의 조화", "경제관의 유사함", "서로에 대한 책임감"],
+        ["서로 존중하는 태도", "갈등을 푸는 방식", "가족관의 유사함", "미래 계획의 방향성"],
       ],
     },
   ];
 
-  const category = categoryPool[seedIndex % categoryPool.length];
-  const type = seedIndex % 3 === 0 ? "text" : "choice";
+  const pickedCategory = categoryPool[seedIndex % categoryPool.length];
+  const title = pickedCategory.titles[seedIndex % pickedCategory.titles.length];
+  const body = pickedCategory.bodies[seedIndex % pickedCategory.bodies.length];
+  const guide = pickedCategory.guides[seedIndex % pickedCategory.guides.length];
+  const optionSet = pickedCategory.options[seedIndex % pickedCategory.options.length];
 
-  const title = category.titles[seedIndex % category.titles.length];
-  const body =
-    type === "choice"
-      ? category.bodies[seedIndex % category.bodies.length]
-      : category.textBodies[seedIndex % category.textBodies.length];
-  const guide = category.guides[seedIndex % category.guides.length];
-  const options =
-    type === "choice"
-      ? [...category.options[seedIndex % category.options.length]]
-      : [];
+  const questionType = seedIndex % 3 === 0 ? "text" : "choice";
 
   return {
-    id: `${Date.now()}-${seedIndex}-${Math.random().toString(36).slice(2, 8)}`,
-    questionType: type,
-    category: category.key,
-    categoryLabel: category.label,
+    id: `recommended-${pickedCategory.key}-${seedIndex}-${Date.now()}`,
     title,
     body,
     guide,
-    options,
-    visibilityTarget: "male",
+    category: pickedCategory.key,
+    categoryLabel: pickedCategory.label,
+    questionType,
+    options: questionType === "choice" ? optionSet : [],
     source: "local",
+    visibilityTarget: "male",
   };
 }
 
@@ -837,21 +903,22 @@ export function buildRecommendedDrafts({
   count = 2,
   existingCards = [],
   currentDrafts = [],
-}) {
+  seedStart = 0,
+} = {}) {
   const results = [];
-  let seed = 0;
-  let safety = 0;
+  let seedIndex = seedStart;
+  let guard = 0;
 
-  while (results.length < count && safety < 200) {
-    safety += 1;
-    const candidate = createRecommendedCardCandidate(seed);
-    seed += 1;
+  while (results.length < count && guard < 200) {
+    const candidate = createRecommendedCardCandidate(seedIndex);
+    const compareDrafts = [...currentDrafts, ...results];
 
-    if (isDuplicateDraft(candidate, existingCards, [...currentDrafts, ...results])) {
-      continue;
+    if (!isDuplicateDraft(candidate, existingCards, compareDrafts)) {
+      results.push(candidate);
     }
 
-    results.push(candidate);
+    seedIndex += 1;
+    guard += 1;
   }
 
   return results;

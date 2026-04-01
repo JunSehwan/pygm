@@ -3,6 +3,16 @@ const axios = require("axios");
 const CryptoJS = require("crypto-js");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
+const CHARMINGSOUP_URL = "https://charmingsoup.com";
+
+function buildSmsMessage(lines = []) {
+  const cleaned = lines
+    .map((line) => String(line || "").trim())
+    .filter(Boolean);
+
+  return ["[차밍수프]", ...cleaned, CHARMINGSOUP_URL].join("\n");
+}
+
 async function sendLmsDirect(to, message, subject = "차밍수프 안내") {
   const serviceId = process.env.NEXT_PUBLIC_NCP_SERVICE_ID;
   const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;
@@ -51,6 +61,23 @@ async function sendLmsDirect(to, message, subject = "차밍수프 안내") {
   );
 }
 
+function getSpoonState(user = {}) {
+  const total = Math.max(Number(user?.spoon || 0), 0);
+  const free = Math.max(Number(user?.spoon_free || 0), 0);
+  const paid = Math.max(
+    Number.isFinite(Number(user?.spoon_paid))
+      ? Number(user?.spoon_paid || 0)
+      : Math.max(total - free, 0),
+    0
+  );
+
+  return {
+    total,
+    free,
+    paid,
+  };
+}
+
 exports.expireArenaInterests = onSchedule(
   {
     schedule: "every 10 minutes",
@@ -78,10 +105,6 @@ exports.expireArenaInterests = onSchedule(
       const refundAmount = Number(data.spoonCost || 8);
 
       try {
-        const femaleRef = db.collection("users").doc(femaleUid);
-        const femaleSnap = await femaleRef.get();
-        const femaleData = femaleSnap.exists ? femaleSnap.data() || {} : {};
-
         const batch = db.batch();
 
         batch.set(
@@ -95,30 +118,68 @@ exports.expireArenaInterests = onSchedule(
           { merge: true }
         );
 
+        let femaleData = {};
+
         if (femaleUid) {
-          batch.update(femaleRef, {
-            spoon: admin.firestore.FieldValue.increment(refundAmount),
-          });
+          const femaleRef = db.collection("users").doc(femaleUid);
+          const femaleSnap = await femaleRef.get();
+          femaleData = femaleSnap.exists ? femaleSnap.data() || {} : {};
+
+          const spoonState = getSpoonState(femaleData);
+
+          batch.set(
+            femaleRef,
+            {
+              spoon: spoonState.total + refundAmount,
+              spoon_free: spoonState.free + refundAmount,
+              spoon_paid: spoonState.paid,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
 
           const historyRef = db.collection("spoonHistories").doc();
           batch.set(historyRef, {
             uid: femaleUid,
             type: "arena_like_refund_expired",
             amount: refundAmount,
-            balanceBefore: Number(femaleData?.spoon || 0),
-            balanceAfter: Number(femaleData?.spoon || 0) + refundAmount,
+            balanceBefore: spoonState.total,
+            balanceAfter: spoonState.total + refundAmount,
+            spoonFreeBefore: spoonState.free,
+            spoonFreeAfter: spoonState.free + refundAmount,
+            spoonPaidBefore: spoonState.paid,
+            spoonPaidAfter: spoonState.paid,
+            refundedTo: "free",
             interestId: docSnap.id,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const notificationRef = db.collection("notifications").doc();
+          batch.set(notificationRef, {
+            targetUid: femaleUid,
+            type: "arena_like_refund_expired",
+            title: `스푼 ${refundAmount}개가 반환됐어요`,
+            body: "응답 시간이 지나 스푼이 자동 반환되었어요.",
+            href: "/arena",
+            isRead: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
 
         await batch.commit();
 
-        if (femaleData?.phonenumber) {
+        const phone =
+          String(
+            femaleData?.phonenumber ||
+            femaleData?.phoneNumber ||
+            ""
+          ).replace(/[^0-9]/g, "");
+
+        if (phone) {
           await sendLmsDirect(
-            femaleData.phonenumber,
-            "[차밍수프]\n응답시간이 지나 스푼 8개가 반환됐어요.",
-            "차밍수프 안내"
+            phone,
+            buildSmsMessage([`응답 시간이 지나 스푼 ${refundAmount}개 반환`]),
+            "차밍수프 스푼 반환"
           );
         }
 
