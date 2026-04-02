@@ -140,7 +140,7 @@ export default function SignupFormCard({
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-[20px] font-bold tracking-[-0.02em] text-zinc-900">
-              회원가입
+              1분 회원가입
             </div>
           </div>
 
@@ -207,8 +207,8 @@ export default function SignupFormCard({
                           : "pointer",
                     }}
                     className={`h-[52px] shrink-0 rounded-md px-4 text-[13px] font-semibold text-white transition disabled:opacity-60 ${phoneVerified
-                        ? "bg-emerald-600"
-                        : "bg-violet-600 hover:bg-violet-700"
+                        ? "bg-emerald-500"
+                        : "bg-violet-500 hover:bg-violet-600"
                       }`}
                   >
                     {phoneVerifyLoading

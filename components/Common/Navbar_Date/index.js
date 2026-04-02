@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, createRef } from 'react';
 import Image from 'next/image';
-import logo from '/public/logo/pygm.png';
+import logo from '/public/logo/logo.png';
 import AuthModal from 'components/Auth/AuthModal';
 import Link from 'next/link';
 import { auth, logOut } from 'firebaseConfig';

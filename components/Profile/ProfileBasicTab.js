@@ -169,7 +169,7 @@ export default function ProfileBasicTab({
   }, [badgeInfo?.top1, badgeInfo?.top5, user?.identityVerified]);
 
   return (
-    <div className="space-y-3 px-3 pb-8 pt-4">
+    <div className="space-y-3 px-3 pb-4 pt-4">
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="text-[18px] font-bold text-slate-800">필수정보</div>
         <div className="flex flex-wrap items-center justify-end gap-2">

@@ -9,7 +9,7 @@ import { wrapper } from "store/index";
 import "tailwindcss/tailwind.css";
 import Script from "next/script";
 import { Provider } from "react-redux";
-import Proptypes from "prop-types";
+import PropTypes from 'prop-types';
 import * as gtag from "lib/gtag";
 import { GoogleTagManager } from "@next/third-parties/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
@@ -77,7 +77,6 @@ const _app = ({ Component, pageProps, ...rest }) => {
       />
 
       <Head>
-        <title>추억과 즐거움으로 이성을 만나다! 피그말리온</title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="initial-scale=1.0, width=device-width" />
         <link rel="apple-touch-icon" sizes="57x57" href="/logo/apple-icon-57x57.png" />
@@ -94,11 +93,10 @@ const _app = ({ Component, pageProps, ...rest }) => {
         <link rel="icon" type="image/png" sizes="96x96" href="/logo/favicon-96x96.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/logo/favicon-16x16.png" />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/logo/pygm.png" />
+        <link rel="icon" href="/logo/logo.png" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
-        <meta name="theme-color" content="#ffffff" />
         <meta
           name="naver-site-verification"
           content="703be80d3c30d67edfd91f465ba95a258fd65d96"
@@ -117,9 +115,9 @@ const _app = ({ Component, pageProps, ...rest }) => {
   );
 };
 
-_app.Proptypes = {
-  Component: Proptypes.elementType,
-  store: Proptypes.object,
+_app.propTypes = {
+  Component: PropTypes.elementType,
+  store: PropTypes.object,
 };
 
 export default _app;

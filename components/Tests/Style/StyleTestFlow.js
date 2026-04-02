@@ -8,6 +8,7 @@ import {
   increment,
   serverTimestamp,
   setDoc,
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "firebaseConfig";
 import styleQuestions from "data/tests/styleQuestions";
@@ -44,6 +45,40 @@ function shuffleQuestions(arr) {
   return copied;
 }
 
+function buildEmptyTypeDistribution(allTypes = []) {
+  return allTypes.map((type) => ({
+    code: type.code,
+    ko: type.ko,
+    oneLine: type.oneLine,
+    count: 0,
+    percent: 0,
+  }));
+}
+
+function buildTypeDistributionFromStatsDoc(statsDoc, allTypes = []) {
+  const counts = statsDoc?.counts || {};
+  const totalCount =
+    typeof statsDoc?.totalCount === "number"
+      ? statsDoc.totalCount
+      : Object.values(counts).reduce((sum, value) => {
+        return sum + (Number(value) > 0 ? Number(value) : 0);
+      }, 0);
+
+  return allTypes.map((type) => {
+    const count = Number(counts[type.code]) > 0 ? Number(counts[type.code]) : 0;
+    const percent =
+      totalCount > 0 ? Number(((count / totalCount) * 100).toFixed(1)) : 0;
+
+    return {
+      code: type.code,
+      ko: type.ko,
+      oneLine: type.oneLine,
+      count,
+      percent,
+    };
+  });
+}
+
 export default function StyleTestFlow() {
   const router = useRouter();
 
@@ -53,6 +88,7 @@ export default function StyleTestFlow() {
   const [answers, setAnswers] = useState([]);
   const [activeExploreCode, setActiveExploreCode] = useState("DSLR");
   const [totalAttempts, setTotalAttempts] = useState(0);
+  const [typeDistribution, setTypeDistribution] = useState([]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -116,12 +152,123 @@ export default function StyleTestFlow() {
     }
   }, [finalType]);
 
-  const saveResultToFirestore = async (typePayload, nextAxisScores, nextAnswers) => {
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTypeDistribution = async () => {
+      try {
+        const statsRef = doc(db, "appStats", "styleTestDistribution");
+        const snap = await getDoc(statsRef);
+
+        if (!mounted) return;
+
+        if (!snap.exists()) {
+          setTypeDistribution(buildEmptyTypeDistribution(allTypes));
+          return;
+        }
+
+        const nextDistribution = buildTypeDistributionFromStatsDoc(
+          snap.data() || {},
+          allTypes
+        );
+
+        setTypeDistribution(nextDistribution);
+      } catch (error) {
+        console.error("[StyleTestFlow] load type distribution error:", error);
+
+        if (!mounted) return;
+        setTypeDistribution(buildEmptyTypeDistribution(allTypes));
+      }
+    };
+
+    if (allTypes.length) {
+      loadTypeDistribution();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [allTypes]);
+
+  const refreshTypeDistribution = async () => {
+    try {
+      const statsRef = doc(db, "appStats", "styleTestDistribution");
+      const snap = await getDoc(statsRef);
+
+      if (!snap.exists()) {
+        setTypeDistribution(buildEmptyTypeDistribution(allTypes));
+        return;
+      }
+
+      const nextDistribution = buildTypeDistributionFromStatsDoc(
+        snap.data() || {},
+        allTypes
+      );
+      setTypeDistribution(nextDistribution);
+    } catch (error) {
+      console.error("[StyleTestFlow] refresh type distribution error:", error);
+    }
+  };
+
+  const updateTypeDistributionStats = async (prevTypeCode, nextTypeCode) => {
+    if (!nextTypeCode) return;
+
+    const statsRef = doc(db, "appStats", "styleTestDistribution");
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const statsSnap = await transaction.get(statsRef);
+        const statsData = statsSnap.exists() ? statsSnap.data() || {} : {};
+        const rawCounts = statsData.counts || {};
+        const counts = { ...rawCounts };
+        let totalCount =
+          typeof statsData.totalCount === "number" ? statsData.totalCount : 0;
+
+        const safePrev = prevTypeCode || "";
+        const safeNext = nextTypeCode || "";
+
+        if (!safePrev) {
+          counts[safeNext] = (Number(counts[safeNext]) || 0) + 1;
+          totalCount += 1;
+        } else if (safePrev !== safeNext) {
+          counts[safePrev] = Math.max((Number(counts[safePrev]) || 0) - 1, 0);
+          counts[safeNext] = (Number(counts[safeNext]) || 0) + 1;
+        }
+
+        transaction.set(
+          statsRef,
+          {
+            counts,
+            totalCount,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      await refreshTypeDistribution();
+    } catch (error) {
+      console.error("[StyleTestFlow] update type distribution error:", error);
+    }
+  };
+
+  const saveResultToFirestore = async (
+    typePayload,
+    nextAxisScores,
+    nextAnswers
+  ) => {
     if (!firebaseUser?.uid) return;
 
     try {
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const beforeSnap = await getDoc(userRef);
+      const prevTypeCode =
+        beforeSnap.exists() && beforeSnap.data()?.styleTest?.typeCode
+          ? String(beforeSnap.data().styleTest.typeCode)
+          : "";
+
       await setDoc(
-        doc(db, "users", firebaseUser.uid),
+        userRef,
         {
           styleTest: {
             typeCode: typePayload.code,
@@ -139,12 +286,18 @@ export default function StyleTestFlow() {
         },
         { merge: true }
       );
+
+      await updateTypeDistributionStats(prevTypeCode, typePayload.code);
     } catch (error) {
       console.error("[StyleTestFlow] save result error:", error);
     }
   };
 
-  const saveGuestResultToSession = (typePayload, nextAxisScores, nextAnswers) => {
+  const saveGuestResultToSession = (
+    typePayload,
+    nextAxisScores,
+    nextAnswers
+  ) => {
     try {
       sessionStorage.setItem(
         "styleTestGuestResult",
@@ -431,6 +584,7 @@ export default function StyleTestFlow() {
               onShare={handleResultShare}
               onSignup={handleSignupFromResult}
               isLoggedIn={isLoggedIn}
+              typeDistribution={typeDistribution}
             />
           </motion.div>
         ) : null}

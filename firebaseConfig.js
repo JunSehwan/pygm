@@ -171,15 +171,26 @@ export const api = {
 
 
 export async function getUser(userId) {
-  const result = await getDoc(api.userByIdRef(userId));
-
-  if (result.exists()) {
-    return { id: result.id, ...result.data() }
-  } else {
-    // doc.data() will be undefined in this case
-    console.log("No such document!");
+  if (!userId) {
+    return null;
   }
-  return res.status(404).json({ id: user.id, ...user.data() });
+
+  try {
+    const result = await getDoc(api.userByIdRef(userId));
+
+    if (!result.exists()) {
+      console.log("[getUser] No such document:", userId);
+      return null;
+    }
+
+    return {
+      id: result.id,
+      ...result.data(),
+    };
+  } catch (error) {
+    console.error("[getUser] error:", error);
+    return null;
+  }
 }
 
 

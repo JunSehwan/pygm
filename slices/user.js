@@ -72,6 +72,48 @@ export const initialState = {
 
 };
 
+function serializeFirestoreValue(value) {
+  if (value == null) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeFirestoreValue(item));
+  }
+
+  if (typeof value === "object") {
+    if (
+      typeof value.toDate === "function" &&
+      typeof value.toMillis === "function"
+    ) {
+      return value.toDate().toISOString();
+    }
+
+    const next = {};
+    Object.keys(value).forEach((key) => {
+      next[key] = serializeFirestoreValue(value[key]);
+    });
+    return next;
+  }
+
+  return value;
+}
+
+function sanitizeUserForStore(user = {}) {
+  if (!user || typeof user !== "object") return {};
+
+  const serialized = serializeFirestoreValue(user);
+
+  return {
+    ...serialized,
+    styleTest:
+      serialized?.styleTest && typeof serialized.styleTest === "object"
+        ? {
+          ...serialized.styleTest,
+          completedAt: serialized.styleTest.completedAt || null,
+        }
+        : serialized?.styleTest || {},
+  };
+}
+
 export const user = createSlice({
   name: "user",
   initialState,
@@ -92,8 +134,9 @@ export const user = createSlice({
       state.signUpSuccess = true;
       state.isLoggedIn = true;
     },
-    setUser(state, action) {
-      state.user = action.payload;
+    
+    setUser: (state, action) => {
+      state.user = sanitizeUserForStore(action.payload || {});
     },
     userLoadingStart(state) {
       state.loading = true;
@@ -267,10 +310,10 @@ export const user = createSlice({
       state.writeDateprofileDone = false;
     },
 
-    setFriends(state, action) {
-      state.friendsLoading = true;
-      state.friends = action.payload;
-      // state.getCardsReady = true;
+    setFriends: (state, action) => {
+      state.friends = Array.isArray(action.payload)
+        ? action.payload.map((item) => sanitizeUserForStore(item))
+        : [];
     },
     setFriendsDoneFalse(state, action) {
       state.friendsLoading = false;
@@ -282,9 +325,8 @@ export const user = createSlice({
     setAllFriendsDoneFalse(state, action) {
       state.allFriendsLoading = false;
     },
-    setOtherUser(state, action) {
-      state.friend = action.payload;
-      state.otherFriendLoading = true;
+    setOtherUser: (state, action) => {
+      state.otherUser = sanitizeUserForStore(action.payload || {});
     },
     setOtherUserDoneFalse(state) {
       state.otherFriendLoading = false;

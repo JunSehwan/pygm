@@ -148,3 +148,41 @@ rootkey.csv
 .env.local
 /front/.env.local
 front/.env.local
+
+# dependencies
+node_modules/
+functions/node_modules/
+
+# next / build
+.next/
+out/
+build/
+dist/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log
+firestore-debug.log
+functions/firebase-debug.log
+functions/firestore-debug.log
+
+# env
+.env.development.local
+.env.test.local
+.env.production.local
+functions/.env
+functions/*.local
+
+# firebase admin keys
+serviceAccountKey.json
+functions/serviceAccountKey.json
+
+# macOS
+.DS_Store
+__MACOSX/
+
+# misc
+coverage/

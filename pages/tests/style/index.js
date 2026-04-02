@@ -2,8 +2,10 @@ import React from "react";
 import Head from "next/head";
 import { useSelector } from "react-redux";
 import { getAuth } from "firebase/auth";
-import StyleTestFlow from "components/Tests/Style/StyleTestFlow";
 import dynamic from "next/dynamic";
+
+import StyleTestFlow from "components/Tests/Style/StyleTestFlow";
+import SEOHead from "components/Common/SEOHead";
 
 const BottomNavbar = dynamic(
   () => import("components/Common/BottomNavbar"),
@@ -13,18 +15,15 @@ const BottomNavbar = dynamic(
 export default function StyleTestPage() {
   const auth = getAuth();
   const currentUser = useSelector((state) => state.user?.user ?? null);
-
   const showNavbar = !!(currentUser?.userID || auth?.currentUser?.uid);
 
   return (
     <>
-      <Head>
-        <title>연애스타일 진단 | 차밍수프</title>
-        <meta
-          name="description"
-          content="내 연애스타일을 진단하고 더 잘 맞는 상대를 만나보세요."
-        />
-      </Head>
+      <SEOHead
+        title="연애스타일 진단"
+        description="내 연애 스타일과 매력 포인트를 확인할 수 있는 차밍수프 연애스타일 진단 테스트입니다."
+        keywords="연애스타일 테스트, 연애 성향 테스트, 차밍수프 테스트, 연애 심리 테스트"
+      />
 
       <main className="h-[100dvh] overflow-hidden overscroll-none bg-white md:bg-[#f6f7fb]">
         <div className="relative h-full overflow-hidden">

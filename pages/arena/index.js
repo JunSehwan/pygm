@@ -23,7 +23,7 @@ import {
   isArenaBlockedUser,
 } from "lib/arena";
 import { isBlockedTargetUser } from "lib/userBlockRules";
-
+import SEOHead from "components/Common/SEOHead";
 export default function ArenaPage() {
   const reduxUser = useSelector((state) => state.user?.user || null);
 
@@ -314,9 +314,11 @@ export default function ArenaPage() {
 
   return (
     <>
-      <Head>
-        <title>매칭아레나 | 차밍수프</title>
-      </Head>
+      <SEOHead
+        title="매칭아레나"
+        description="차밍수프 매칭아레나"
+        noindex
+      />
 
       <ArenaHome
         user={currentUser}

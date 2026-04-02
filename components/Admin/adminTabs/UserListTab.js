@@ -162,7 +162,7 @@ function UserListCard({ user, onOpenUserDetail }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 gap-1">
           <InfoLine label="거주지" value={formatLocationValue(user?.residence)} />
           <InfoLine label="근무지" value={formatLocationValue(user?.workArea)} />
           <InfoLine label="연락처" value={user?.phonenumber || user?.phoneNumber || "-"} />
@@ -171,7 +171,7 @@ function UserListCard({ user, onOpenUserDetail }) {
           <InfoLine label="사진 수" value={`${thumbImages.length}장`} />
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-1">
           <StatusChip icon={FiEyeOff} text={blocked ? "매칭/노출 차단 중" : "매칭/노출 허용 중"} />
           <StatusChip icon={FiGift} text={`무료 ${Number(user?.spoon_free || 0)} / 유료 ${Number(user?.spoon_paid || 0)}`} />
           <StatusChip icon={FiUsers} text={approvalState === "approved" ? "가입 승인 완료" : getApprovalLabel(approvalState)} />
@@ -238,7 +238,7 @@ function MiniBadge({ children, tone = "violet" }) {
 
 function StatusChip({ icon: Icon, text }) {
   return (
-    <div className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-3">
+    <div className="flex items-center gap-1 rounded-md bg-slate-50 px-3 py-3">
       <Icon className="text-[15px] text-slate-500" />
       <div className="min-w-0 break-keep text-[13px] font-medium text-slate-700">
         {text}
@@ -249,7 +249,7 @@ function StatusChip({ icon: Icon, text }) {
 
 function InfoLine({ label, value }) {
   return (
-    <div className="flex items-center gap-3 rounded-md bg-slate-50 px-3 py-3">
+    <div className="flex items-center gap-1 rounded-md bg-slate-50 px-3 py-2">
       <div className="w-[62px] shrink-0 text-[13px] font-semibold text-slate-500">
         {label}
       </div>

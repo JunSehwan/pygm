@@ -60,35 +60,50 @@ function getErrorMessage(error) {
     merged.includes("functions/resource-exhausted") ||
     merged.includes("resource-exhausted")
   ) {
-    return message.replace(/^.*resource-exhausted:?\s*/i, "") || "잠시 후 다시 시도해주세요.";
+    return (
+      message.replace(/^.*resource-exhausted:?\s*/i, "") ||
+      "잠시 후 다시 시도해주세요."
+    );
   }
 
   if (
     merged.includes("functions/deadline-exceeded") ||
     merged.includes("deadline-exceeded")
   ) {
-    return message.replace(/^.*deadline-exceeded:?\s*/i, "") || "인증 시간이 만료되었어요.";
+    return (
+      message.replace(/^.*deadline-exceeded:?\s*/i, "") ||
+      "인증 시간이 만료되었어요."
+    );
   }
 
   if (
     merged.includes("functions/invalid-argument") ||
     merged.includes("invalid-argument")
   ) {
-    return message.replace(/^.*invalid-argument:?\s*/i, "") || "입력값을 다시 확인해주세요.";
+    return (
+      message.replace(/^.*invalid-argument:?\s*/i, "") ||
+      "입력값을 다시 확인해주세요."
+    );
   }
 
   if (
     merged.includes("functions/failed-precondition") ||
     merged.includes("failed-precondition")
   ) {
-    return message.replace(/^.*failed-precondition:?\s*/i, "") || "먼저 인증을 완료해주세요.";
+    return (
+      message.replace(/^.*failed-precondition:?\s*/i, "") ||
+      "먼저 인증을 완료해주세요."
+    );
   }
 
   if (
     merged.includes("functions/permission-denied") ||
     merged.includes("permission-denied")
   ) {
-    return message.replace(/^.*permission-denied:?\s*/i, "") || "권한이 유효하지 않아요.";
+    return (
+      message.replace(/^.*permission-denied:?\s*/i, "") ||
+      "권한이 유효하지 않아요."
+    );
   }
 
   if (
@@ -213,6 +228,7 @@ function TextInput({
   value,
   onChange,
   className = "",
+  name,
 }) {
   return (
     <input
@@ -223,6 +239,7 @@ function TextInput({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      name={name}
       className={[
         "h-12 w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 text-[15px] text-zinc-900 outline-none transition",
         "placeholder:text-zinc-400 focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100",
@@ -255,7 +272,11 @@ function PasswordInput({
         style={{ cursor: "pointer" }}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 transition hover:text-zinc-800"
       >
-        {visible ? <PiEyeSlash className="text-[18px]" /> : <PiEye className="text-[18px]" />}
+        {visible ? (
+          <PiEyeSlash className="text-[18px]" />
+        ) : (
+          <PiEye className="text-[18px]" />
+        )}
       </button>
     </div>
   );
@@ -269,7 +290,9 @@ function PasswordRule({ ok, label }) {
         ok ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-500",
       ].join(" ")}
     >
-      <PiCheckCircleFill className={`text-[12px] ${ok ? "opacity-100" : "opacity-40"}`} />
+      <PiCheckCircleFill
+        className={`text-[12px] ${ok ? "opacity-100" : "opacity-40"}`}
+      />
       <span>{label}</span>
     </div>
   );
@@ -317,7 +340,10 @@ export default function PasswordResetPhonePage() {
     return () => clearInterval(timer);
   }, [remainSec]);
 
-  const passwordChecks = useMemo(() => getPasswordChecks(newPassword), [newPassword]);
+  const passwordChecks = useMemo(
+    () => getPasswordChecks(newPassword),
+    [newPassword]
+  );
 
   const stepOneValid = useMemo(() => {
     return (
@@ -515,249 +541,250 @@ export default function PasswordResetPhonePage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-100 md:flex md:items-center md:justify-center md:p-6">
-      <div className="flex min-h-screen w-full max-w-[430px] flex-col overflow-hidden bg-white md:h-[860px] md:min-h-0 md:rounded-[24px] md:border md:border-zinc-200 md:shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
-        <header className="shrink-0 border-b border-zinc-200 bg-white">
-          <div className="flex h-14 items-center justify-between px-4">
-            <div className="flex min-w-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (step > 1) {
-                    setStep((prev) => Math.max(1, prev - 1));
-                    setError("");
-                    setSuccess("");
-                    return;
-                  }
-                  router.back();
-                }}
-                style={{ cursor: "pointer" }}
-                className="flex h-9 w-9 items-center justify-center rounded-md transition hover:bg-slate-100"
-              >
-                <PiArrowLeft className="text-[19px] text-zinc-800" />
-              </button>
-
-              <h1 className="text-[18px] font-bold tracking-[-0.02em] text-zinc-900">
-                비밀번호 재설정
-              </h1>
-            </div>
-          </div>
-
-          <StepProgress step={step} />
-        </header>
-
-        <main className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 px-4 py-4 pb-[68px]">
-          {step === 1 ? (
-            <div className="space-y-3">
-              <SectionCard
-                title="본인 확인"
-                desc="가입한 정보와 휴대폰 인증으로 계정을 확인한 뒤 새 비밀번호를 설정해요."
-              >
-                <FieldBlock
-                  label="이메일"
-                  icon={<PiEnvelopeSimple />}
-                >
-                  <TextInput
-                    type="email"
-                    autoComplete="email"
-                    name="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setError("");
-                      setSuccess("");
-                    }}
-                    placeholder="가입한 이메일을 입력해주세요"
-                  />
-                </FieldBlock>
-
-                <FieldBlock
-                  label="생년월일"
-                  icon={<PiCalendarBlank />}
-                >
-                  <TextInput
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="bday"
-                    name="birthday"
-                    maxLength={8}
-                    value={birth}
-                    onChange={(e) => {
-                      setBirth(formatBirthInput(e.target.value));
-                      setError("");
-                      setSuccess("");
-                    }}
-                    placeholder="예: 19900101"
-                  />
-                </FieldBlock>
-
-                <FieldBlock
-                  label="휴대폰 번호"
-                  icon={<PiPhone />}
-                >
-                  <TextInput
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel-national"
-                    name="phone"
-                    maxLength={13}
-                    value={formatPhoneInput(phone)}
-                    onChange={(e) => {
-                      setPhone(onlyDigits(e.target.value).slice(0, 11));
-                      setError("");
-                      setSuccess("");
-                    }}
-                    placeholder="휴대폰 번호를 입력해주세요"
-                  />
-                </FieldBlock>
-              </SectionCard>
-            </div>
-          ) : null}
-
-          {step === 2 ? (
-            <div className="space-y-3">
-              <SectionCard
-                title="문자 인증"
-                desc={`${maskedPhone || "등록된 휴대폰"}로 보낸 인증번호 6자리를 입력해주세요.`}
-              >
-                <FieldBlock
-                  label="인증번호"
-                  icon={<PiShieldCheckered />}
-                  hint={
-                    remainSec > 0
-                      ? `남은 시간 ${String(Math.floor(remainSec / 60)).padStart(2, "0")}:${String(remainSec % 60).padStart(2, "0")}`
-                      : "인증번호 시간이 만료되었어요"
-                  }
-                >
-                  <div className="flex items-center gap-2">
-                    <TextInput
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={onlyDigits(code).slice(0, 6)}
-                      onChange={(e) => {
-                        setCode(onlyDigits(e.target.value).slice(0, 6));
+    <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
+      <div className="relative min-h-screen overflow-hidden">
+        <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
+          <section className="relative flex h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-zinc-50 md:h-[760px] md:rounded-[24px] md:border md:border-zinc-200 md:bg-white md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+            <header className="sticky top-0 z-20 shrink-0 border-b border-zinc-200 bg-white">
+              <div className="flex h-16 items-center justify-between px-4">
+                <div className="flex min-w-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (step > 1) {
+                        setStep((prev) => Math.max(1, prev - 1));
                         setError("");
                         setSuccess("");
-                      }}
-                      placeholder="6자리 인증번호 입력"
-                      className="flex-1"
-                    />
+                        return;
+                      }
+                      router.back();
+                    }}
+                    style={{ cursor: "pointer" }}
+                    className="flex h-9 w-9 items-center justify-center rounded-md transition hover:bg-slate-100"
+                  >
+                    <PiArrowLeft className="text-[19px] text-zinc-800" />
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={handleSendCode}
-                      disabled={sendingCode}
-                      style={{ cursor: sendingCode ? "default" : "pointer" }}
-                      className="h-12 shrink-0 rounded-md border border-zinc-300 bg-white px-3 text-[13px] font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
+                  <h1 className="text-xl font-bold text-zinc-900">
+                    비밀번호 재설정
+                  </h1>
+                </div>
+              </div>
+
+              <StepProgress step={step} />
+            </header>
+
+            <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              {step === 1 ? (
+                <div className="space-y-3 pb-2">
+                  <SectionCard
+                    title="본인 확인"
+                    desc="가입한 정보와 휴대폰 인증으로 계정을 확인한 뒤 새 비밀번호를 설정해요."
+                  >
+                    <FieldBlock label="이메일" icon={<PiEnvelopeSimple />}>
+                      <TextInput
+                        type="email"
+                        autoComplete="email"
+                        name="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setError("");
+                          setSuccess("");
+                        }}
+                        placeholder="가입한 이메일을 입력해주세요"
+                      />
+                    </FieldBlock>
+
+                    <FieldBlock label="생년월일" icon={<PiCalendarBlank />}>
+                      <TextInput
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="bday"
+                        name="birthday"
+                        maxLength={8}
+                        value={birth}
+                        onChange={(e) => {
+                          setBirth(formatBirthInput(e.target.value));
+                          setError("");
+                          setSuccess("");
+                        }}
+                        placeholder="예: 19900101"
+                      />
+                    </FieldBlock>
+
+                    <FieldBlock label="휴대폰 번호" icon={<PiPhone />}>
+                      <TextInput
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel-national"
+                        name="phone"
+                        maxLength={13}
+                        value={formatPhoneInput(phone)}
+                        onChange={(e) => {
+                          setPhone(onlyDigits(e.target.value).slice(0, 11));
+                          setError("");
+                          setSuccess("");
+                        }}
+                        placeholder="휴대폰 번호를 입력해주세요"
+                      />
+                    </FieldBlock>
+                  </SectionCard>
+                </div>
+              ) : null}
+
+              {step === 2 ? (
+                <div className="space-y-3 pb-2">
+                  <SectionCard
+                    title="문자 인증"
+                    desc={`${maskedPhone || "등록된 휴대폰"
+                      }로 보낸 인증번호 6자리를 입력해주세요.`}
+                  >
+                    <FieldBlock
+                      label="인증번호"
+                      icon={<PiShieldCheckered />}
+                      hint={
+                        remainSec > 0
+                          ? `남은 시간 ${String(
+                            Math.floor(remainSec / 60)
+                          ).padStart(2, "0")}:${String(remainSec % 60).padStart(
+                            2,
+                            "0"
+                          )}`
+                          : "인증번호 시간이 만료되었어요"
+                      }
                     >
-                      재요청
-                    </button>
-                  </div>
-                </FieldBlock>
-              </SectionCard>
-            </div>
-          ) : null}
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={onlyDigits(code).slice(0, 6)}
+                          onChange={(e) => {
+                            setCode(onlyDigits(e.target.value).slice(0, 6));
+                            setError("");
+                            setSuccess("");
+                          }}
+                          placeholder="6자리 인증번호 입력"
+                          className="flex-1"
+                        />
 
-          {step === 3 ? (
-            <div className="space-y-3">
-              <SectionCard
-                title="새 비밀번호 설정"
-                desc="영문과 숫자를 포함한 새 비밀번호로 변경해주세요."
+                        <button
+                          type="button"
+                          onClick={handleSendCode}
+                          disabled={sendingCode}
+                          style={{ cursor: sendingCode ? "default" : "pointer" }}
+                          className="h-12 shrink-0 rounded-md border border-zinc-300 bg-white px-3 text-[13px] font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
+                        >
+                          재요청
+                        </button>
+                      </div>
+                    </FieldBlock>
+                  </SectionCard>
+                </div>
+              ) : null}
+
+              {step === 3 ? (
+                <div className="space-y-3 pb-2">
+                  <SectionCard
+                    title="새 비밀번호 설정"
+                    desc="영문과 숫자를 포함한 새 비밀번호로 변경해주세요."
+                  >
+                    <FieldBlock label="계정" icon={<PiEnvelopeSimple />}>
+                      <div className="flex h-12 items-center rounded-md border border-zinc-300 bg-zinc-100 px-3 text-[14px] font-medium text-zinc-700">
+                        {email || "-"}
+                      </div>
+                    </FieldBlock>
+
+                    <FieldBlock label="새 비밀번호" icon={<PiLockKey />}>
+                      <PasswordInput
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setError("");
+                          setSuccess("");
+                        }}
+                        placeholder="새 비밀번호를 입력해주세요"
+                        visible={showPassword}
+                        onToggle={() => setShowPassword((prev) => !prev)}
+                      />
+
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <PasswordRule ok={passwordChecks.length} label="8자 이상" />
+                        <PasswordRule
+                          ok={passwordChecks.hasLetter}
+                          label="영문 포함"
+                        />
+                        <PasswordRule
+                          ok={passwordChecks.hasNumber}
+                          label="숫자 포함"
+                        />
+                        <PasswordRule
+                          ok={passwordChecks.noSpace}
+                          label="공백 없음"
+                        />
+                      </div>
+                    </FieldBlock>
+
+                    <FieldBlock label="새 비밀번호 확인" icon={<PiLockKey />}>
+                      <PasswordInput
+                        value={newPasswordCheck}
+                        onChange={(e) => {
+                          setNewPasswordCheck(e.target.value);
+                          setError("");
+                          setSuccess("");
+                        }}
+                        placeholder="새 비밀번호를 다시 입력해주세요"
+                        visible={showPasswordCheck}
+                        onToggle={() => setShowPasswordCheck((prev) => !prev)}
+                      />
+
+                      {newPasswordCheck ? (
+                        <div
+                          className={`rounded-md px-3 py-2 text-[12px] font-medium ${newPassword === newPasswordCheck
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-rose-50 text-rose-500"
+                            }`}
+                        >
+                          {newPassword === newPasswordCheck
+                            ? "새 비밀번호가 일치해요."
+                            : "새 비밀번호 확인이 일치하지 않아요."}
+                        </div>
+                      ) : null}
+                    </FieldBlock>
+                  </SectionCard>
+                </div>
+              ) : null}
+
+              {error ? (
+                <div className="mt-3 flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] text-rose-600">
+                  <PiWarningCircleFill className="mt-[1px] shrink-0 text-[15px]" />
+                  <span>{error}</span>
+                </div>
+              ) : null}
+
+              {success ? (
+                <div className="mt-3 flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-700">
+                  <PiCheckCircleFill className="mt-[1px] shrink-0 text-[15px]" />
+                  <span>{success}</span>
+                </div>
+              ) : null}
+            </main>
+
+            <div className="shrink-0 border-t border-zinc-200 bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
+              <button
+                type="button"
+                onClick={handleBottomAction}
+                disabled={bottomButtonDisabled}
+                style={{ cursor: bottomButtonDisabled ? "default" : "pointer" }}
+                className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 text-[15px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50"
               >
-                <FieldBlock
-                  label="계정"
-                  icon={<PiEnvelopeSimple />}
-                >
-                  <div className="flex h-12 items-center rounded-md border border-zinc-300 bg-zinc-100 px-3 text-[14px] font-medium text-zinc-700">
-                    {email || "-"}
-                  </div>
-                </FieldBlock>
-
-                <FieldBlock
-                  label="새 비밀번호"
-                  icon={<PiLockKey />}
-                >
-                  <PasswordInput
-                    value={newPassword}
-                    onChange={(e) => {
-                      setNewPassword(e.target.value);
-                      setError("");
-                      setSuccess("");
-                    }}
-                    placeholder="새 비밀번호를 입력해주세요"
-                    visible={showPassword}
-                    onToggle={() => setShowPassword((prev) => !prev)}
-                  />
-
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <PasswordRule ok={passwordChecks.length} label="8자 이상" />
-                    <PasswordRule ok={passwordChecks.hasLetter} label="영문 포함" />
-                    <PasswordRule ok={passwordChecks.hasNumber} label="숫자 포함" />
-                    <PasswordRule ok={passwordChecks.noSpace} label="공백 없음" />
-                  </div>
-                </FieldBlock>
-
-                <FieldBlock
-                  label="새 비밀번호 확인"
-                  icon={<PiLockKey />}
-                >
-                  <PasswordInput
-                    value={newPasswordCheck}
-                    onChange={(e) => {
-                      setNewPasswordCheck(e.target.value);
-                      setError("");
-                      setSuccess("");
-                    }}
-                    placeholder="새 비밀번호를 다시 입력해주세요"
-                    visible={showPasswordCheck}
-                    onToggle={() => setShowPasswordCheck((prev) => !prev)}
-                  />
-
-                  {newPasswordCheck ? (
-                    <div
-                      className={`rounded-md px-3 py-2 text-[12px] font-medium ${newPassword === newPasswordCheck
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-rose-50 text-rose-500"
-                        }`}
-                    >
-                      {newPassword === newPasswordCheck
-                        ? "새 비밀번호가 일치해요."
-                        : "새 비밀번호 확인이 일치하지 않아요."}
-                    </div>
-                  ) : null}
-                </FieldBlock>
-              </SectionCard>
+                {bottomButtonLabel}
+              </button>
             </div>
-          ) : null}
-
-          {error ? (
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] text-rose-600">
-              <PiWarningCircleFill className="mt-[1px] shrink-0 text-[15px]" />
-              <span>{error}</span>
-            </div>
-          ) : null}
-
-          {success ? (
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-700">
-              <PiCheckCircleFill className="mt-[1px] shrink-0 text-[15px]" />
-              <span>{success}</span>
-            </div>
-          ) : null}
-        </main>
-
-        <div className="shrink-0 border-t border-zinc-200 bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
-          <button
-            type="button"
-            onClick={handleBottomAction}
-            disabled={bottomButtonDisabled}
-            style={{ cursor: bottomButtonDisabled ? "default" : "pointer" }}
-            className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 text-[15px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50"
-          >
-            {bottomButtonLabel}
-          </button>
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

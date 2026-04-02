@@ -234,7 +234,7 @@ input:-webkit-autofill:active {
 }
 `}</style>
 
-      <header className="shrink-0 px-6 pb-2 pt-6">
+      <header className="shrink-0 px-6 pb-4 pt-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[20px] font-black tracking-[-0.04em] text-slate-900">
             로그인

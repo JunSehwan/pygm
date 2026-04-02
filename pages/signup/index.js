@@ -15,6 +15,8 @@ import {
   userLoadingEndwithNoone,
 } from "slices/user";
 
+import SEOHead from "components/Common/SEOHead";
+
 const mapUserDocToCurrentUser = (uid, docData = {}) => ({
   userID: uid,
   username: docData.username,
@@ -192,10 +194,11 @@ const SignupPage = () => {
 
   return (
     <>
-      <Head>
-        <title>회원가입 | 차밍수프</title>
-      </Head>
-
+      <SEOHead
+        title="회원가입"
+        description="차밍수프에 가입하고 매너와 인성, 연애 반응 기반의 새로운 매칭을 시작해보세요."
+        keywords="차밍수프 회원가입, 소개팅 가입, 매칭 서비스 가입"
+      />
       {nowLoading || loading ? <LoadingPage /> : <Signup />}
     </>
   );

@@ -16,17 +16,55 @@ import {
   userLoadingEndwithNoone,
 } from "slices/user";
 
-import ProfileCompletePromptModal, {
-  useProfileCompletePrompt,
-} from "components/Common/ProfileCompletePromptModal";
-
 import RequireAuth from "components/Common/RequireAuth";
 import { adaptLegacyProfileDoc } from "lib/profileLegacyAdapter";
-
 
 // 기존 유저 프로필 연동시키기 위해 변경 전환 lib/profileLegacyAdaptor
 function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
   return adaptLegacyProfileDoc(docData, firebaseUser, userDocId);
+}
+
+function serializeFirestoreValue(value) {
+  if (value == null) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeFirestoreValue(item));
+  }
+
+  if (typeof value === "object") {
+    if (
+      typeof value.toDate === "function" &&
+      typeof value.toMillis === "function"
+    ) {
+      return value.toDate().toISOString();
+    }
+
+    const next = {};
+    Object.keys(value).forEach((key) => {
+      next[key] = serializeFirestoreValue(value[key]);
+    });
+    return next;
+  }
+
+  return value;
+}
+
+function buildSafeUserPayload(userId, rawData = {}, firebaseUser = null) {
+  const serialized = serializeFirestoreValue(rawData || {});
+
+  return {
+    ...serialized,
+    userID: userId || serialized.userID || serialized.uid || "",
+    uid: userId || serialized.uid || serialized.userID || "",
+    email: serialized.email || firebaseUser?.email || "",
+    styleTest:
+      serialized?.styleTest && typeof serialized.styleTest === "object"
+        ? {
+          ...serialized.styleTest,
+          completedAt: serialized.styleTest.completedAt || null,
+        }
+        : serialized?.styleTest || {},
+  };
 }
 
 export default function ProfileIndexPage() {
@@ -34,13 +72,6 @@ export default function ProfileIndexPage() {
   const dispatch = useDispatch();
   const auth = getAuth();
   const { user, loading } = useSelector((state) => state.user);
-
-  const {
-    open: profilePromptOpen,
-    close: closeProfilePrompt,
-  } = useProfileCompletePrompt(user, {
-    cooldownDays: 7,
-  });
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -61,8 +92,19 @@ export default function ProfileIndexPage() {
           return;
         }
 
-        const currentUser = buildCurrentUser(firebaseUser, userSnap.data(), userSnap.id);
-        dispatch(setUser(currentUser));
+        const currentUser = buildCurrentUser(
+          firebaseUser,
+          userSnap.data(),
+          userSnap.id
+        );
+
+        const safeUser = buildSafeUserPayload(
+          userSnap.id,
+          currentUser,
+          firebaseUser
+        );
+
+        dispatch(setUser(safeUser));
         dispatch(userLoadingEnd());
       } catch (e) {
         console.error("[profile] load error:", e);
@@ -80,13 +122,20 @@ export default function ProfileIndexPage() {
       if (!snap.exists()) return;
 
       const docData = snap.data();
+
       const currentUser = buildCurrentUser(
         { uid: snap.id, email: docData.email },
         docData,
         snap.id
       );
 
-      dispatch(setUser(currentUser));
+      const safeUser = buildSafeUserPayload(
+        snap.id,
+        currentUser,
+        { uid: snap.id, email: docData.email }
+      );
+
+      dispatch(setUser(safeUser));
       dispatch(userLoadingEnd());
     });
 
@@ -97,7 +146,10 @@ export default function ProfileIndexPage() {
     <>
       <Head>
         <title>내 프로필 | 차밍수프</title>
-        <meta name="description" content="내 프로필과 가치관설문을 관리하세요." />
+        <meta
+          name="description"
+          content="내 프로필과 가치관설문을 관리하세요."
+        />
       </Head>
 
       {loading ? (
@@ -114,7 +166,7 @@ export default function ProfileIndexPage() {
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
               <section
                 id="app-surface"
-                className="relative w-full max-w-[390px] overflow-hidden bg-slate-50 md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
               >
                 <ProfileMainPage user={user} />
               </section>

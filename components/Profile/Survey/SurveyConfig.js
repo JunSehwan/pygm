@@ -191,12 +191,6 @@ export const SURVEY_SECTIONS = [
     description: "종교/식습관 등의 생활 가치관을 확인해요.",
     fields: [
       {
-        key: "religion",
-        title: "종교를 선택해주세요",
-        type: "single",
-        options: ["무교", "기독교", "천주교", "불교", "원불교", "유교", "기타"],
-      },
-      {
         key: "religion_important",
         title: "본인에게 종교는 얼마나 큰 의미인가요?",
         type: "single",
@@ -281,6 +275,24 @@ function parseMbtiString(mbti = "") {
   };
 }
 
+function normalizeSingleChoiceStoredValue(rawValue, field = {}) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return "";
+
+  const options = Array.isArray(field?.options) ? field.options : [];
+
+  if (/^\d+$/.test(value)) {
+    return value;
+  }
+
+  const matchedIndex = options.findIndex((option) => String(option).trim() === value);
+  if (matchedIndex >= 0) {
+    return String(matchedIndex + 1);
+  }
+
+  return value;
+}
+
 export function getFieldValue(user = {}, field = {}) {
   if (isMbtiField(field)) {
     const fromFlat = {
@@ -314,6 +326,10 @@ export function getFieldValue(user = {}, field = {}) {
     }
 
     return [];
+  }
+
+  if (field.type === "single") {
+    return normalizeSingleChoiceStoredValue(rawValue, field);
   }
 
   return rawValue ?? "";

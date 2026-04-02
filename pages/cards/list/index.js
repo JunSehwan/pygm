@@ -61,20 +61,33 @@ function serializeStyleTest(styleTest = {}) {
 function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
   return {
     userID: firebaseUser?.uid || userDocId || "",
+    uid: firebaseUser?.uid || userDocId || "",
     username: docData.username || "",
     nickname: docData.nickname || "",
+    name: docData.name || "",
     email: docData.email || firebaseUser?.email || "",
     birthday: docData.birthday || "",
+    birth: docData.birth || "",
+    birthDay: docData.birthDay || "",
     gender: docData.gender || "",
     phonenumber: docData.phonenumber || "",
-    thumbimage: docData.thumbimage || "",
+    thumbimage: Array.isArray(docData.thumbimage)
+      ? docData.thumbimage
+      : docData.thumbimage
+        ? [docData.thumbimage]
+        : [],
     date_sleep: docData.date_sleep ?? false,
     withdraw: docData.withdraw ?? false,
     date_profile_finished: docData.date_profile_finished ?? false,
     date_pending: docData.date_pending ?? true,
 
-    maritalStatus: docData.maritalStatus || "",
+    maritalStatus: docData.maritalStatus || docData.status || "",
+    status: docData.status || "",
     mbti: docData.mbti || "",
+    mbti_ei: docData.mbti_ei || "",
+    mbti_sn: docData.mbti_sn || "",
+    mbti_tf: docData.mbti_tf || "",
+    mbti_jp: docData.mbti_jp || "",
     job: docData.job || "",
     education: docData.education || "",
     residence: docData.residence || {},
@@ -85,12 +98,59 @@ function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
     company_location_sido: docData.company_location_sido || "",
     company_location_sigugun: docData.company_location_sigugun || "",
 
-    profilePhotos: Array.isArray(docData.profilePhotos) ? docData.profilePhotos : [],
+    height: docData.height || "",
+    religion: docData.religion || "",
+    salary: docData.salary || "",
+
+    profilePhotos: Array.isArray(docData.profilePhotos)
+      ? docData.profilePhotos
+      : [],
     charmingCardPhotoPublic: !!docData.charmingCardPhotoPublic,
     charmingCardAnsweredIds: Array.isArray(docData.charmingCardAnsweredIds)
       ? docData.charmingCardAnsweredIds
       : [],
     styleTest: serializeStyleTest(docData.styleTest || {}),
+
+    hobby: docData.hobby || "",
+    hobbyList: Array.isArray(docData.hobbyList) ? docData.hobbyList : [],
+    opfriend: docData.opfriend || "",
+    friendmeeting: docData.friendmeeting || "",
+    longdistance: docData.longdistance || "",
+    datecycle: docData.datecycle || "",
+    dateromance: docData.dateromance || "",
+    contact: docData.contact || "",
+    contactcycle: docData.contactcycle || "",
+    passwordshare: docData.passwordshare || "",
+    wedding: docData.wedding || "",
+    wedding_dating: docData.wedding_dating || "",
+
+    drink: docData.drink || "",
+    health: docData.health || "",
+    hotplace: docData.hotplace || "",
+    tour: docData.tour || "",
+    tourlike: docData.tourlike || "",
+    tourpurpose: docData.tourpurpose || "",
+    hobbyshare: docData.hobbyshare || "",
+
+    career_goal: docData.career_goal || "",
+    living_weekend: docData.living_weekend || "",
+    living_consume: docData.living_consume || "",
+    living_pet: docData.living_pet || "",
+    living_tatoo: docData.living_tatoo || "",
+    living_smoke: docData.living_smoke || "",
+    living_charming: docData.living_charming || "",
+
+    religion_important: docData.religion_important || "",
+    religion_visit: docData.religion_visit || "",
+    religion_accept: docData.religion_accept || "",
+    food_taste: docData.food_taste || "",
+    food_like: docData.food_like || "",
+    food_dislike: docData.food_dislike || "",
+    food_vegetarian: docData.food_vegetarian || "",
+    food_spicy: docData.food_spicy || "",
+    food_diet: docData.food_diet || "",
+
+    blockedUpdatedAt: serializeTimestamp(docData.blockedUpdatedAt),
   };
 }
 
@@ -105,22 +165,17 @@ function mapCardDoc(docSnap) {
     body: data.body || "",
     guide: data.guide || "",
     options: Array.isArray(data.options) ? data.options : [],
-    views: data.views || 0,
-    answerCount: data.answerCount || 0,
-    interestedCount: data.interestedCount || 0,
-    creatorGender: data.creatorGender || "",
-    creatorNickname: data.creatorNickname || "",
     creatorUid: data.creatorUid || "",
-    creatorUsername: data.creatorUsername || "",
-    visibilityTarget: data.visibilityTarget || "",
-    isPublished: !!data.isPublished,
+    creatorNickname: data.creatorNickname || "",
+    creatorGender: data.creatorGender || "",
+    isPublished: data.isPublished ?? false,
     status: data.status || "",
-    createdAt: data.createdAt || null,
-    updatedAt: data.updatedAt || null,
-    recommendedScore:
-      (data.answerCount || 0) * 0.55 +
-      (data.interestedCount || 0) * 0.35 +
-      (data.views || 0) * 0.1,
+    visibilityTarget: data.visibilityTarget || "",
+    views: typeof data.views === "number" ? data.views : 0,
+    interestedCount:
+      typeof data.interestedCount === "number" ? data.interestedCount : 0,
+    createdAt: serializeTimestamp(data.createdAt),
+    updatedAt: serializeTimestamp(data.updatedAt),
   };
 }
 
@@ -131,105 +186,39 @@ function mapAnswerDoc(docSnap) {
     id: docSnap.id,
     cardId: data.cardId || "",
     answererUid: data.answererUid || "",
-    answererUsername: data.answererUsername || "",
-    answererNickname: data.answererNickname || "",
     answererGender: data.answererGender || "",
     answerText: data.answerText || "",
-    selectedOptionIndex:
-      typeof data.selectedOptionIndex === "number" ? data.selectedOptionIndex : null,
-    selectedOptionText: data.selectedOptionText || "",
-    questionType: data.questionType || "text",
-    createdAt: data.createdAt || null,
-    updatedAt: data.updatedAt || null,
+    selectedOptionIndexes: Array.isArray(data.selectedOptionIndexes)
+      ? data.selectedOptionIndexes
+      : [],
+    createdAt: serializeTimestamp(data.createdAt),
+    updatedAt: serializeTimestamp(data.updatedAt),
   };
 }
 
-async function loadUsersMapByIds(uids = []) {
-  const uniqueIds = Array.from(new Set((uids || []).filter(Boolean)));
-
-  const docs = await Promise.all(
-    uniqueIds.map(async (uid) => {
-      const userSnap = await getDoc(doc(db, "users", uid));
-      if (!userSnap.exists()) return null;
-
-      const data = userSnap.data() || {};
-      return {
-        uid: userSnap.id,
-        userID: userSnap.id,
-        ...data,
-        styleTest: serializeStyleTest(data.styleTest || {}),
-      };
-    })
-  );
-
-  const map = {};
-  docs.forEach((item) => {
-    if (!item?.uid) return;
-    map[item.uid] = item;
-  });
-
-  return map;
+function isFemaleGender(gender = "") {
+  return String(gender || "").toLowerCase() === "female";
 }
 
-
-function isVisibleCard(card) {
-  if (card.visibilityTarget !== "male") return false;
-
-  const creatorGender = String(card.creatorGender || "").toLowerCase();
-  const isAdminCreated =
-    creatorGender === "admin" ||
-    card.creatorUid === "admin" ||
-    card.creatorNickname === "관리자" ||
-    card.creatorUsername === "관리자";
-
-  if (creatorGender !== "female" && !isAdminCreated) return false;
-
-  if (SHOW_PENDING_FOR_DEV) {
-    return (
-      card.status === "pending_approval" ||
-      card.status === "approved" ||
-      card.status === "published" ||
-      card.isPublished === true
-    );
-  }
-
-  return (
-    card.status === "approved" ||
-    card.status === "published" ||
-    card.isPublished === true
-  );
-}
-
-function isFemaleGender(gender) {
-  return (
-    gender === "female" ||
-    gender === "여성" ||
-    gender === "woman" ||
-    gender === "F"
-  );
-}
-
-export default function CardsListIndexPage() {
-  const dispatch = useDispatch();
+export default function CardListPage() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const auth = getAuth();
-
   const { user, loading } = useSelector((state) => state.user);
 
   const [cards, setCards] = useState([]);
   const [cardsLoading, setCardsLoading] = useState(true);
   const [answeredCardIds, setAnsweredCardIds] = useState([]);
-
   const [femaleReviewItems, setFemaleReviewItems] = useState([]);
   const [femaleReactionByAnswerId, setFemaleReactionByAnswerId] = useState({});
   const [femaleReportedAnswererUids, setFemaleReportedAnswererUids] = useState([]);
 
-  const { open: profilePromptOpen, close: closeProfilePrompt } = useProfileCompletePrompt(
-    user,
-    {
-      cooldownDays: 7,
-    }
-  );
+  const {
+    open: profilePromptOpen,
+    close: closeProfilePrompt,
+  } = useProfileCompletePrompt(user, {
+    cooldownDays: 7,
+  });
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -237,6 +226,8 @@ export default function CardsListIndexPage() {
 
       if (!firebaseUser) {
         dispatch(userLoadingEndwithNoone());
+        setCards([]);
+        setCardsLoading(false);
         return;
       }
 
@@ -246,15 +237,24 @@ export default function CardsListIndexPage() {
 
         if (!userSnap.exists()) {
           dispatch(userLoadingEndwithNoone());
+          setCards([]);
+          setCardsLoading(false);
           return;
         }
 
-        const currentUser = buildCurrentUser(firebaseUser, userSnap.data(), userSnap.id);
+        const currentUser = buildCurrentUser(
+          firebaseUser,
+          userSnap.data(),
+          userSnap.id
+        );
+
         dispatch(setUser(currentUser));
         dispatch(userLoadingEnd());
-      } catch (e) {
-        console.error("[cards/list] user load error:", e);
+      } catch (error) {
+        console.error("[cards/list] user load error:", error);
         dispatch(userLoadingEndwithNoone());
+        setCards([]);
+        setCardsLoading(false);
       }
     });
 
@@ -262,47 +262,48 @@ export default function CardsListIndexPage() {
   }, [auth, dispatch]);
 
   useEffect(() => {
-    if (!user?.userID) return;
-
-    const unsubDoc = onSnapshot(doc(db, "users", user.userID), (snap) => {
-      if (!snap.exists()) return;
-
-      const docData = snap.data();
-      const currentUser = buildCurrentUser(
-        { uid: snap.id, email: docData.email },
-        docData,
-        snap.id
-      );
-      dispatch(setUser(currentUser));
-      dispatch(userLoadingEnd());
-    });
-
-    return () => unsubDoc();
-  }, [dispatch, user?.userID]);
-
-  useEffect(() => {
     let mounted = true;
 
     async function loadCards() {
+      if (!user?.userID) {
+        setCards([]);
+        setCardsLoading(false);
+        return;
+      }
+
       try {
         setCardsLoading(true);
 
-        const q = query(collection(db, "charmingCards"), orderBy("updatedAt", "desc"));
-        const snap = await getDocs(q);
+        const cardsSnap = await getDocs(
+          query(
+            collection(db, "charmingCards"),
+            where("isPublished", "==", true),
+            orderBy("updatedAt", "desc")
+          )
+        );
 
-        const visibleCards = snap.docs.map(mapCardDoc).filter(isVisibleCard);
-
-        if (!user?.userID) {
-          if (!mounted) return;
-          setCards(visibleCards);
-          return;
-        }
+        const visibleCards = cardsSnap.docs.map(mapCardDoc);
 
         const creatorIds = Array.from(
           new Set(visibleCards.map((item) => item.creatorUid).filter(Boolean))
         );
 
-        const creatorMap = await loadUsersMapByIds(creatorIds);
+        const creatorDocs = await Promise.all(
+          creatorIds.map(async (uid) => {
+            const userSnap = await getDoc(doc(db, "users", uid));
+            if (!userSnap.exists()) return null;
+            return {
+              uid,
+              ...userSnap.data(),
+            };
+          })
+        );
+
+        const creatorMap = {};
+        creatorDocs.forEach((item) => {
+          if (!item?.uid) return;
+          creatorMap[item.uid] = item;
+        });
 
         const nextCards = visibleCards.filter((card) => {
           const creator = creatorMap[card.creatorUid];
@@ -506,7 +507,6 @@ export default function CardsListIndexPage() {
           })
           .filter(Boolean);
 
-
         if (!mounted) return;
         setFemaleReviewItems(nextItems);
         setFemaleReactionByAnswerId(nextReactionByAnswerId);
@@ -551,42 +551,42 @@ export default function CardsListIndexPage() {
             </div>
 
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-6">
-                <section
-                  id="app-surface"
-                  className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
-                >
-                  <div className="min-h-0 flex-1">
-                    <CardListContainer
-                      user={user}
-                      cards={cards}
-                      answeredCardIds={answeredCardIds}
-                      showPendingForDev={SHOW_PENDING_FOR_DEV}
-                      femaleReviewItems={femaleReviewItems}
-                      femaleReactionByAnswerId={femaleReactionByAnswerId}
-                      femaleReportedAnswererUids={femaleReportedAnswererUids}
-                    />
-                  </div>
+              <section
+                id="app-surface"
+                className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+              >
+                <div className="min-h-0 flex-1">
+                  <CardListContainer
+                    user={user}
+                    cards={cards}
+                    answeredCardIds={answeredCardIds}
+                    showPendingForDev={SHOW_PENDING_FOR_DEV}
+                    femaleReviewItems={femaleReviewItems}
+                    femaleReactionByAnswerId={femaleReactionByAnswerId}
+                    femaleReportedAnswererUids={femaleReportedAnswererUids}
+                  />
+                </div>
 
-                  {showNavbar ? (
-                    <div className="shrink-0">
-                      <BottomNavbar contained />
-                    </div>
-                  ) : null}
-                </section>
+                {showNavbar ? (
+                  <div className="shrink-0">
+                    <BottomNavbar contained />
+                  </div>
+                ) : null}
+
+                <ProfileCompletePromptModal
+                  user={user}
+                  open={profilePromptOpen}
+                  onClose={closeProfilePrompt}
+                  onMoveProfile={() => {
+                    closeProfilePrompt();
+                    router.push("/profile?tab=basic");
+                  }}
+                />
+              </section>
             </div>
           </div>
         </main>
       )}
-
-      <ProfileCompletePromptModal
-        user={user}
-        open={profilePromptOpen}
-        onClose={closeProfilePrompt}
-        onMoveProfile={() => {
-          closeProfilePrompt();
-          router.push("/profile?tab=basic");
-        }}
-      />
     </>
   );
 }

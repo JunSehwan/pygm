@@ -133,7 +133,7 @@ function SubMenuRow({ label, onClick }) {
       type="button"
       onClick={onClick}
       style={{ cursor: "pointer" }}
-      className="flex  w-full items-center justify-between border-b border-zinc-100 bg-zinc-100 px-5 py-4 text-left transition hover:bg-zinc-200"
+      className="flex  w-full items-center justify-between border-solid border-b-1 border-x-0 border-t-0 border-white/80 bg-zinc-100 px-5 py-4 text-left transition hover:bg-zinc-200"
     >
       <span className="pl-8 text-[14px] font-medium text-zinc-700">{label}</span>
       <PiCaretRightBold className="text-[15px] text-zinc-400" />
@@ -343,6 +343,14 @@ export default function BottomNavbar({ contained = true }) {
     return Number(rawCompletion?.percent || 0);
   }, [rawCompletion?.percent]);
 
+  const profileGuideText = useMemo(() => {
+    if (targetPercent >= 100) {
+      return "이제 차밍카드에서\n나와 잘 맞는 연애스타일의 이성을 만나보세요.";
+    }
+
+    return "프로필을 채울수록\n매칭 흐름이 더 좋아져요.";
+  }, [targetPercent]);
+
   const [displayPercent, setDisplayPercent] = useState(0);
   const motionPercent = useMotionValue(0);
 
@@ -500,10 +508,8 @@ export default function BottomNavbar({ contained = true }) {
                   <div className="break-keep text-[15px] font-semibold">
                     프로필 완성율 : {displayPercent}%
                   </div>
-                  <div className="mt-1 break-keep text-[13px] leading-5 text-white/90">
-                    프로필을 채울수록
-                    <br />
-                    매칭 흐름이 더 좋아져요.
+                  <div className="mt-1 break-keep whitespace-pre-line text-[13px] leading-5 text-white/90">
+                    {profileGuideText}
                   </div>
                 </div>
 

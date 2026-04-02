@@ -22,9 +22,9 @@ export default function LandingHero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-[#697DE8] via-[#89A3EA] to-[#B4D8E9] px-4 pb-8 pt-16">
       <div className="px-1 pt-5">
-        <h1 className="whitespace-pre-line text-[38px] font-extrabold leading-[1.14] tracking-[-0.04em] text-white">
-          연애 행동 분석 기반,
-          {"\n"}
+        <h1 className="whitespace-pre-line text-[38px] font-extrabold leading-[1.14] text-white">
+          {/* 연애 행동 분석 기반,
+          {"\n"} */}
           티키타카가 되는
           {"\n"}
           이성과의 만남

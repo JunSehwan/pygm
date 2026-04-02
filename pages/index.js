@@ -14,6 +14,7 @@ import {
   userLoadingEnd,
   userLoadingEndwithNoone,
 } from "slices/user";
+import SEOHead from "components/Common/SEOHead";
 
 const mapUserDocToCurrentUser = (uid, docData = {}) => ({
   userID: uid,
@@ -198,39 +199,11 @@ const IndexPage = () => {
 
   return (
     <>
-      <Head>
-        <title>차밍수프 | 매너와 인성 기반 매칭</title>
-
-        <meta
-          name="keywords"
-          content="차밍수프, 소개팅, 연애, 매칭, 연애테스트, 성향테스트"
-        />
-        <meta
-          name="description"
-          content="매너와 인성, 연애스타일까지 확인하는 차밍수프 매칭 서비스"
-        />
-
-        <meta name="application-name" content="차밍수프" />
-        <meta name="msapplication-tooltip" content="차밍수프(Charming Ground)" />
-
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content="차밍수프 | 검증된 매칭" />
-        <meta
-          property="og:description"
-          content="불편한 대화와 애매한 약속을 줄이기 위해 매너 데이터를 먼저 확인합니다."
-        />
-        <meta property="og:image" content="https://pygm.co.kr/logo/pygm.png" />
-        <meta property="og:url" content="https://pygm.co.kr" />
-
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="차밍수프 | 검증된 매칭" />
-        <meta
-          name="twitter:description"
-          content="자기진단과 매너/인성 기반으로 더 자연스럽게 만나는 매칭"
-        />
-        <meta name="twitter:image" content="https://pygm.co.kr/logo/pygm.png" />
-        <meta name="twitter:domain" content="pygm.co.kr" />
-      </Head>
+      <SEOHead
+        title="차밍수프"
+        description="차밍수프는 외모나 조건만이 아니라, 연애 상황 속 반응과 가치관을 통해 더 잘 맞는 이성을 연결하는 매칭 서비스입니다."
+        keywords="차밍수프, 소개팅, 매칭, 가치관 매칭, 연애 스타일, 차밍카드"
+      />
 
       <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
         <div className="relative min-h-screen overflow-hidden">

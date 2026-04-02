@@ -80,18 +80,14 @@ const EDUCATION_OPTIONS = [
 ];
 
 function getSchoolNameText(user) {
-  return (
-    user?.schoolName ||
-    user?.educationSchoolName ||
-    user?.school ||
-    ""
-  );
+  return user?.schoolName || user?.educationSchoolName || user?.school || "";
 }
 
 function getBirthdayText(birthday) {
   if (!birthday) return "";
   if (typeof birthday === "string") return birthday;
-  if (birthday?.year) return `${birthday.year}년 ${birthday.month || ""}월 ${birthday.day || ""}일`;
+  if (birthday?.year)
+    return `${birthday.year}년 ${birthday.month || ""}월 ${birthday.day || ""}일`;
   return "";
 }
 
@@ -139,16 +135,6 @@ export default function ProfileMainPage({ user }) {
   const toastTimerRef = useRef(null);
 
   const [activeTab, setActiveTab] = useState("basic");
-
-  useEffect(() => {
-    if (!router.isReady) return;
-
-    const tab = router.query?.tab;
-    if (tab === "basic" || tab === "survey" || tab === "charming") {
-      setActiveTab(tab);
-    }
-  }, [router.isReady, router.query?.tab]);
-
   const [tabsVisible, setTabsVisible] = useState(true);
   const [lastScrollTop, setLastScrollTop] = useState(0);
 
@@ -169,6 +155,15 @@ export default function ProfileMainPage({ user }) {
     open: false,
     message: "",
   });
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const tab = router.query?.tab;
+    if (tab === "basic" || tab === "survey" || tab === "charming") {
+      setActiveTab(tab);
+    }
+  }, [router.isReady, router.query?.tab]);
 
   const showToast = (message) => {
     setToast({ open: true, message });
@@ -198,7 +193,9 @@ export default function ProfileMainPage({ user }) {
         const snap = await getDocs(collection(db, "users"));
         const allUsers = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
         const totalUsers = allUsers.length;
-        const ranked = [...allUsers].sort((a, b) => getLikeScore(b) - getLikeScore(a));
+        const ranked = [...allUsers].sort(
+          (a, b) => getLikeScore(b) - getLikeScore(a)
+        );
         const meIndex = ranked.findIndex((item) => item.id === user?.userID);
         const myRank = meIndex >= 0 ? meIndex + 1 : null;
 
@@ -252,7 +249,10 @@ export default function ProfileMainPage({ user }) {
         key: "residence",
         value:
           getAddressText(draftUser?.residence) ||
-          getAddressText({ sido: draftUser?.address_sido, sigugun: draftUser?.address_sigugun }),
+          getAddressText({
+            sido: draftUser?.address_sido,
+            sigugun: draftUser?.address_sigugun,
+          }),
         type: "address",
       },
       {
@@ -272,20 +272,35 @@ export default function ProfileMainPage({ user }) {
         value: getBirthdayText(draftUser?.birthday),
         type: "text",
         locked: true,
-        // subText: "본인인증 정보 기준으로 자동 등록됩니다.",
       },
-      { label: "직업선택", key: "job", value: draftUser?.job, type: "select", options: JOB_OPTIONS },
-      { label: "회사명", key: "company", value: draftUser?.company, type: "company" },
+      {
+        label: "직업선택",
+        key: "job",
+        value: draftUser?.job,
+        type: "select",
+        options: JOB_OPTIONS,
+      },
+      {
+        label: "회사명",
+        key: "company",
+        value: draftUser?.company,
+        type: "company",
+      },
       {
         label: "최종학력",
         key: "education",
         value: getSchoolNameText(draftUser)
           ? `${draftUser?.education || ""} · ${getSchoolNameText(draftUser)}`
-          : (draftUser?.education || ""),
+          : draftUser?.education || "",
         type: "education",
         options: EDUCATION_OPTIONS,
       },
-      { label: "경력인증", key: "companyVerified", value: draftUser?.companyVerified ? "인증완료" : "미인증", locked: true },
+      {
+        label: "경력인증",
+        key: "companyVerified",
+        value: draftUser?.companyVerified ? "인증완료" : "미인증",
+        locked: true,
+      },
       {
         label: "성별",
         key: "gender",
@@ -297,7 +312,12 @@ export default function ProfileMainPage({ user }) {
               : draftUser?.gender,
         locked: true,
       },
-      { label: "연락처", key: "phonenumber", value: draftUser?.phonenumber, locked: true },
+      {
+        label: "연락처",
+        key: "phonenumber",
+        value: draftUser?.phonenumber,
+        locked: true,
+      },
       {
         label: "상태",
         key: "maritalStatus",
@@ -310,8 +330,20 @@ export default function ProfileMainPage({ user }) {
       },
       { label: "키", key: "height", value: draftUser?.height, type: "number" },
       { label: "MBTI", key: "mbti", value: draftUser?.mbti, type: "mbti" },
-      { label: "종교", key: "religion", value: draftUser?.religion, type: "select", options: RELIGION_OPTIONS },
-      { label: "연봉수준", key: "salary", value: draftUser?.salary, type: "select", options: SALARY_OPTIONS },
+      {
+        label: "종교",
+        key: "religion",
+        value: draftUser?.religion,
+        type: "select",
+        options: RELIGION_OPTIONS,
+      },
+      {
+        label: "연봉수준",
+        key: "salary",
+        value: draftUser?.salary,
+        type: "select",
+        options: SALARY_OPTIONS,
+      },
       { label: "이메일", key: "email", value: draftUser?.email, type: "text" },
     ];
   }, [draftUser]);
@@ -334,8 +366,12 @@ export default function ProfileMainPage({ user }) {
 
     if (field.key === "workArea") {
       return {
-        sido: draftUser?.workArea?.sido || draftUser?.company_location_sido || "",
-        sigugun: draftUser?.workArea?.sigugun || draftUser?.company_location_sigugun || "",
+        sido:
+          draftUser?.workArea?.sido || draftUser?.company_location_sido || "",
+        sigugun:
+          draftUser?.workArea?.sigugun ||
+          draftUser?.company_location_sigugun ||
+          "",
         sidoCode: draftUser?.workArea?.sidoCode || "",
         sigugunCode: draftUser?.workArea?.sigugunCode || "",
       };
@@ -378,14 +414,9 @@ export default function ProfileMainPage({ user }) {
       const nextSchoolName = String(payload?.schoolName || "").trim();
 
       patch.education = nextEducation;
-
-      // 현재 필드
       patch.schoolName = nextSchoolName;
-
-      // 기존 코드 호환용 alias
       patch.educationSchoolName = nextSchoolName;
       patch.school = nextSchoolName;
-
       patch.educationPublic = payload?.educationPublic ?? true;
       return patch;
     }
@@ -471,19 +502,28 @@ export default function ProfileMainPage({ user }) {
     <>
       <SaveToast open={toast.open} message={toast.message} />
 
-      <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-slate-50 md:h-[760px]">
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-slate-50">
         <div className="shrink-0 border-b border-slate-200 bg-white">
-          <div className="flex items-center justify-between px-5 pb-4 pt-5">
+          <div className="flex items-center justify-between px-5 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
             <div className="text-[20px] font-bold tracking-[-0.03em] text-slate-900">
               내 프로필
             </div>
-            <button type="button" onClick={() => router.back()} className="text-slate-700">
+
+            <button
+              type="button"
+              onClick={() => router.back()}
+              style={{ cursor: "pointer" }}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-slate-700 transition hover:bg-slate-100"
+            >
               <FiArrowLeft className="text-[20px]" />
             </button>
           </div>
 
           <motion.div
-            animate={{ height: tabsVisible ? "auto" : 0, opacity: tabsVisible ? 1 : 0 }}
+            animate={{
+              height: tabsVisible ? "auto" : 0,
+              opacity: tabsVisible ? 1 : 0,
+            }}
             transition={{ duration: 0.18 }}
             className="overflow-hidden"
           >
@@ -495,6 +535,7 @@ export default function ProfileMainPage({ user }) {
                   { key: "charming", label: "차밍카드" },
                 ].map((tab) => {
                   const active = activeTab === tab.key;
+
                   return (
                     <button
                       key={tab.key}
@@ -513,14 +554,17 @@ export default function ProfileMainPage({ user }) {
                           { shallow: true }
                         );
                       }}
+                      style={{ cursor: "pointer" }}
                       className={cn(
-                        "relative pb-3 text-[16px] font-bold transition",
-                        active ? "text-slate-900" : "text-slate-400 font-medium"
+                        "relative pb-3 text-[16px] transition",
+                        active
+                          ? "font-bold text-slate-900"
+                          : "font-medium text-slate-400"
                       )}
                     >
                       {tab.label}
                       {active ? (
-                        <span className="absolute bottom-0 left-0 h-[3px] w-full rounded-full bg-[#3655ff]" />
+                        <span className="absolute bottom-0 left-0 h-[3px] w-full rounded-full bg-violet-600" />
                       ) : null}
                     </button>
                   );
@@ -533,7 +577,7 @@ export default function ProfileMainPage({ user }) {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="min-h-0 flex-1 overflow-y-auto pb-[4px]"
+          className="min-h-0 flex-1 overflow-y-auto pb-[calc(64px+20px+env(safe-area-inset-bottom))]"
         >
           {activeTab === "basic" && (
             <ProfileBasicTab
@@ -561,10 +605,9 @@ export default function ProfileMainPage({ user }) {
             />
           )}
 
-          {activeTab === "charming" && (
-            <ProfileCharmingTab user={draftUser} />
-          )}
+          {activeTab === "charming" && <ProfileCharmingTab user={draftUser} />}
         </div>
+
         <BottomNavbar contained />
 
         <ProfileFieldModal
@@ -588,7 +631,11 @@ export default function ProfileMainPage({ user }) {
           open={companyModalOpen}
           currentCompanyEmail={draftUser?.companyEmail || ""}
           onClose={() => setCompanyModalOpen(false)}
-          onComplete={async ({ companyEmail, companyVerified, companyNameGuess }) => {
+          onComplete={async ({
+            companyEmail,
+            companyVerified,
+            companyNameGuess,
+          }) => {
             try {
               const patch = {
                 companyEmail,
@@ -602,17 +649,23 @@ export default function ProfileMainPage({ user }) {
                 patch.company = companyNameGuess;
               }
 
-              await setDoc(doc(db, "users", user.userID), patch, { merge: true });
+              await setDoc(doc(db, "users", user.userID), patch, {
+                merge: true,
+              });
 
               setDraftUser((prev) => ({
                 ...prev,
                 ...patch,
-                company: prev?.company || companyNameGuess || prev?.company || "",
+                company:
+                  prev?.company || companyNameGuess || prev?.company || "",
               }));
 
               showToast("회사인증이 저장되었습니다.");
             } catch (error) {
-              console.error("[ProfileMainPage] company verify complete error:", error);
+              console.error(
+                "[ProfileMainPage] company verify complete error:",
+                error
+              );
             }
           }}
         />

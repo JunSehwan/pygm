@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FiArrowLeft, FiChevronRight } from "react-icons/fi";
-import { getProfileCompletionDetail, getProfilePreviewImage } from "lib/profileCompletion";
+import {
+  getProfileCompletionDetail,
+  getProfilePreviewImage,
+} from "lib/profileCompletion";
 
-const STORAGE_KEY_PREFIX = "profile_complete_prompt_last_shown_v3";
-const SESSION_KEY_PREFIX = "profile_complete_prompt_session_v3";
+const STORAGE_KEY_PREFIX = "profile_complete_prompt_last_shown_v4";
+const SESSION_KEY_PREFIX = "profile_complete_prompt_session_v4";
 const DEFAULT_COOLDOWN_DAYS = 7;
 
 function cn(...arr) {
@@ -51,46 +54,53 @@ export default function ProfileCompletePromptModal({
   onClose,
   onMoveProfile,
 }) {
-  const profileInfo = useMemo(() => getProfileCompletionDetail(user || {}), [user]);
-  const imageSrc = useMemo(() => getProfilePreviewImage(user || {}), [user]);
+  const profileInfo = useMemo(
+    () => getProfileCompletionDetail(user || {}),
+    [user]
+  );
+  const imageSrc = useMemo(
+    () => getProfilePreviewImage(user || {}),
+    [user]
+  );
 
-  if (!open) return null;
+  if (!open || profileInfo.percent >= 100) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[14000] bg-black/40"
+        className="absolute inset-0 z-[14000] bg-black/40"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
-        <div className="mx-auto flex h-full w-full max-w-[430px] items-end justify-center px-3 pb-3">
+        <div className="mx-auto flex h-full w-full max-w-[430px] items-end justify-center px-3 py-3">
           <motion.div
-            className="w-full overflow-hidden rounded-t-[22px] rounded-b-md bg-white shadow-2xl"
-            initial={{ opacity: 0, y: 80, scale: 0.98 }}
+            className="flex max-h-full w-full flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl"
+            initial={{ opacity: 0, y: 40, scale: 0.985 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 80, scale: 0.98 }}
+            exit={{ opacity: 0, y: 28, scale: 0.985 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-slate-200 px-5 pb-4 pt-5">
+            <div className="shrink-0 border-b border-slate-200 px-5 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-[24px] font-bold tracking-[-0.03em] text-slate-900">
+                <div className="text-[22px] font-bold tracking-[-0.03em] text-slate-900">
                   매칭률을 높여 볼까요?
                 </div>
 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-slate-700"
+                  style={{ cursor: "pointer" }}
+                  className="flex h-10 w-10 items-center justify-center rounded-md text-slate-700 transition hover:bg-slate-100"
                 >
                   <FiArrowLeft className="text-[24px]" />
                 </button>
               </div>
             </div>
 
-            <div className="max-h-[78vh] overflow-y-auto px-5 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
               <div className="mb-5 text-center">
                 <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-full bg-slate-100">
                   <img
@@ -141,25 +151,27 @@ export default function ProfileCompletePromptModal({
                   />
                 ))}
               </div>
+            </div>
 
-              <div className="mt-5">
-                <button
-                  type="button"
-                  onClick={onMoveProfile}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-violet-500 text-[16px] font-bold text-white"
-                >
-                  프로필 작성
-                  <FiChevronRight className="text-[18px]" />
-                </button>
+            <div className="shrink-0 border-t border-slate-200 bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
+              <button
+                type="button"
+                onClick={onMoveProfile}
+                style={{ cursor: "pointer" }}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-violet-500 text-[16px] font-bold text-white transition hover:bg-violet-600"
+              >
+                프로필 작성
+                <FiChevronRight className="text-[18px]" />
+              </button>
 
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="mt-3 w-full text-center text-[15px] font-medium text-slate-400"
-                >
-                  다음에 하기
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{ cursor: "pointer" }}
+                className="mt-3 w-full text-center text-[15px] font-medium text-slate-400 transition hover:text-slate-600"
+              >
+                다음에 하기
+              </button>
             </div>
           </motion.div>
         </div>
@@ -172,12 +184,19 @@ export function useProfileCompletePrompt(user, options = {}) {
   const cooldownDays = options.cooldownDays || DEFAULT_COOLDOWN_DAYS;
   const [open, setOpen] = useState(false);
 
-  const profileInfo = useMemo(() => getProfileCompletionDetail(user || {}), [user]);
+  const profileInfo = useMemo(
+    () => getProfileCompletionDetail(user || {}),
+    [user]
+  );
   const uid = user?.userID || user?.uid || "";
 
   useEffect(() => {
     if (!uid) return;
-    if (profileInfo.percent >= 100) return;
+
+    if (profileInfo.percent >= 100) {
+      setOpen(false);
+      return;
+    }
 
     const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
     const storageKey = `${STORAGE_KEY_PREFIX}_${uid}`;
@@ -187,7 +206,8 @@ export function useProfileCompletePrompt(user, options = {}) {
 
     const now = Date.now();
     const cooldownMs = cooldownDays * 24 * 60 * 60 * 1000;
-    const longTimePassed = !lastShownAt || now - Number(lastShownAt) > cooldownMs;
+    const longTimePassed =
+      !lastShownAt || now - Number(lastShownAt) > cooldownMs;
 
     if (!alreadyShownThisSession || longTimePassed) {
       setOpen(true);

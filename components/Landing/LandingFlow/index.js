@@ -33,14 +33,14 @@ export default function LandingFlow() {
           HOW IT WORKS
         </p>
 
-        <h2 className="mt-2 text-[30px] font-extrabold leading-[1.14] tracking-[-0.04em] text-white">
+        <h2 className="mt-2 text-[30px] font-extrabold leading-[1.14] text-white">
           차밍수프 사용 흐름
         </h2>
 
         <p className="mt-3 text-[16px] leading-[1.68] text-white/86">
           부담은 줄이고,
           <br />
-          더 잘 맞는 이성을 찾는 흐름으로 설계했습니다.
+          더 잘 맞는 이성을 찾을 수 있게 도와드립니다.
         </p>
 
         <div className="mt-8 space-y-4">
@@ -51,7 +51,7 @@ export default function LandingFlow() {
             return (
               <div
                 key={item.id}
-                className="rounded-[22px] border border-white/18 bg-white/10 px-4 py-4"
+                className="rounded-[22px] border border-white/50 bg-white/30 px-4 py-4"
               >
                 <div className="grid grid-cols-[42px_minmax(0,1fr)] gap-4">
                   <div className="flex flex-col items-center gap-3 pt-0.5">

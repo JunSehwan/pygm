@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { typeMetaMap } from "data/tests/styleQuestions";
+import SEOHead from "components/Common/SEOHead";
 
 export default function StyleSharePage() {
   const router = useRouter();
@@ -13,14 +14,10 @@ export default function StyleSharePage() {
 
   return (
     <>
-      <Head>
-        <title>{`내 연애스타일 결과: ${type.ko}`}</title>
-        <meta property="og:title" content={`내 연애스타일 결과: ${type.ko}`} />
-        <meta property="og:description" content={type.oneLine.replace(/\n/g, " ")} />
-        <meta property="og:image" content={imageUrl} />
-        <meta property="og:url" content={shareUrl} />
-        <meta property="og:type" content="website" />
-      </Head>
+      <SEOHead
+        title={`내 연애스타일 결과: ${type.ko}`}
+        description={`${type.ko} 유형 결과를 확인해보세요. 차밍수프 연애스타일 진단 공유 페이지입니다.`}
+      />
 
       <main className="min-h-screen bg-white px-5 py-10">
         <div className="mx-auto max-w-[420px]">

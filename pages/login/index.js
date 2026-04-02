@@ -1,13 +1,16 @@
 import React from "react";
 import Head from "next/head";
 import Login from "components/Auth/Login";
+import SEOHead from "components/Common/SEOHead";
 
 export default function LoginPage() {
   return (
     <>
-      <Head>
-        <title>로그인 | 차밍수프</title>
-      </Head>
+      <SEOHead
+        title="로그인"
+        description="차밍수프 계정으로 로그인하고 매칭, 차밍카드, 연애 스타일 진단 서비스를 이용해보세요."
+        noindex
+      />
 
       <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
         <div className="relative min-h-screen overflow-hidden">
