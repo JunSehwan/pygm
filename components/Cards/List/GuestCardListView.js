@@ -31,7 +31,7 @@ export default function GuestCardListView({ cards }) {
 
   return (
     <>
-      <div className="flex h-screen flex-col bg-slate-50 md:h-[760px]">
+      <div className="flex h-full min-h-0 flex-col bg-slate-50">
         <div className="shrink-0">
           <CardListHeader
             title="차밍카드 답변하기"

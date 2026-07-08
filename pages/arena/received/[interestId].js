@@ -7,6 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 import MaleDetailScreen from "components/Arena/MaleDetail";
 import { db } from "firebaseConfig";
+import { isAdminMatchExposureBlocked } from "lib/arena";
 
 import { isBlockedTargetUser } from "lib/userBlockRules";
 
@@ -120,6 +121,11 @@ export default function ArenaReceivedDetailPage() {
           userID: femaleSnap.id,
           ...femaleSnap.data(),
         };
+
+        if (isAdminMatchExposureBlocked(nextTargetUser)) {
+          router.replace("/arena");
+          return;
+        }
 
         if (isBlockedTargetUser(viewer, nextTargetUser)) {
           router.replace("/arena");

@@ -17,19 +17,20 @@ import {
 
 import AuthRequiredModal from "components/Common/AuthRequiredModal";
 import BottomNavbar from "components/Common/BottomNavbar";
+import IdentityNudgeBanner from "components/Common/IdentityNudgeBanner";
 import ArenaReceivePauseBar from "components/Arena/Common/ArenaReceivePauseBar";
 import {
-  getDisplayName,
-  getEducationLabel,
-  getJobLabel,
-  getJobTypeLabel,
-  getMaritalLabel,
-  getProfileImage,
+  getDisplayName as getArenaDisplayName,
+  getEducationLabel as getArenaEducationLabel,
+  getJobLabel as getArenaJobLabel,
+  getJobTypeLabel as getArenaJobTypeLabel,
+  getMaritalLabel as getArenaMaritalLabel,
+  getProfileImage as getArenaProfileImage,
   getRemainingHours,
-  getResidenceLabel,
-  getStyleAxisLetters,
-  getStyleDisplayLine,
-  getStyleTooltipText,
+  getResidenceLabel as getArenaResidenceLabel,
+  getStyleAxisLetters as getArenaStyleAxisLetters,
+  getStyleDisplayLine as getArenaStyleDisplayLine,
+  getStyleTooltipText as getArenaStyleTooltipText,
   getArenaBadgeTooltip,
   getArenaBadgeImage,
 } from "lib/arena";
@@ -80,6 +81,138 @@ function getSmokeLabel(user = {}) {
     "6": "흡연 매우 싫음",
   };
   return map[raw] || "";
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    if (hasText(value)) return value.trim();
+  }
+  return "";
+}
+
+function isMeaningfulText(value) {
+  if (!hasText(value)) return false;
+  const text = value.trim();
+  if (!text) return false;
+  if (text.toLowerCase() === "[object object]") return false;
+  if (text === "직업 정보 준비중") return false;
+  if (text === "미기재") return false;
+  return true;
+}
+
+function firstMeaningfulText(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && isMeaningfulText(value)) return value.trim();
+  }
+  return "";
+}
+
+function getDisplayName(user = {}) {
+  return firstText(
+    getArenaDisplayName(user),
+    user?.nickname,
+    user?.username,
+    user?.name,
+    "이름 미기재"
+  );
+}
+
+function getProfileImage(user = {}) {
+  const current = getArenaProfileImage(user);
+  if (hasText(current)) return current;
+
+  const thumbList = Array.isArray(user?.thumbimage)
+    ? user.thumbimage.filter((item) => hasText(item))
+    : [];
+
+  if (thumbList.length) return thumbList[0];
+  if (hasText(user?.photoURL)) return user.photoURL.trim();
+  if (hasText(user?.profileImage)) return user.profileImage.trim();
+
+  return "/image/logo.png";
+}
+
+function getJobLabel(user = {}) {
+  return firstMeaningfulText(
+    user?.duty,
+    user?.jobTitle,
+    user?.workTitle,
+    hasText(user?.company) && hasText(user?.duty)
+      ? `${user.company.trim()} · ${user.duty.trim()}`
+      : "",
+    getArenaJobLabel(user),
+    hasText(user?.company) ? user.company.trim() : "",
+    "직업 정보 준비중"
+  );
+}
+
+function getJobTypeLabel(user = {}) {
+  return firstText(
+    getArenaJobTypeLabel(user),
+    user?.jobType,
+    ""
+  );
+}
+
+function getEducationLabel(user = {}) {
+  return firstMeaningfulText(
+    user?.educationSchoolName,
+    user?.schoolName,
+    user?.school,
+    getArenaEducationLabel(user),
+    user?.educationText,
+    ""
+  );
+}
+
+function getMaritalLabel(user = {}) {
+  return firstText(
+    getArenaMaritalLabel(user),
+    user?.maritalStatus,
+    ""
+  );
+}
+
+function getResidenceLabel(user = {}) {
+  return firstMeaningfulText(
+    getArenaResidenceLabel(user),
+    user?.residence,
+    user?.addressText,
+    user?.regionText,
+    ""
+  );
+}
+
+function getStyleAxisLetters(user = {}) {
+  return firstMeaningfulText(
+    getArenaStyleAxisLetters(user),
+    user?.styleTest?.typeCode,
+    user?.styleTest?.axisLetters,
+    getMbtiLabel(user),
+    ""
+  );
+}
+
+function getStyleDisplayLine(user = {}) {
+  return firstMeaningfulText(
+    getArenaStyleDisplayLine(user),
+    user?.styleTest?.oneLine,
+    user?.styleTest?.typeTitle,
+    ""
+  );
+}
+
+function getStyleTooltipText(user = {}) {
+  return firstMeaningfulText(
+    getArenaStyleTooltipText(user),
+    user?.styleTest?.oneLine,
+    user?.styleTest?.typeTitle,
+    ""
+  );
 }
 
 function StatusIcon({ icon, title, tone = "emerald" }) {
@@ -258,21 +391,13 @@ function MatchCard({ offerCard, onOpen }) {
               {jobLabel}
             </div>
 
-            {styleLine ? (
-              <div
-                title={styleTooltip || "스타일 진단 정보"}
-                className="mt-1.5 break-keep text-[14px] leading-6 text-slate-600"
-              >
-                {styleLine}
-              </div>
-            ) : null}
           </div>
 
           <div className="flex shrink-0 flex-wrap justify-end gap-2">
             {styleAxisLetters ? (
               <div
-                title={styleTooltip || styleAxisLetters}
-                className="inline-flex h-8 items-center rounded-full border border-violet-100 bg-violet-50 px-3 text-[12px] font-bold text-violet-700"
+              title={styleTooltip || styleAxisLetters}
+              className="inline-flex h-8 items-center rounded-full border border-violet-100 bg-violet-50 px-3 text-[12px] font-bold text-violet-700"
               >
                 {styleAxisLetters}
               </div>
@@ -283,6 +408,14 @@ function MatchCard({ offerCard, onOpen }) {
             </div>
           </div>
         </div>
+            {styleLine ? (
+              <div
+                title={styleTooltip || "스타일 진단 정보"}
+                className="mt-1.5 break-keep text-[14px] leading-6 text-slate-600"
+              >
+                {styleLine}
+              </div>
+            ) : null}
 
         <div className="mt-3 flex flex-wrap gap-2">
           {jobTypeLabel ? (
@@ -426,7 +559,7 @@ function PausedEmptyState() {
   );
 }
 
-function GuestCardDummy({ onNeedAuth }) {
+function GuestCardDummy({ onNeedAuth, onBack }) {
   return (
     <div className="px-4 pb-6 pt-5">
       <MatchCard
@@ -453,17 +586,24 @@ function GuestCardDummy({ onNeedAuth }) {
             drink: "3",
             living_smoke: "6",
             styleTest: {
-              axisLetters: "RMCL",
+              axisLetters: "TMFP",
               oneLine: "대화가 부드럽고 상대를 편하게 만드는 타입",
             },
-            thumbimage: [
-              "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop",
-            ],
+            thumbimage: ["/image/arena/man.png"],
           },
           badgeInfo: { top5: true },
         }}
         onOpen={onNeedAuth}
       />
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-4 flex h-[48px] w-full items-center justify-center rounded-md border border-solid border-slate-200 bg-slate-200 text-[14px] font-semibold text-slate-700 transition hover:bg-slate-300"
+        style={{ cursor: "pointer" }}
+      >
+        뒤로 돌아가기
+      </button>
     </div>
   );
 }
@@ -483,6 +623,7 @@ function BlockedState() {
 }
 
 export default function ArenaHome({
+  user,
   isLoggedIn,
   isFemale,
   isBlockedUser,
@@ -564,7 +705,11 @@ export default function ArenaHome({
                 onToggle={onToggleReceivePause}
               />
 
-              <div className="relative min-h-0 flex-1 overflow-hidden bg-[#fbfbfd]">
+              {isLoggedIn ? (
+                <IdentityNudgeBanner user={user} className="bg-white pb-3 pt-3" />
+              ) : null}
+
+              <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
                 {loading ? (
                   <div className="flex h-full items-center justify-center px-5">
                     <div className="text-[14px] font-medium text-slate-500">
@@ -572,7 +717,12 @@ export default function ArenaHome({
                     </div>
                   </div>
                 ) : !isLoggedIn ? (
-                  <GuestCardDummy onNeedAuth={() => setAuthModalOpen(true)} />
+                    <div className="h-full overflow-y-auto">
+                      <GuestCardDummy
+                        onNeedAuth={() => setAuthModalOpen(true)}
+                        onBack={() => router.back()}
+                      />
+                    </div>
                 ) : isBlockedUser ? (
                   <BlockedState />
                 ) : !isFemale ? (

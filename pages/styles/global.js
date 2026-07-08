@@ -6,23 +6,27 @@ export default createGlobalStyle`
     font-size: 100%;
     }
   
-  html {
-    line-height: 1.15;
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: transparent;
-    font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
-  }
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  line-height: 1.15;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
   
   *, :after, :before {
     box-sizing: inherit;
   }
   
-  div#__next
-    {
-      min-height: 100%;
-      min-width: 100%;
-      background: transparent;
-    }
+div#__next {
+  min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  background: transparent;
+}
 
 ul {
     display: block;
@@ -34,14 +38,18 @@ ul {
     padding-inline-start: 40px;
 }
 
-  body {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    font-size: 16px;
-    vertical-align: baseline;
-    box-sizing: border-box;
-  }
+ body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  font-size: 16px;
+  vertical-align: baseline;
+  box-sizing: border-box;
+  background: #ffffff;
+}
 
   article, aside, details, figcaption, figure,
   footer, header, hgroup, main, menu, nav, section {
@@ -204,6 +212,14 @@ h4, .h4 {
     --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     --font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
 `;
 
 export const theme = {
@@ -211,3 +227,4 @@ export const theme = {
     primary: '#015CAB',
   },
 };
+

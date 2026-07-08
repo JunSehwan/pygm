@@ -219,7 +219,7 @@ ${BANK_INFO.bank} ${BANK_INFO.accountNumber}
       <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
         <div className="relative min-h-screen overflow-hidden">
           <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
-            <section className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+            <section className="relative flex h-[100dvh] w-full max-w-[420px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
               <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
                 <div className="text-[16px] font-bold text-slate-900">
                   입금 신청

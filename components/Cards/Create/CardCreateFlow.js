@@ -383,7 +383,7 @@ export default function CardCreateFlow() {
           <title>차밍카드 제작하기 | 차밍수프</title>
         </Head>
 
-        <div className="flex min-h-screen flex-col bg-[#f7f7f9] md:min-h-[760px]">
+        <div className="flex h-full min-h-0 flex-col bg-[#f7f7f9]">
           <CardCreateHeader
             title="차밍카드"
             onBack={() => router.push("/cards")}
@@ -447,14 +447,14 @@ export default function CardCreateFlow() {
         <title>차밍카드 제작하기 | 차밍수프</title>
       </Head>
 
-      <div className="flex min-h-screen flex-col bg-[#f7f7f9] md:min-h-[760px]">
+      <div className="flex h-full min-h-0 flex-col bg-[#f7f7f9]">
         <CardCreateHeader
           title="차밍카드 작성"
           onBack={handleBack}
           rightLabel="여성 회원 전용"
         />
 
-        <div className="flex-1 overflow-hidden px-4 pb-[64px] pt-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(24px+env(safe-area-inset-bottom))] pt-5">
           <div className="relative min-h-[520px]">
             <AnimatePresence custom={direction} mode="wait" initial={false}>
               <motion.div
@@ -526,7 +526,7 @@ export default function CardCreateFlow() {
           ) : null}
         </div>
 
-        <div className="sticky bottom-0 mt-auto border-t border-slate-200 bg-white px-5 py-4">
+        <div className="sticky bottom-0 mt-auto border-t border-slate-200 bg-white">
           <div className="mx-auto w-full max-w-[390px] md:max-w-[430px]">
             {step === 1 ? (
               <button

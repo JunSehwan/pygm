@@ -14,6 +14,7 @@ import {
   DocumentReference,
   deleteField,
   getCountFromServer,
+  getDocsFromServer,
   serverTimestamp, limit, arrayUnion, arrayRemove,
   query, where, getDocs, orderBy, or,
   deleteDoc, startAfter, increment, limitToLast, onSnapshot
@@ -64,6 +65,8 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
+
+const functions = getFunctions(app, "asia-northeast3");
 
 export const currentUser = auth.currentUser;
 
@@ -232,26 +235,27 @@ export async function getOtherUser(otherid) {
 }
 
 export async function createAccount(
-  email, password, gender, username, nickname, form, tel
+  email,
+  password,
+  gender,
+  username,
+  nickname,
+  form,
+  tel
 ) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
       password
-    )
-    // Signed in
+    );
+
     const user = userCredential.user;
 
     await updateProfile(user, {
       displayName: username,
       photoURL: "",
     });
-    // Profile updated
-
-    const now = new Date();
-    const nowForCopy = dayjs(now);
-    const time = nowForCopy?.format('YYYY-MM-DD HH:mm:ss');
 
     await setDoc(doc(db, "users", user.uid), {
       id: user.uid,
@@ -260,7 +264,19 @@ export async function createAccount(
       nickname: nickname,
       thumbimage: "",
       birthday: form,
-      phonenumber: tel,
+      phonenumber: tel || "",
+      phone_verified: false,
+      phone_verified_at: null,
+      identityVerified: false,
+      identityVerifiedAt: null,
+      identity_provider: "",
+      identity_carrier: "",
+      identity_ci: "",
+      identity_di: "",
+      identity_name: "",
+      identity_birth: "",
+      identity_gender: "",
+      identityReminderDismissedAt: null,
       likes: [],
       liked: [],
       dislikes: [],
@@ -271,29 +287,27 @@ export async function createAccount(
       withdraw: false,
       datecard: [],
       date_lastIntroduce: "",
-      // joboffers: [],
-      // joboffered: [],
-      // coccocs: [],
-      // coccoced: [],
-      // advices: [],
-      // adviced: [],
-      // tag: "0000", // Create function to generate unique tag for each username
-      // about: "",
-      // banner: "#7CC6FE",
       email: user.email,
-      timestamp: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-    })
-    //   // setIsLoading(false);
-    // Database updated
+      timestamp: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+    });
 
-    // await joinServer("ke6NqegIvJEOa9cLzUEp");
-    // User joins global chat
-    return (user);
+    return user;
   } catch (error) {
-    if (error == "auth/email-already-in-use") {
-      alert("동일한 이메일 주소가 존재합니다.")
+    console.error("[createAccount] error:", error);
+
+    if (error?.code === "auth/email-already-in-use") {
+      throw new Error("이미 등록된 이메일입니다.");
     }
-    //   // setIsLoading(false);
+
+    if (error?.code === "auth/invalid-email") {
+      throw new Error("이메일 형식이 올바르지 않습니다.");
+    }
+
+    if (error?.code === "auth/weak-password") {
+      throw new Error("비밀번호가 너무 약합니다.");
+    }
+
+    throw error;
   }
 }
 
@@ -367,7 +381,7 @@ export async function sendMailForSignUp(email, username) {
       from: "차밍수프 관리자 - admin@charmingsoup.co.kr",
       // or to: "someone@example.com
       message: {
-        subject: `${username}님! 차밍수프(PYGMALION) 회원가입을 환영합니다!`,
+        subject: `${username}님! 차밍수프(CHARMINGSOUP) 회원가입을 환영합니다!`,
         // text: '메시지를 확인해주세요',
         html: `
         <h1>WELCOME TO JOBCOC!</h1>
@@ -1520,17 +1534,35 @@ export async function reauthenticateUser(password) {
   });
 }
 
-// 회원탈퇴
+// 회원탈퇴 상태값 정리용 레거시 함수
+// 실제 탈퇴 화면은 Cloud Function(deleteCurrentUserAccount)을 사용합니다.
+// 혹시 이 함수가 호출되더라도 users 문서를 삭제하지 않고 노출/매칭만 차단합니다.
 export async function getWithdraw() {
   const user = auth.currentUser;
   if (!user) return (
     alert("로그인 후 가능합니다.")
   );
   try {
-    await updateUserDatabase("withdraw", true);
+    await updateDoc(api.userByIdRef(user.uid), {
+      withdraw: true,
+      withdrawn: true,
+      accountStatus: "withdrawn",
+      adminMatchExposureBlocked: true,
+      date_sleep: true,
+      sleep: true,
+      date_pending: false,
+      date_profile_finished: false,
+      signupApproved: false,
+      adminApprovalStatus: "withdrawn",
+      reviewStatus: "withdrawn",
+      pendingStatus: "withdrawn",
+      thumbimage: "",
+      profilePhotos: [],
+      updatedAt: serverTimestamp(),
+    });
   } catch (error) {
     console.error(error);
-    alert("update에 문제가 있습니다.");
+    alert("탈퇴 상태 처리 중 문제가 있습니다.");
   }
 }
 
@@ -2091,18 +2123,18 @@ export async function sendMailForLike(email, targetname, nickname) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "차밍수프 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@charmingsoup.com",
       // or to: "someone@example.com
       message: {
-        subject: `${targetname}님! 차밍수프(PYGMALION)에서 ${nickname}님이 윙크를 보냈습니다!`,
+        subject: `${targetname}님! 차밍수프(CHARMINGSOUP)에서 ${nickname}님이 윙크를 보냈습니다!`,
         // text: '메시지를 확인해주세요',
         html: `
         <h3>안녕하세요 차밍수프입니다!</h3>
         <br/>
        ${nickname}님께서 ${targetname}님에게 윙크를 보냈습니다.😘
        <p>차밍수프 소개팅 사이트에서 상대방의 프로필을 확인한 다음 응답하실 수 있습니다.</p>
-        <br/><br/>상대방 프로필 보러가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
-        <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
+        <br/><br/>상대방 프로필 보러가기: <a href="https://charmingsoup.com/date/board">여기를</a> 클릭하세요.
+        <p><a href="https://charmingsoup.com/date/board">https://charmingsoup.com/date/board</a></p>
         <br/>
         <br/>
         <h4>즐거운 하루 보내세요!^^</h4>
@@ -2128,10 +2160,10 @@ export async function sendMailForMatch(email, targetname, nickname) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "차밍수프 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@charmingsoup.com",
       // or to: "someone@example.com
       message: {
-        subject: `${targetname}님! 차밍수프(PYGMALION)에서 ${nickname}님이 맞윙크를 보냈습니다!`,
+        subject: `${targetname}님! 차밍수프(CHARMINGSOUP)에서 ${nickname}님이 맞윙크를 보냈습니다!`,
         // text: '메시지를 확인해주세요',
         html: `
         <h3>안녕하세요 차밍수프입니다!</h3>
@@ -2140,8 +2172,8 @@ export async function sendMailForMatch(email, targetname, nickname) {
        ${nickname}님께서 ${targetname}님에게 맞윙크를 보냈습니다.😘
        <p>차밍수프 소개팅 사이트에서 상대방의 연락처를 확인할 수 있습니다.</p>
        <p>상대방의 연락처를 확인 후, 먼저 상대방에게 인사말을 건네보세요!</p>
-        <br/><br/>상대방 연락처 보러가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
-        <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
+        <br/><br/>상대방 연락처 보러가기: <a href="https://charmingsoup.com/date/board">여기를</a> 클릭하세요.
+        <p><a href="https://charmingsoup.com/date/board">https://charmingsoup.com/date/board</a></p>
         <br/>
         <br/>
         <h4>즐거운 하루 보내세요!^^</h4>
@@ -2165,18 +2197,18 @@ export async function sendMailForDecline(email, targetname, nickname) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "차밍수프 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@charmingsoup.com",
       // or to: "someone@example.com
       message: {
-        subject: `${targetname}님! 차밍수프(PYGMALION)에서 ${nickname}님이 아쉽게도 윙크를 거절하였습니다.`,
+        subject: `${targetname}님! 차밍수프(CHARMINGSOUP)에서 ${nickname}님이 아쉽게도 윙크를 거절하였습니다.`,
         // text: '메시지를 확인해주세요',
         html: `
         <h3>안녕하세요 차밍수프입니다!</h3>
         <br/>
        ${nickname}님께서 ${targetname}님의 윙크를 거절했습니다.
        <p>안타까움을 뒤로하고 윙크를 다시 1개 반납하였습니다.</p>
-        <br/><br/>차밍수프 소개팅 바로가기: <a href="https://pygm.co.kr/date/board">여기를</a> 클릭하세요.
-        <p><a href="https://pygm.co.kr/date/board">https://pygm.co.kr/date/board</a></p>
+        <br/><br/>차밍수프 소개팅 바로가기: <a href="https://charmingsoup.com/date/board">여기를</a> 클릭하세요.
+        <p><a href="https://charmingsoup.com/date/board">https://charmingsoup.com/date/board</a></p>
         <br/>
         <h4>다음 만남을 기약하겠습니다.</h4>
         <br/>
@@ -2202,10 +2234,10 @@ export async function onBuyWink(nickname, email, winks, money) {
   try {
     await addDoc(mailRef, {
       to: `${[email]}`,
-      from: "차밍수프 관리자 - admin@pygm.co.kr",
+      from: "차밍수프 관리자 - admin@charmingsoup.com",
       // or to: "someone@example.com
       message: {
-        subject: `${nickname}님! 차밍수프(PYGMALION)에서 윙크구매 관련 안내드립니다.`,
+        subject: `${nickname}님! 차밍수프(CHARMINGSOUP)에서 윙크구매 관련 안내드립니다.`,
         // text: '메시지를 확인해주세요',
         html: `
         <h3>안녕하세요 차밍수프입니다!</h3>
@@ -2227,8 +2259,8 @@ export async function onBuyWink(nickname, email, winks, money) {
        <p>메일을 수신하신 후, 5시간내에 입금을 완료해주세요!</p>
        <p>영업시간 3시간 내 확인 후, 윙크를 드리고 알림메일을 보내드립니다.</p>
        
-        <br/><br/>차밍수프 소개팅 바로가기: <a href="https://pygm.co.kr">여기를</a> 클릭하세요.
-        <p><a href="https://pygm.co.kr">https://pygm.co.kr</a></p>
+        <br/><br/>차밍수프 소개팅 바로가기: <a href="https://charmingsoup.com">여기를</a> 클릭하세요.
+        <p><a href="https://charmingsoup.com">https://charmingsoup.com</a></p>
         <br/>
         <h4>가치있고 즐거운 만남을 기약하겠습니다.</h4>
         <h4>즐거운 하루 보내세요!^^</h4>
@@ -2318,40 +2350,57 @@ export const saveIdentityVerificationToUser = async (uid, payload = {}) => {
     carrier = "",
     ci = "",
     di = "",
+    syncUsername = true,
+    syncNameField = true,
   } = payload;
 
   const userRef = doc(db, "users", uid);
 
+  const normalizedPhone = phone ? String(phone).replace(/[^0-9]/g, "") : "";
+  const normalizedBirth = birth ? String(birth).replace(/[^0-9]/g, "") : "";
+
   const updatePayload = {
     phone_verified: true,
     phone_verified_at: serverTimestamp(),
+    identityVerified: true,
+    identityVerifiedAt: serverTimestamp(),
     identity_provider: provider || "PORTONE",
     identity_carrier: carrier || "",
     identity_ci: ci || "",
     identity_di: di || "",
     identity_name: name || "",
-    identity_birth: birth || "",
+    identity_birth: normalizedBirth || "",
     identity_gender: gender || "",
-    // 기존 필드와 연결 (네 코드베이스 호환용)
-    phonenumber: phone ? String(phone).replace(/[^0-9]/g, "") : "",
+    phonenumber: normalizedPhone,
   };
 
-  // 성별/생년월일은 네 기존 users 스키마 필드와 연결 (원하면 여기 커스텀 가능)
-  // gender: 기존 gender 필드와 동일 사용 가능
-  if (gender) updatePayload.gender = gender;
-
-  // 생년월일은 기존 구조가 객체일 수 있어서 문자열 그대로 + 분해값 병행 저장 추천
-  if (birth) {
-    const normalizedBirth = String(birth).replace(/[^0-9]/g, "");
-    updatePayload.birthday = normalizedBirth; // 기존 필드 호환 (문자열 저장)
+  if (gender) {
+    updatePayload.gender = gender;
   }
 
-  // 이름도 인증값으로 보정하고 싶으면 저장
-  if (name) {
+  function buildBirthdayObject(value = "") {
+    const onlyNum = String(value || "").replace(/[^0-9]/g, "");
+    if (onlyNum.length !== 8) return null;
+
+    return {
+      year: Number(onlyNum.slice(0, 4)),
+      month: Number(onlyNum.slice(4, 6)),
+      day: Number(onlyNum.slice(6, 8)),
+    };
+  }
+
+  if (normalizedBirth) {
+    updatePayload.birthday = buildBirthdayObject(normalizedBirth);
+  }
+
+  if (syncNameField && name) {
+    updatePayload.name = name;
+  }
+
+  if (syncUsername && name) {
     updatePayload.username = name;
   }
 
-  // ✅ 문서가 없어도 생성됨 / 있으면 병합됨
   await setDoc(userRef, updatePayload, { merge: true });
 
   return true;
@@ -2362,15 +2411,17 @@ export const saveIdentityVerificationToUser = async (uid, payload = {}) => {
  * 반환: true(중복 있음) / false(중복 없음)
  */
 export const phoneDubCheck = async (phone) => {
-  const normalized = String(phone || "").replace(/[^0-9]/g, "");
-  if (!normalized) return false;
+  const normalizedPhone = String(phone || "").replace(/[^0-9]/g, "");
 
-  const q = query(
-    collection(db, "users"),
-    where("phonenumber", "==", normalized),
-    limit(1)
-  );
+  if (!normalizedPhone) return false;
 
-  const snap = await getDocs(q);
-  return !snap.empty;
+  try {
+    const fn = httpsCallable(functions, "checkPhoneDuplicate");
+    const result = await fn({ phone: normalizedPhone });
+
+    return !!result?.data?.exists;
+  } catch (error) {
+    console.error("[phoneDubCheck] error:", error);
+    throw error;
+  }
 };

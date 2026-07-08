@@ -29,7 +29,7 @@ function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
     date_sleep: docData.date_sleep ?? false,
     withdraw: docData.withdraw ?? false,
     date_profile_finished: docData.date_profile_finished ?? false,
-    date_pending: docData.date_pending ?? true,
+    date_pending: docData.date_pending ?? false,
 
     maritalStatus: docData.maritalStatus || "",
     mbti: docData.mbti || "",
@@ -127,7 +127,7 @@ export default function ArenaPendingPage() {
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
               <section
                 id="app-surface"
-                className="relative w-full max-w-[390px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                className="relative w-full max-w-[420px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
               >
                 <PendingReviewPage user={user} />
               </section>

@@ -26,6 +26,21 @@ const mapUserDocToCurrentUser = (uid, docData = {}) => ({
   gender: docData.gender,
   thumbimage: docData.thumbimage,
   phonenumber: docData.phonenumber,
+  phone_verified: docData.phone_verified === true,
+  phoneVerified:
+    docData.phoneVerified === true ||
+    docData.phone_verified === true ||
+    docData.phone_verified === "true",
+  telVerified: docData.telVerified === true,
+  identityVerified: docData.identityVerified === true,
+  identityVerifiedAt: docData.identityVerifiedAt || docData.phone_verified_at || null,
+  phone_verified_at: docData.phone_verified_at || null,
+  identity_provider: docData.identity_provider || "",
+  identity_ci: docData.identity_ci || "",
+  identity_di: docData.identity_di || "",
+  identity_name: docData.identity_name || "",
+  identity_birth: docData.identity_birth || "",
+  identity_gender: docData.identity_gender || "",
   religion: docData.religion,
   address_sido: docData.address_sido,
   address_sigugun: docData.address_sigugun,

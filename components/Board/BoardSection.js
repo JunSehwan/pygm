@@ -6,7 +6,20 @@ import {
   PiPhoneDuotone,
 } from "react-icons/pi";
 import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
+import { adaptLegacyProfileDoc } from "lib/profileLegacyAdapter";
 
+
+function getSafeBoardUser(user = {}) {
+  if (!user || typeof user !== "object") return {};
+
+  const uid = user?.userID || user?.uid || user?.id || "";
+  const adapted = adaptLegacyProfileDoc(user, { uid }, uid);
+
+  return {
+    ...user,
+    ...adapted,
+  };
+}
 
 function EmptyIllustration() {
   return (
@@ -97,32 +110,29 @@ function getStyleTypeTitle(user = {}) {
 }
 
 function getWorkAreaText(user = {}) {
-  const sido =
-    user?.workArea?.sido ||
-    user?.company_location_sido ||
-    "";
-  const sigugun =
-    user?.workArea?.sigugun ||
-    user?.company_location_sigugun ||
-    "";
+  const safeUser = getSafeBoardUser(user);
+  const sido = safeUser?.workArea?.sido || safeUser?.company_location_sido || "";
+  const sigugun = safeUser?.workArea?.sigugun || safeUser?.company_location_sigugun || "";
 
   return [sido, sigugun].filter(Boolean).join(" ");
 }
 
 function getResidenceText(user = {}) {
-  return [user?.residence?.sido, user?.residence?.sigugun]
+  const safeUser = getSafeBoardUser(user);
+  return [safeUser?.residence?.sido, safeUser?.residence?.sigugun]
     .filter(Boolean)
     .join(" ");
 }
 
 function getJobText(user = {}) {
-  return String(user?.job || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  return String(safeUser?.job || "").trim();
 }
 
 function getCardLine1(user = {}) {
   return [getJobText(user), getResidenceText(user),
     //  getWorkAreaText(user)
-    ]
+  ]
     .filter(Boolean)
     .join(" · ");
 }
@@ -152,7 +162,7 @@ function MetaPill({ children, tone = "slate" }) {
 }
 
 function BoardProfileCard({ item, onClick }) {
-  const user = item?.otherUser || {};
+  const user = getSafeBoardUser(item?.otherUser || {});
   const mbti = getMbti(user);
   const styleCode = getStyleTypeCode(user);
   const styleTitle = getStyleTypeTitle(user);

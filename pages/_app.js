@@ -96,7 +96,7 @@ const _app = ({ Component, pageProps, ...rest }) => {
         <link rel="icon" href="/logo/logo.png" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="msapplication-TileColor" content="#ffffff" />
-        <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
+        <meta name="msapplication-TileImage" content="/logo/ms-icon-144x144.png" />
         <meta
           name="naver-site-verification"
           content="703be80d3c30d67edfd91f465ba95a258fd65d96"

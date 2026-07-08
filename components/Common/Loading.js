@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 function FloatingOrb({ className = "", delay = 0, duration = 5 }) {
   return (
@@ -7,8 +8,8 @@ function FloatingOrb({ className = "", delay = 0, duration = 5 }) {
       className={className}
       initial={{ opacity: 0, scale: 0.92 }}
       animate={{
-        opacity: [0.28, 0.5, 0.28],
-        scale: [1, 1.06, 1],
+        opacity: [0.22, 0.42, 0.22],
+        scale: [1, 1.05, 1],
         y: [0, -10, 0],
       }}
       transition={{
@@ -23,7 +24,7 @@ function FloatingOrb({ className = "", delay = 0, duration = 5 }) {
 
 function LoadingBar() {
   return (
-    <div className="relative mt-5 h-[4px] w-[140px] overflow-hidden rounded-full bg-white/50">
+    <div className="relative mt-5 h-[4px] w-[140px] overflow-hidden rounded-full bg-violet-100">
       <motion.div
         className="absolute inset-y-0 left-0 w-[42%] rounded-full bg-violet-500"
         initial={{ x: "-120%" }}
@@ -39,6 +40,9 @@ function LoadingBar() {
 }
 
 export default function LoadingPage() {
+
+// const [loaded, setLoaded] = useState(false);
+
   return (
     <motion.section
       className="fixed inset-0 z-[3000] overflow-hidden bg-gradient-to-b from-[#f7f5ff] via-[#fcfbff] to-white"
@@ -76,7 +80,7 @@ export default function LoadingPage() {
             <motion.div
               className="absolute inset-0 rounded-[32px] bg-violet-200/50 blur-2xl"
               animate={{
-                opacity: [0.38, 0.62, 0.38],
+                opacity: [0.34, 0.58, 0.34],
                 scale: [0.96, 1.04, 0.96],
               }}
               transition={{
@@ -98,12 +102,18 @@ export default function LoadingPage() {
               }}
               className="relative flex h-[112px] w-[112px] items-center justify-center rounded-[30px] border border-white/70 bg-white/88 shadow-[0_18px_50px_rgba(109,40,217,0.12)] backdrop-blur-md"
             >
-              <img
-                src="/logo/logo.png"
-                alt="차밍수프 로고"
-                className="h-[62px] w-[62px] object-contain select-none"
-                draggable={false}
-              />
+              <div className="flex h-[62px] w-[62px] items-center justify-center rounded-2xl bg-violet-50 text-[28px] font-black tracking-[-0.08em] text-violet-600">
+                <Image 
+                  src="/logo/logo.png"
+                  alt="차밍수프 랜딩 히어로 이미지"
+                  width={60}
+                  height={60}
+                  priority
+                  sizes="60px"
+                  // onLoad={() => setLoaded(true)}
+                  className="h-auto w-[60px] object-contain"
+                />
+              </div>
             </motion.div>
           </motion.div>
 
@@ -113,20 +123,20 @@ export default function LoadingPage() {
             transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
             className="mt-8 text-center"
           >
-            <div className="text-[22px] font-bold tracking-[-0.03em] text-slate-900">
-              차밍수프 준비 중
+            <div className="text-[22px] font-extrabold tracking-[-0.04em] text-slate-900">
+              차밍수프 - 이동 중
             </div>
 
             <motion.p
-              className="mt-2 break-keep text-[14px] leading-6 text-slate-500"
-              animate={{ opacity: [0.5, 1, 0.5] }}
+              className="mt-2 break-keep text-[14px] font-medium leading-6 text-slate-500"
+              animate={{ opacity: [0.55, 1, 0.55] }}
               transition={{
                 duration: 1.9,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
             >
-              더 자연스럽고 설레는 만남을 불러오고 있어요
+              결이 잘 맞는 이성찾기! - 차밍수프
             </motion.p>
 
             <div className="flex justify-center">

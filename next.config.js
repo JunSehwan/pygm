@@ -4,7 +4,7 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: "export",
+  output: "export",
   trailingSlash: false,
   productionBrowserSourceMaps: true,
 
@@ -13,6 +13,7 @@ const nextConfig = {
     loader: "akamai",
     path: "",
     domains: [
+      "charmingsoup.com",
       "pygm.co.kr",
       "localhost",
       "firebasestorage.googleapis.com",

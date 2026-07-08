@@ -10,6 +10,61 @@ import {
 import { SiKakaotalk, SiFacebook, SiInstagram } from "react-icons/si";
 import { typeMetaMap } from "data/tests/styleQuestions";
 
+const AXIS_CODE_META = {
+  DT: {
+    title: "다정 ↔ 무심",
+    letters: {
+      D: {
+        label: "다정",
+        short: "감정 표현과 애정 표현이 비교적 따뜻한 편",
+      },
+      T: {
+        label: "무심",
+        short: "표현은 적어도 행동과 안정감으로 보여주는 편",
+      },
+    },
+  },
+  SM: {
+    title: "직진 ↔ 신중",
+    letters: {
+      S: {
+        label: "직진",
+        short: "호감이 생기면 비교적 빠르게 다가가는 편",
+      },
+      M: {
+        label: "신중",
+        short: "확신이 생길 때까지 천천히 보는 편",
+      },
+    },
+  },
+  LF: {
+    title: "주도 ↔ 맞춤",
+    letters: {
+      L: {
+        label: "주도",
+        short: "관계 흐름과 방향을 비교적 이끄는 편",
+      },
+      F: {
+        label: "맞춤",
+        short: "상대 흐름을 보며 조율하고 맞춰가는 편",
+      },
+    },
+  },
+  RP: {
+    title: "로맨틱 ↔ 현실",
+    letters: {
+      R: {
+        label: "로맨틱",
+        short: "설렘, 분위기, 감정의 결을 중요하게 보는 편",
+      },
+      P: {
+        label: "현실",
+        short: "신뢰, 안정, 생활 궁합을 더 중요하게 보는 편",
+      },
+    },
+  },
+};
+
 function SectionTitle({ icon, title, right }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -56,7 +111,7 @@ function TypeMiniCard({ type, active, onClick }) {
 
 function ExploreTopSelector({ allTypes, activeExploreCode, setActiveExploreCode }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white px-4 py-4">
+    <div className="rounded-md border border-slate-200 bg-white px-0 py-4">
       <SectionTitle
         title="다른 유형 선택"
         right={
@@ -187,6 +242,121 @@ function ResultSummaryCard({ finalType }) {
   );
 }
 
+function TypeCodeMeaningCard({ finalType }) {
+  const letterRows = [
+    {
+      axis: "DT",
+      letter: finalType?.axisLetters?.DT || "",
+    },
+    {
+      axis: "SM",
+      letter: finalType?.axisLetters?.SM || "",
+    },
+    {
+      axis: "LF",
+      letter: finalType?.axisLetters?.LF || "",
+    },
+    {
+      axis: "RP",
+      letter: finalType?.axisLetters?.RP || "",
+    },
+  ].map((item) => {
+    const axisMeta = AXIS_CODE_META[item.axis];
+    const letterMeta = axisMeta?.letters?.[item.letter] || {
+      label: item.letter,
+      short: "",
+    };
+
+    return {
+      ...item,
+      axisTitle: axisMeta?.title || "",
+      label: letterMeta.label,
+      short: letterMeta.short,
+    };
+  });
+
+  const fullMeaning = letterRows
+    .map((row) => row.label)
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="rounded-md border border-violet-200 bg-violet-50 px-4 py-4">
+      <SectionTitle
+        title="유형 코드 해석"
+      // right={
+      //   <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500">
+      //     {finalType.meta.code} 읽는 법
+      //   </div>
+      // }
+      />
+
+      <div className="mt-3 rounded-md border border-violet-200 bg-white px-4 py-3">
+        <div className="text-[12px] font-semibold text-slate-400">내 코드</div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {finalType.meta.code.split("").map((letter, index) => (
+            <div
+              key={`${letter}-${index}`}
+              className="inline-flex h-10 min-w-[40px] items-center justify-center rounded-md bg-violet-600 px-3 text-[18px] font-bold text-white shadow-sm"
+            >
+              {letter}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-md border border-violet-100 bg-violet-50 px-4 py-3">
+          <div className="text-[12px] font-semibold text-violet-500">전체 해석</div>
+          <div className="mt-1 break-keep text-[17px] font-bold leading-6 text-slate-900">
+            {fullMeaning}
+          </div>
+          <p className="mt-2 break-keep text-[13px] leading-6 text-slate-600">
+            즉, <span className="font-semibold text-violet-600">{finalType.meta.code}</span>는{" "}
+            <span className="font-semibold text-slate-900">{fullMeaning}</span> 쪽 성향이
+            조합된 연애 스타일을 뜻해요.
+          </p>
+        </div>
+
+        <p className="mt-3 break-keep text-[13px] leading-6 text-slate-600">
+          알파벳은 각 성향 축에서 당신이 조금 더 가까운 방향을 뜻해요.
+          <br />
+          좋고 나쁨이 아니라 연애 스타일의 방향과 결을 보여주는 코드예요.
+        </p>
+      </div>
+
+      <div className="mt-3 space-y-2.5">
+        {letterRows.map((row) => (
+          <div
+            key={row.axis}
+            className="rounded-md border border-slate-200 bg-white px-4 py-3"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-violet-100 text-[18px] font-bold text-violet-700">
+                {row.letter}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[16px] font-bold text-slate-900">
+                    {row.label}
+                  </span>
+                  <span className="text-[12px] font-semibold text-slate-400">
+                    {row.axisTitle}
+                  </span>
+                </div>
+
+                <p className="mt-1 break-keep text-[13px] leading-6 text-slate-600">
+                  {row.short}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StrengthAndCautionCard({ strengths, caution }) {
   return (
     <div className="grid grid-cols-1 gap-3">
@@ -249,18 +419,85 @@ function normalizeTypeDistribution(typeDistribution = [], finalTypeCode = "") {
   };
 }
 
+function buildChartItems(items = [], finalTypeCode = "") {
+  const palette = [
+    "#8B5CF6",
+    "#A78BFA",
+    "#C4B5FD",
+    "#DDD6FE",
+    "#7C3AED",
+    "#6D28D9",
+    "#64748B",
+    "#94A3B8",
+    "#CBD5E1",
+    "#475569",
+    "#8B5CF6",
+    "#A78BFA",
+    "#C4B5FD",
+    "#64748B",
+    "#94A3B8",
+    "#CBD5E1",
+  ];
+
+  let cursor = 0;
+
+  return items.map((item, index) => {
+    const safePercent = Number(item.percent) > 0 ? Number(item.percent) : 0;
+    const start = cursor;
+    const end = cursor + safePercent;
+    cursor = end;
+
+    return {
+      ...item,
+      start,
+      end,
+      color:
+        item.code === finalTypeCode
+          ? "#7C3AED"
+          : palette[index % palette.length],
+    };
+  });
+}
+
 function TypeDistributionCard({ finalType, typeDistribution }) {
   const { totalCount, items } = useMemo(
     () => normalizeTypeDistribution(typeDistribution, finalType.meta.code),
     [typeDistribution, finalType.meta.code]
   );
 
-  const myTypeItem = items.find((item) => item.code === finalType.meta.code);
+  const visibleItems = useMemo(() => {
+    const filtered = items.filter((item) => item.count > 0);
+    if (!filtered.length) return items.slice(0, 1);
+    return filtered;
+  }, [items]);
+
+  const chartItems = useMemo(
+    () => buildChartItems(visibleItems, finalType.meta.code),
+    [visibleItems, finalType.meta.code]
+  );
+
+  const myTypeItem =
+    chartItems.find((item) => item.code === finalType.meta.code) || null;
+
+  const topItems = chartItems
+    .slice()
+    .sort((a, b) => {
+      if (a.code === finalType.meta.code) return -1;
+      if (b.code === finalType.meta.code) return 1;
+      return b.percent - a.percent;
+    })
+    .slice(0, 6);
+
+  const donutBackground = chartItems.length
+    ? `conic-gradient(${chartItems
+      .map((item) => `${item.color} ${item.start}% ${item.end}%`)
+      .join(", ")})`
+    : "conic-gradient(#E2E8F0 0% 100%)";
 
   return (
     <div className="rounded-md border border-slate-200 bg-white px-4 py-4">
       <SectionTitle
-        title="전체 사용자 유형 분포"
+        title="전체 테스트 결과 분포"
         right={
           <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500">
             총 {totalCount}명
@@ -268,88 +505,92 @@ function TypeDistributionCard({ finalType, typeDistribution }) {
         }
       />
 
-      <div className="mt-3 rounded-md border border-violet-200 bg-violet-50 px-4 py-3">
-        <div className="text-[12px] font-medium text-violet-600">
-          내 유형 비중
-        </div>
-        <div className="mt-1 break-keep text-[16px] font-bold leading-6 text-slate-900">
-          {finalType.meta.ko}
-        </div>
-        <div className="mt-1 text-[13px] leading-6 text-slate-600">
-          전체 응답자 중{" "}
-          <span className="font-bold text-violet-600">
-            {myTypeItem ? `${myTypeItem.percent}%` : "0%"}
-          </span>
-          가 이 유형이에요.
-        </div>
-      </div>
-
-      <p className="mt-3 break-keep text-[13px] leading-6 text-slate-500">
-        지금까지 테스트한 사람들 기준으로 어떤 스타일이 많은지 확인해보세요.
+      <p className="mt-2 break-keep text-[13px] leading-6 text-slate-500">
+        지금까지 완료된 테스트 결과 기준으로 유형 비중을 한눈에 볼 수 있어요.
       </p>
 
-      <div className="mt-4 space-y-3">
-        {items.map((item) => (
+      <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-5">
+        <div className="flex flex-col items-center">
           <div
-            key={item.code}
-            className={[
-              "rounded-md border px-3 py-3 transition",
-              item.isMine
-                ? "border-violet-200 bg-violet-50"
-                : "border-slate-200 bg-slate-50",
-            ].join(" ")}
+            className="relative h-[220px] w-[220px] rounded-full"
+            style={{ background: donutBackground }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={[
-                      "rounded-full px-2 py-0.5 text-[11px] font-bold",
-                      item.isMine
-                        ? "bg-violet-600 text-white"
-                        : "bg-white text-slate-500",
-                    ].join(" ")}
-                  >
-                    {item.code}
-                  </span>
-
-                  {item.isMine ? (
-                    <span className="text-[11px] font-semibold text-violet-600">
-                      내 결과
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-2 break-keep text-[15px] font-bold leading-6 text-slate-900">
-                  {item.ko}
-                </div>
-
-                <div className="mt-1 break-keep text-[12px] leading-5 text-slate-500">
-                  {item.oneLine}
-                </div>
+            <div className="absolute left-1/2 top-1/2 flex h-[132px] w-[132px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white text-center shadow-sm">
+              <div className="text-[11px] font-medium text-slate-400">내 유형</div>
+              <div className="mt-1 text-[14px] font-bold text-violet-600">
+                {finalType.meta.code}
               </div>
-
-              <div className="shrink-0 text-right">
-                <div className="text-[16px] font-bold text-slate-900">
-                  {item.percent}%
-                </div>
-                <div className="mt-0.5 text-[11px] text-slate-400">
-                  {item.count}명
-                </div>
+              <div className="mt-1 break-keep px-2 text-[15px] font-bold leading-5 text-slate-900">
+                {finalType.meta.ko}
               </div>
-            </div>
-
-            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white">
-              <div
-                className={[
-                  "h-full rounded-full transition-all duration-500",
-                  item.isMine ? "bg-violet-500" : "bg-slate-300",
-                ].join(" ")}
-                style={{ width: `${Math.max(item.percent, 2)}%` }}
-              />
+              <div className="mt-1 text-[13px] font-semibold text-slate-500">
+                {myTypeItem ? `${myTypeItem.percent}%` : "0%"}
+              </div>
             </div>
           </div>
-        ))}
+
+          <div className="mt-5 w-full rounded-md border border-violet-200 bg-violet-50 px-4 py-3">
+            <div className="text-[12px] font-medium text-violet-600">내 유형 비중</div>
+            <div className="mt-1 break-keep text-[16px] font-bold leading-6 text-slate-900">
+              {finalType.meta.ko}
+            </div>
+            <div className="mt-1 text-[13px] leading-6 text-slate-600">
+              전체 테스트 완료 결과 중{" "}
+              <span className="font-bold text-violet-600">
+                {myTypeItem ? `${myTypeItem.percent}%` : "0%"}
+              </span>
+              가 이 유형이에요.
+            </div>
+          </div>
+
+          <div className="mt-4 w-full space-y-2">
+            {topItems.map((item) => (
+              <div
+                key={item.code}
+                className={[
+                  "flex items-center justify-between rounded-md border px-3 py-2.5",
+                  item.code === finalType.meta.code
+                    ? "border-violet-200 bg-white"
+                    : "border-slate-200 bg-white",
+                ].join(" ")}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-bold text-slate-900">
+                        {item.code}
+                      </span>
+                      {item.code === finalType.meta.code ? (
+                        <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          내 결과
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-0.5 break-keep text-[13px] font-semibold leading-5 text-slate-700">
+                      {item.ko}
+                    </div>
+
+                    <div className="mt-0.5 truncate text-[11px] text-slate-400">
+                      {item.oneLine}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="ml-3 shrink-0 text-right">
+                  <div className="text-[14px] font-bold text-slate-900">
+                    {item.percent}%
+                  </div>
+                  <div className="text-[11px] text-slate-400">{item.count}명</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -539,14 +780,41 @@ function ExploreDetailCard({ activeType }) {
         </div>
 
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-4">
-          <div className="text-[12px] font-semibold text-amber-700">
-            주의 포인트
-          </div>
+          <div className="text-[12px] font-semibold text-amber-700">주의 포인트</div>
           <div className="mt-3 break-keep text-[14px] leading-7 text-amber-900">
             {caution}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ResultBottomActionBar({ isLoggedIn, onRestart, onComplete }) {
+  return (
+    <div className="mt-4">
+      <div className="grid grid-cols-[110px_1fr] overflow-hidden rounded-md border border-slate-200 bg-white">
+        <button
+          type="button"
+          onClick={onRestart}
+          className="flex h-[48px] items-center justify-center gap-2 border-r border-slate-200 bg-slate-100 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-200"
+          style={{ cursor: "pointer" }}
+        >
+          <FiRefreshCcw className="text-[15px]" />
+          다시하기
+        </button>
+
+        <button
+          type="button"
+          onClick={onComplete}
+          className="flex h-[48px] items-center justify-center bg-gray-600 px-3 text-[16px] font-bold text-white transition hover:bg-gray-700 sm:text-[17px]"
+          style={{ cursor: "pointer" }}
+        >
+          {isLoggedIn ? "완료" : "회원가입하고 이성찾기"}
+        </button>
+      </div>
+
+      <div className="h-[12px] md:h-0" />
     </div>
   );
 }
@@ -566,6 +834,7 @@ export default function StyleTestResult({
   typeDistribution = [],
 }) {
   const [activeTab, setActiveTab] = useState("result");
+  const contentScrollRef = useRef(null);
   const exploreDetailRef = useRef(null);
 
   const activeType = useMemo(() => {
@@ -582,13 +851,24 @@ export default function StyleTestResult({
     "강점이 잘 보이도록 표현 방식만 조금 더 다듬어보세요.";
 
   useEffect(() => {
+    if (!contentScrollRef.current) return;
+    contentScrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab !== "explore") return;
-    if (!exploreDetailRef.current) return;
+    if (!exploreDetailRef.current || !contentScrollRef.current) return;
 
     const timer = setTimeout(() => {
-      exploreDetailRef.current?.scrollIntoView({
+      const container = contentScrollRef.current;
+      const detailRect = exploreDetailRef.current.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const nextTop =
+        detailRect.top - containerRect.top + container.scrollTop - 12;
+
+      container.scrollTo({
+        top: Math.max(nextTop, 0),
         behavior: "smooth",
-        block: "start",
       });
     }, 80);
 
@@ -596,8 +876,8 @@ export default function StyleTestResult({
   }, [activeExploreCode, activeTab]);
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col bg-white md:h-[760px] md:min-h-[760px]">
-      <div className="shrink-0 border-b border-slate-200 bg-white px-5 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-white">
+      <div className="sticky top-0 z-[15] shrink-0 border-b border-slate-200 bg-white px-5 pb-4 pt-[max(16px,env(safe-area-inset-top))]">
         <div className="text-[18px] font-semibold tracking-[-0.02em] text-slate-900">
           테스트 결과
         </div>
@@ -637,33 +917,39 @@ export default function StyleTestResult({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[118px] pt-4">
+      <div
+        ref={contentScrollRef}
+        className="min-h-0 flex-1 overflow-y-auto px-2 pt-4 pb-4"
+      >
         {activeTab === "result" ? (
           <div className="space-y-4">
             <ResultSummaryCard finalType={finalType} />
-
+            <TypeCodeMeaningCard finalType={finalType} />
             <StrengthAndCautionCard
               strengths={safeStrengths}
               caution={safeCaution}
             />
-
             <div className="grid grid-cols-2 gap-2.5">
               {axisSummary.map((item) => (
                 <AxisStrengthCard key={item.axis} item={item} />
               ))}
             </div>
-
             <CompatibleTypesCard compatibleTypes={compatibleTypes} />
-
             <TypeDistributionCard
               finalType={finalType}
               typeDistribution={typeDistribution}
             />
-
+            <div className="w-full border-b h-[12px] mb-[24px] border-solid border-slate-200" />
             <ShareCard
               isLoggedIn={isLoggedIn}
               onShare={onShare}
               onSignup={onSignup}
+            />
+            <div className="w-full border-b h-[12px] mb-[24px] border-solid border-slate-200" />
+            <ResultBottomActionBar
+              isLoggedIn={isLoggedIn}
+              onRestart={onRestart}
+              onComplete={onComplete}
             />
           </div>
         ) : (
@@ -673,35 +959,16 @@ export default function StyleTestResult({
               activeExploreCode={activeExploreCode}
               setActiveExploreCode={setActiveExploreCode}
             />
-
             <div ref={exploreDetailRef}>
               <ExploreDetailCard activeType={activeType} />
             </div>
+            <ResultBottomActionBar
+              isLoggedIn={isLoggedIn}
+              onRestart={onRestart}
+              onComplete={onComplete}
+            />
           </div>
         )}
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 z-[20]">
-        <div className="grid grid-cols-[110px_1fr] border-t border-slate-200/80 bg-white/95 pt-3 backdrop-blur-xl">
-          <button
-            type="button"
-            onClick={onRestart}
-            className="flex h-[60px] items-center justify-center gap-2 border-r border-slate-200 bg-slate-100 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-200"
-            style={{ cursor: "pointer" }}
-          >
-            <FiRefreshCcw className="text-[15px]" />
-            다시하기
-          </button>
-
-          <button
-            type="button"
-            onClick={onComplete}
-            className="flex h-[60px] items-center justify-center bg-violet-600 text-[16px] font-bold text-white transition hover:bg-violet-700 sm:text-[17px]"
-            style={{ cursor: "pointer" }}
-          >
-            {isLoggedIn ? "완료" : "회원가입하고 이성찾기"}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -16,36 +16,111 @@ import {
   userLoadingEndwithNoone,
 } from "slices/user";
 
+function serializeFirestoreValue(value) {
+  if (value == null) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeFirestoreValue(item));
+  }
+
+  if (typeof value === "object") {
+    if (
+      typeof value.toDate === "function" &&
+      typeof value.toMillis === "function"
+    ) {
+      return value.toDate().toISOString();
+    }
+
+    const next = {};
+    Object.keys(value).forEach((key) => {
+      next[key] = serializeFirestoreValue(value[key]);
+    });
+
+    return next;
+  }
+
+  return value;
+}
+
 function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
+  const safeData = serializeFirestoreValue(docData || {});
+
   return {
     userID: firebaseUser?.uid || userDocId || "",
-    username: docData.username || "",
-    nickname: docData.nickname || "",
-    email: docData.email || firebaseUser?.email || "",
-    birthday: docData.birthday || "",
-    gender: docData.gender || "",
-    phonenumber: docData.phonenumber || "",
-    thumbimage: docData.thumbimage || "",
-    date_sleep: docData.date_sleep ?? false,
-    withdraw: docData.withdraw ?? false,
-    date_profile_finished: docData.date_profile_finished ?? false,
-    date_pending: docData.date_pending ?? false,
+    uid: firebaseUser?.uid || userDocId || "",
+    username: safeData.username || "",
+    nickname: safeData.nickname || "",
+    email: safeData.email || firebaseUser?.email || "",
+    birthday: safeData.birthday || "",
+    gender: safeData.gender || "",
+    phonenumber: safeData.phonenumber || "",
+    thumbimage: safeData.thumbimage || "",
 
-    maritalStatus: docData.maritalStatus || "",
-    mbti: docData.mbti || "",
-    job: docData.job || "",
-    education: docData.education || "",
-    residence: docData.residence || {},
-    workArea: docData.workArea || {},
+    // 본인인증 관련 필드
+    identityVerified: safeData.identityVerified === true,
+    phoneVerified:
+      safeData.phoneVerified === true ||
+      safeData.phone_verified === true ||
+      safeData.phone_verified === "true",
+    telVerified: safeData.telVerified === true,
+    identityVerifiedAt: safeData.identityVerifiedAt || safeData.phone_verified_at || null,
+    identityVerification: safeData.identityVerification || null,
+    identityVerifiedData: safeData.identityVerifiedData || null,
+    identity_phone: safeData.identity_phone || "",
+    identityPhone: safeData.identityPhone || "",
+    verifiedPhone: safeData.verifiedPhone || "",
+    phone_verified: safeData.phone_verified === true,
+    phone_verified_at: safeData.phone_verified_at || null,
+    identity_name: safeData.identity_name || "",
+    identity_birth: safeData.identity_birth || "",
+    identity_gender: safeData.identity_gender || "",
+    identity_provider: safeData.identity_provider || "",
+    identity_ci: safeData.identity_ci || "",
+    identity_di: safeData.identity_di || "",
 
-    address_sido: docData.address_sido || "",
-    address_sigugun: docData.address_sigugun || "",
-    company_location_sido: docData.company_location_sido || "",
-    company_location_sigugun: docData.company_location_sigugun || "",
+    date_sleep: safeData.date_sleep ?? false,
+    withdraw: safeData.withdraw ?? false,
+    date_sleep: safeData.date_sleep ?? false,
+    withdraw: safeData.withdraw ?? false,
+    date_profile_finished: safeData.date_profile_finished ?? false,
+    date_pending: safeData.date_pending ?? false,
 
-    profilePhotos: Array.isArray(docData.profilePhotos) ? docData.profilePhotos : [],
-    charmingCardPhotoPublic: !!docData.charmingCardPhotoPublic,
+    maritalStatus: safeData.maritalStatus || "",
+    mbti: safeData.mbti || "",
+    job: safeData.job || "",
+    education: safeData.education || "",
+    residence: safeData.residence || {},
+    workArea: safeData.workArea || {},
+
+    address_sido: safeData.address_sido || "",
+    address_sigugun: safeData.address_sigugun || "",
+    company_location_sido: safeData.company_location_sido || "",
+    company_location_sigugun: safeData.company_location_sigugun || "",
+
+    profilePhotos: Array.isArray(safeData.profilePhotos)
+      ? safeData.profilePhotos
+      : [],
+    charmingCardPhotoPublic: !!safeData.charmingCardPhotoPublic,
+
+    profile_setup_step: safeData.profile_setup_step ?? 0,
+    profile_setup_required_done: safeData.profile_setup_required_done === true,
+    profile_photo_required_done: safeData.profile_photo_required_done === true,
+
+    reviewStatus: safeData.reviewStatus || "",
+    pendingStatus: safeData.pendingStatus || "",
+    reviewRequestedAt: safeData.reviewRequestedAt || null,
+    pendingReviewAlertSentAt: safeData.pendingReviewAlertSentAt || null,
   };
+}
+
+function shouldRedirectToArena(currentUser) {
+  return (
+    currentUser?.date_profile_finished === true &&
+    currentUser?.date_sleep === false &&
+    currentUser?.date_pending !== true &&
+    currentUser?.reviewStatus !== "pending" &&
+    currentUser?.pendingStatus !== "reviewing"
+  );
 }
 
 export default function ProfilePhotosPage() {
@@ -75,11 +150,16 @@ export default function ProfilePhotosPage() {
           return;
         }
 
-        const currentUser = buildCurrentUser(firebaseUser, userSnap.data(), userSnap.id);
+        const currentUser = buildCurrentUser(
+          firebaseUser,
+          userSnap.data(),
+          userSnap.id
+        );
+
         dispatch(setUser(currentUser));
         dispatch(userLoadingEnd());
 
-        if (currentUser?.date_profile_finished === true && currentUser?.date_sleep === false) {
+        if (shouldRedirectToArena(currentUser)) {
           router.replace("/arena");
         }
       } catch (e) {
@@ -97,8 +177,14 @@ export default function ProfilePhotosPage() {
 
     const unsubDoc = onSnapshot(doc(db, "users", user.userID), (snap) => {
       if (!snap.exists()) return;
+
       const docData = snap.data();
-      const currentUser = buildCurrentUser({ uid: snap.id, email: docData.email }, docData, snap.id);
+      const currentUser = buildCurrentUser(
+        { uid: snap.id, email: docData.email },
+        docData,
+        snap.id
+      );
+
       dispatch(setUser(currentUser));
       dispatch(userLoadingEnd());
     });
@@ -110,13 +196,16 @@ export default function ProfilePhotosPage() {
     <>
       <Head>
         <title>프로필 사진 등록(2/2) | 차밍수프</title>
-        <meta name="description" content="매칭에 사용할 프로필 사진을 등록해주세요." />
+        <meta
+          name="description"
+          content="매칭에 사용할 프로필 사진을 등록해주세요."
+        />
       </Head>
 
       {loading ? (
         <LoadingPage />
       ) : (
-        <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
+        <main className="relative mx-auto flex min-h-screen w-full max-w-[390px] flex-col bg-white md:min-h-[760px] md:max-w-[430px]">
           <div className="relative min-h-screen overflow-hidden">
             <div className="pointer-events-none absolute inset-0 hidden md:block">
               <div className="absolute left-1/2 top-[-80px] h-[260px] w-[260px] -translate-x-[260px] rounded-full bg-pink-200/40 blur-3xl" />
@@ -127,7 +216,7 @@ export default function ProfilePhotosPage() {
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
               <section
                 id="app-surface"
-                className="relative w-full max-w-[390px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                className="relative w-full max-w-[420px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
               >
                 <ProfilePhotoUploadPage user={user} />
               </section>

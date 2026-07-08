@@ -61,7 +61,7 @@ export default function CardAnswerTextPage({
 
   const answerPlaceholder = alreadyAnswered
     ? "이미 작성이 완료된 카드입니다."
-    : "디테일한 답변을 할 수록 답변채택률이 증가합니다.\n장소 1개 + 시간대 1개 + 이유 1~2줄 정도면 좋아요";
+    : "디테일한 답변이 좋습니다.";
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -161,7 +161,7 @@ export default function CardAnswerTextPage({
           type: "charming_card_answer_arrived",
           targetUid: card.creatorUid,
           actorUid: user.userID,
-          actorNickname: user.nickname || user.username || "",
+          actorNickname: user.nickname || "회원",
           cardId: card.id,
           cardTitle: card.title || "",
           isRead: false,
@@ -182,7 +182,7 @@ export default function CardAnswerTextPage({
 
   return (
     <>
-      <div className="flex h-screen flex-col bg-slate-50 md:h-[760px]">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-50">
         <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 pb-4 pt-5">
           <div className="flex items-center justify-between">
             <div className="text-[14px] font-medium text-slate-400">
@@ -198,17 +198,15 @@ export default function CardAnswerTextPage({
             매력적인 답변을 적어주세요.
           </h1>
 
-          <p className="mt-3 whitespace-pre-line text-[14px] leading-6 text-slate-600">
-            좋은 답변일수록 더 잘 보이게 돼요
-            {"\n"}
-            당신다운 답이 중요해요😍
+          <p className="mt-1 whitespace-pre-line text-[14px] leading-6 text-slate-500">
+            진솔한 답변이 이성의 마음을 끌어당깁니다.
           </p>
 
           <motion.div
             initial={false}
             animate={showStats ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="mt-4 origin-top"
+            className="mt-2 origin-top"
             style={{ pointerEvents: showStats ? "auto" : "none" }}
           >
             <div className="font-bold flex items-center gap-4 text-[13px] text-slate-500">
@@ -229,10 +227,10 @@ export default function CardAnswerTextPage({
         </div>
 
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="px-5 pb-6 pt-4">
+          <div className="px-2 pb-4 pt-2">
             <div className="space-y-3">
               <div>
-                <div className="mb-2 text-[14px] font-medium text-violet-700">
+                <div className="mb-2 text-[14px] font-medium text-slate-700">
                   질문 제목
                 </div>
                 <div className="font-bold rounded-md bg-slate-100 px-4 py-4 text-[15px] leading-6 text-slate-700">
@@ -241,7 +239,7 @@ export default function CardAnswerTextPage({
               </div>
 
               <div>
-                <div className="mb-2 text-[14px] font-medium text-violet-700">
+                <div className="mb-2 text-[14px] font-medium text-slate-700">
                   질문 내용
                 </div>
                 <div className="rounded-md bg-slate-100 px-4 py-4 text-[15px] leading-6 text-slate-700">
@@ -251,7 +249,7 @@ export default function CardAnswerTextPage({
 
               {!!card.guide ? (
                 <div>
-                  <div className="mb-2 text-[14px] font-medium text-violet-700">
+                  <div className="mb-2 text-[14px] font-medium text-slate-700">
                     부가설명
                   </div>
                   <div className="rounded-md bg-slate-100 px-4 py-4 text-[15px] leading-6 text-slate-700">
@@ -266,7 +264,7 @@ export default function CardAnswerTextPage({
                   alreadyAnswered ? "border-slate-200" : "border-violet-300"
                 )}
               >
-                <div className="text-[16px] font-semibold text-slate-900">
+                <div className="text-[16px] font-semibold text-violet-900 pt-2">
                   답변 입력하기
                 </div>
 
@@ -274,8 +272,8 @@ export default function CardAnswerTextPage({
                   className={cn(
                     "mt-1 rounded-md border border-solid px-1 py-1",
                     alreadyAnswered
-                      ? "border-slate-200 bg-slate-100"
-                      : "border-slate-200 bg-slate-50"
+                      ? "border-violet-200 bg-violet-100"
+                      : "border-violet-200 bg-violet-50"
                   )}
                 >
                   <textarea
@@ -323,13 +321,13 @@ export default function CardAnswerTextPage({
           </div>
         </div>
 
-        <div className="shrink-0 bg-slate-50">
+        <div className="shrink-0 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
           <div className="grid grid-cols-2">
             {alreadyAnswered ?
               <button
                 type="button"
                 onClick={handleBackToOrigin}
-                className="h-[60px] bg-white text-[16px] font-medium text-slate-700"
+                className="h-[58px] bg-white text-[15px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 돌아가기
               </button>
@@ -337,7 +335,7 @@ export default function CardAnswerTextPage({
               <button
                 type="button"
                 onClick={handleBackToOrigin}
-                className="h-[60px] bg-white text-[16px] font-medium text-slate-700"
+                className="h-[58px] bg-white text-[15px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 다음에 작성하기
               </button>
@@ -348,8 +346,8 @@ export default function CardAnswerTextPage({
               onClick={handleOpenConfirm}
               disabled={saving || alreadyAnswered}
               className={cn(
-                "h-[60px] text-[18px] font-semibold text-white",
-                saving || alreadyAnswered ? "bg-slate-400" : "bg-black"
+                "h-[58px] text-[16px] font-semibold text-white transition",
+                saving || alreadyAnswered ? "bg-slate-400" : "bg-violet-600 hover:bg-violet-700"
               )}
             >
               작성완료

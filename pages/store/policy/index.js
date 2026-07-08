@@ -55,7 +55,7 @@ export default function StorePolicyPage() {
           </div>
 
           <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
-            <section className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+            <section className="relative flex h-[100dvh] w-full max-w-[420px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
               <div className="shrink-0 bg-[linear-gradient(135deg,#6f6ff0_0%,#d84d57_42%,#d8dd81_100%)] px-4 pb-6 pt-5 text-white">
                 <div className="flex items-center justify-between">
                   <div className="text-[15px] font-bold">스푼 충전/환불 안내</div>

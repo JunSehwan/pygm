@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FiSearch, FiCheckCircle, FiUser, FiGift } from "react-icons/fi";
+import { FiSearch, FiCheckCircle, FiUser, FiGift, FiRefreshCw } from "react-icons/fi";
 import {
   formatDateTime,
   formatLocationValue,
@@ -10,6 +10,7 @@ import {
   getUserThumbImages,
   isLegacyAutoApprovalCandidate,
   isNewApprovalTarget,
+  isProfileReviewTarget,
 } from "../adminUtils";
 
 const SPOON_OPTIONS = [0, 3, 5, 10, 20, 30, 50];
@@ -17,11 +18,14 @@ const SPOON_OPTIONS = [0, 3, 5, 10, 20, 30, 50];
 export default function UserApprovalTab({
   users = [],
   onApproveUser,
+  onApproveProfileReview,
+  onBulkApproveProfileReviews,
   onBulkApproveLegacyUsers,
   onBulkGrantLegacySpoons,
   onOpenUserDetail,
   approvingUserId = "",
   bulkApproving = false,
+  bulkApprovingProfileReviews = false,
   bulkGrantingLegacySpoons = false,
 }) {
   const [keyword, setKeyword] = useState("");
@@ -49,6 +53,11 @@ export default function UserApprovalTab({
       return pool.includes(q);
     });
   }, [users, keyword]);
+
+  const profileReviewTargets = useMemo(
+    () => filteredUsers.filter((user) => isProfileReviewTarget(user)),
+    [filteredUsers]
+  );
 
   const newTargets = useMemo(
     () => filteredUsers.filter((user) => isNewApprovalTarget(user)),
@@ -88,7 +97,7 @@ export default function UserApprovalTab({
             <p className="mt-2 break-keep text-[15px] leading-6 text-slate-500">
               신규 심사 대상은 직접 확인하고,
               <br />
-              기존 가입자는 일괄 승인 처리할 수 있어요.
+              기존 승인회원의 재심사 요청은 문자 없이 일괄 승인할 수 있어요.
             </p>
           </div>
         </div>
@@ -103,6 +112,21 @@ export default function UserApprovalTab({
               className="h-12 w-full rounded-md border border-slate-200 bg-white pl-12 pr-4 text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={onBulkApproveProfileReviews}
+            disabled={bulkApprovingProfileReviews || profileReviewTargets.length === 0}
+            style={{
+              cursor:
+                bulkApprovingProfileReviews || profileReviewTargets.length === 0
+                  ? "default"
+                  : "pointer",
+            }}
+            className="flex h-12 items-center justify-center rounded-md bg-emerald-600 px-5 text-[15px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+          >
+            재심사 요청 일괄 승인 · 문자 없음 ({profileReviewTargets.length})
+          </button>
 
           <button
             type="button"
@@ -124,6 +148,31 @@ export default function UserApprovalTab({
           </button>
         </div>
       </div>
+
+      <Section title="프로필 재심사 요청" count={profileReviewTargets.length} tone="emerald">
+        <p className="mb-4 break-keep text-[14px] leading-6 text-slate-500">
+          이미 가입 승인된 회원이 프로필 수정 후 다시 심사를 요청한 상태예요.
+          <br />
+          기본 처리는 문자 없이 재심사 상태만 승인 완료로 정리합니다.
+        </p>
+
+        {profileReviewTargets.length === 0 ? (
+          <Empty text="현재 프로필 재심사 요청이 없어요." />
+        ) : (
+          profileReviewTargets.map((user) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              approving={approvingUserId === user.id}
+              rewardEnabled={false}
+              actionLabel="재심사 승인"
+              onApprove={() => onApproveProfileReview?.(user)}
+              onDetail={() => onOpenUserDetail?.(user)}
+              tone="emerald"
+            />
+          ))
+        )}
+      </Section>
 
       <Section title="신규 심사 대상" count={newTargets.length} tone="violet">
         {newTargets.length === 0 ? (
@@ -176,12 +225,18 @@ function Section({ title, count, tone, children }) {
   const badgeClass =
     tone === "violet"
       ? "bg-violet-50 text-violet-700"
-      : "bg-slate-100 text-slate-700";
+      : tone === "emerald"
+        ? "bg-emerald-50 text-emerald-700"
+        : "bg-slate-100 text-slate-700";
 
   return (
     <section className="rounded-md border border-slate-200 bg-white px-2 py-4 shadow-sm">
       <div className="flex items-center gap-2">
-        <FiCheckCircle className={`text-[18px] ${tone === "violet" ? "text-violet-600" : "text-slate-500"}`} />
+        {tone === "emerald" ? (
+          <FiRefreshCw className="text-[18px] text-emerald-600" />
+        ) : (
+          <FiCheckCircle className={`text-[18px] ${tone === "violet" ? "text-violet-600" : "text-slate-500"}`} />
+        )}
         <h4 className="text-[18px] font-bold text-slate-900">{title}</h4>
         <span className={`rounded-full px-2 py-1 text-[12px] font-semibold ${badgeClass}`}>
           {count}
@@ -200,6 +255,8 @@ function UserCard({
   tone = "emerald",
   rewardValue = 0,
   onRewardChange,
+  rewardEnabled = true,
+  actionLabel = "",
 }) {
   const primaryImage = getUserPrimaryImage(user);
   const thumbImages = getUserThumbImages(user);
@@ -258,30 +315,32 @@ function UserCard({
           <InfoLine label="사진 수" value={`${thumbImages.length}장`} />
         </div>
 
-        <div className="rounded-md border border-violet-100 bg-violet-50/60 px-3 py-3">
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-violet-700">
-            <FiGift className="text-[15px]" />
-            승인 이벤트 스푼 지급
-          </div>
+        {rewardEnabled ? (
+          <div className="rounded-md border border-violet-100 bg-violet-50/60 px-3 py-3">
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-violet-700">
+              <FiGift className="text-[15px]" />
+              승인 이벤트 스푼 지급
+            </div>
 
-          <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-            <select
-              value={rewardValue}
-              onChange={(e) => onRewardChange?.(Number(e.target.value))}
-              className="h-11 rounded-md border border-violet-200 bg-white px-3 text-[14px] text-slate-900 outline-none"
-            >
-              {SPOON_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value === 0 ? "지급 안 함" : `${value}개 지급`}
-                </option>
-              ))}
-            </select>
+            <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+              <select
+                value={rewardValue}
+                onChange={(e) => onRewardChange?.(Number(e.target.value))}
+                className="h-11 rounded-md border border-violet-200 bg-white px-3 text-[14px] text-slate-900 outline-none"
+              >
+                {SPOON_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {value === 0 ? "지급 안 함" : `${value}개 지급`}
+                  </option>
+                ))}
+              </select>
 
-            <div className="flex h-11 items-center rounded-md bg-white px-3 text-[13px] font-semibold text-slate-600 ring-1 ring-violet-100">
-              {rewardValue > 0 ? `+${rewardValue}` : "0"}
+              <div className="flex h-11 items-center rounded-md bg-white px-3 text-[13px] font-semibold text-slate-600 ring-1 ring-violet-100">
+                {rewardValue > 0 ? `+${rewardValue}` : "0"}
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -300,7 +359,9 @@ function UserCard({
             style={{ cursor: approving ? "default" : "pointer" }}
             className={`flex h-11 items-center justify-center rounded-md px-4 text-[15px] font-semibold text-white transition disabled:opacity-50 ${approveClass}`}
           >
-            {approving ? "처리 중..." : rewardValue > 0 ? `승인 + ${rewardValue}개` : "가입 승인"}
+            {approving
+              ? "처리 중..."
+              : actionLabel || (rewardValue > 0 ? `승인 + ${rewardValue}개` : "가입 승인")}
           </button>
         </div>
       </div>

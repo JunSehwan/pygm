@@ -9,6 +9,8 @@ import {
   getStyleAxisLetters,
   getStyleDisplayLine,
   getArenaBadgeTooltip,
+  getSalaryLabel,
+  getReligionLabel as getArenaReligionLabel,
 } from "lib/arena";
 
 
@@ -46,7 +48,7 @@ const careerMaps = {
 };
 
 const etcMaps = {
-  religion: ["무교", "기독교", "천주교", "불교", "원불교", "유교", "기타"],
+  religion: ["무교", "기독교", "천주교", "불교", "원불교", "유교", "이슬람교", "기타"],
   religion_important: ["무교", "큰 의미는 없음", "이따금씩 의지하는 수준", "종교는 매우 중요한 존재", "내 인생의 가장 우선순위"],
   religion_visit: ["무교", "거의 참석 안함", "월 1회 이하", "월 2~3회", "주 1회", "주 2회 이상"],
   religion_accept: ["무교만 가능", "안했으면 한다", "아주 가끔은 괜찮다", "월 1회", "월 2~3회", "주 1회", "상관 없음"],
@@ -195,6 +197,59 @@ export function getCompanyDisplay(user = {}) {
   return "";
 }
 
+function isPublicFlag(value, fallback = true) {
+  if (value === true || value === "true" || value === 1 || value === "1") {
+    return true;
+  }
+  if (value === false || value === "false" || value === 0 || value === "0") {
+    return false;
+  }
+  return fallback;
+}
+
+function isSalaryPublic(user = {}) {
+  return isPublicFlag(user?.salaryPublic, false);
+}
+
+function getVisibleSalaryLabel(user = {}) {
+  if (!isSalaryPublic(user)) return "";
+  return getSalaryLabel(user);
+}
+
+function compactRows(rows = []) {
+  return rows.filter((row) => row && row.value);
+}
+
+function getEducationLevelLabel(user = {}) {
+  const raw = String(user?.education || "").trim();
+
+  const map = {
+    "1": "초등학교 졸업",
+    "2": "중학교 졸업",
+    "3": "고등학교 졸업",
+    "4": "전문대 재학",
+    "5": "전문대 졸업",
+    "6": "특수/기타학교 재학",
+    "7": "특수/기타학교 졸업",
+    "8": "4년제대학 재학",
+    "9": "4년제대학 졸업",
+    "10": "대학원 재학",
+    "11": "석사학위",
+    "12": "박사학위",
+  };
+
+  return map[raw] || raw || "";
+}
+
+function getSchoolNameLabel(user = {}) {
+  return (
+    user?.educationSchoolName ||
+    user?.schoolName ||
+    user?.school ||
+    ""
+  );
+}
+
 export function isIdentityVerified(user = {}) {
   return user?.phone_verified === true || user?.identityVerified === true;
 }
@@ -237,29 +292,101 @@ export function getSpicyLabel(user = {}) {
 }
 
 export function getProfileSummary(user = {}) {
+  const name = getDisplayName(user);
+  const birthYearShort = getBirthYearShort(user);
+
+  const jobLabel = getJobLabel(user);
+  const jobTypeLabel = getJobTypeLabel(user);
+  const salaryLabel = getVisibleSalaryLabel(user);
+
+  const companyName = getCompanyDisplay(user);
+  const companyVisible = isPublicFlag(user?.company_open, true);
+  const companyLabel = companyVisible ? companyName : "";
+
+  const educationLevelLabel = getEducationLevelLabel(user);
+  const schoolName = getSchoolNameLabel(user);
+  const schoolVisible = isPublicFlag(
+    user?.educationPublic ?? user?.school_open,
+    true
+  );
+  const schoolNameLabel = schoolVisible ? schoolName : "";
+
+  const mbti = getMbtiLabel(user);
+  const drink = getDrinkLabel(user);
+  const smoke = getSmokeLabel(user);
+  const datingStyle = getDatingStyleLabel(user);
+  const weekendStyle = getWeekendLabel(user);
+  const contactStyle = getContactStyleLabel(user);
+  const spicyStyle = getSpicyLabel(user);
+
+  const styleAxisLetters = getStyleAxisLetters(user);
+  const styleLine = getStyleDisplayLine(user);
+
+  const homeArea = getAreaLabel(user, "home");
+  const companyArea = getAreaLabel(user, "company");
+  const marital = getMaritalLabel(user);
+  const education = getEducationLabel(user);
+  const interest = getInterestLabel(user);
+  const height = getHeightLabel(user);
+  const religion = getArenaReligionLabel(user);
+  const intro = getShortIntro(user);
+
   return {
-    name: getDisplayName(user),
-    birthYearShort: getBirthYearShort(user),
-    job: getJobLabel(user),
-    jobType: getJobTypeLabel(user),
-    mbti: getMbtiLabel(user),
-    drink: getDrinkLabel(user),
-    smoke: getSmokeLabel(user),
-    datingStyle: getDatingStyleLabel(user),
-    weekendStyle: getWeekendLabel(user),
-    contactStyle: getContactStyleLabel(user),
-    spicyStyle: getSpicyLabel(user),
-    styleAxisLetters: getStyleAxisLetters(user),
-    styleLine: getStyleDisplayLine(user),
-    homeArea: getAreaLabel(user, "home"),
-    companyArea: getAreaLabel(user, "company"),
-    marital: getMaritalLabel(user),
-    education: getEducationLabel(user),
-    interest: getInterestLabel(user),
-    height: getHeightLabel(user),
-    religion: getReligionLabel(user),
-    company: getCompanyDisplay(user),
-    intro: getShortIntro(user),
+    name,
+    birthYearShort,
+
+    job: jobLabel,
+    jobType: jobTypeLabel,
+    salary: salaryLabel,
+    company: companyLabel,
+
+    education,
+    educationLevel: educationLevelLabel,
+    schoolName: schoolNameLabel,
+
+    mbti,
+    drink,
+    smoke,
+    datingStyle,
+    weekendStyle,
+    contactStyle,
+    spicyStyle,
+    styleAxisLetters,
+    styleLine,
+    homeArea,
+    companyArea,
+    marital,
+    interest,
+    height,
+    religion,
+    intro,
+
+    jobInfoRows: compactRows([
+      { label: "직업군", value: jobTypeLabel },
+      { label: "직업", value: jobLabel },
+      { label: "회사명", value: companyLabel },
+      { label: "연봉", value: salaryLabel },
+    ]),
+
+    educationInfoRows: compactRows([
+      { label: "학력", value: educationLevelLabel || education },
+      { label: "학교명", value: schoolNameLabel },
+    ]),
+
+    livingInfoRows: compactRows([
+      // { label: "거주지", value: homeArea },
+      // { label: "근무지", value: companyArea },
+      { label: "키", value: height },
+      { label: "음주", value: drink },
+      { label: "흡연", value: smoke },
+    ]),
+
+    etcInfoRows: compactRows([
+      { label: "관심사", value: interest },
+      { label: "종교", value: religion },
+      { label: "결혼상태", value: marital === "미기재" ? "" : marital },
+      { label: "MBTI", value: mbti },
+    ]),
   };
 }
 

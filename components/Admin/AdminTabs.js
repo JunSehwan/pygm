@@ -2,6 +2,7 @@ import React from "react";
 
 const TAB_ITEMS = [
   { key: "overview", label: "대시보드" },
+  { key: "broadcast", label: "방송용" },
   { key: "users", label: "회원 승인" },
   { key: "memberList", label: "전체 회원" },
   { key: "cards", label: "카드 승인" },
@@ -12,7 +13,8 @@ const TAB_ITEMS = [
 
 export default function AdminTabs({ activeTab, onChange, counts = {} }) {
   const getCount = (key) => {
-    if (key === "users") return counts.pendingUsers || 0;
+    if (key === "broadcast") return counts.totalUsers || 0;
+    if (key === "users") return counts.approvalUsers || counts.pendingUsers || 0;
     if (key === "memberList") return counts.totalUsers || 0;
     if (key === "cards") return counts.pendingCards || 0;
     if (key === "reports") return counts.pendingReports || 0;
@@ -33,9 +35,9 @@ export default function AdminTabs({ activeTab, onChange, counts = {} }) {
               key={item.key}
               type="button"
               onClick={() => onChange(item.key)}
-              className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-md px-3 text-[13px] font-semibold transition ${active
-                  ? "bg-violet-600 text-white"
-                  : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+              className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-md px-3 text-[13px] font-semibold transition-all duration-150 active:scale-[0.97] ${active
+                  ? "bg-violet-600 text-white shadow-[0_4px_12px_rgba(124,58,237,0.18)]"
+                  : "bg-slate-50 text-slate-700 hover:shadow-sm"
                 }`}
               style={{ cursor: "pointer" }}
             >

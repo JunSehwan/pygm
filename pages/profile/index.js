@@ -155,18 +155,18 @@ export default function ProfileIndexPage() {
       {loading ? (
         <LoadingPage />
       ) : (
-        <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
-          <div className="relative min-h-screen overflow-hidden">
+          <main className="min-h-[100svh] bg-white md:bg-[#f6f7fb]">
+            <div className="relative min-h-[100svh] overflow-hidden">
             <div className="pointer-events-none absolute inset-0 hidden md:block">
               <div className="absolute left-1/2 top-[-80px] h-[260px] w-[260px] -translate-x-[260px] rounded-full bg-pink-200/35 blur-3xl" />
               <div className="absolute left-1/2 top-[120px] h-[280px] w-[280px] translate-x-[120px] rounded-full bg-violet-200/30 blur-3xl" />
               <div className="absolute left-1/2 bottom-[40px] h-[240px] w-[240px] -translate-x-[120px] rounded-full bg-rose-100/40 blur-3xl" />
             </div>
 
-            <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
+              <div className="relative mx-auto flex min-h-[100svh] w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
               <section
                 id="app-surface"
-                className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                  className="relative flex h-[100svh] max-h-[100svh] min-h-0 w-full max-w-[420px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-solid md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
               >
                 <ProfileMainPage user={user} />
               </section>

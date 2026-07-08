@@ -197,26 +197,28 @@ const IndexPage = () => {
     return () => unsubscribe();
   }, [dispatch, user?.userID]);
 
+  console.log("[index mounted]", router.pathname);
+
   return (
     <>
       <SEOHead
         title="차밍수프"
-        description="차밍수프는 외모나 조건만이 아니라, 연애 상황 속 반응과 가치관을 통해 더 잘 맞는 이성을 연결하는 매칭 서비스입니다."
-        keywords="차밍수프, 소개팅, 매칭, 가치관 매칭, 연애 스타일, 차밍카드"
+        description="차밍수프는 3040이 만남 전 확인하고 싶은 가치관, 생활 방식, 대화 태도를 차밍카드로 먼저 살펴보는 진지한 만남 서비스입니다."
+        keywords="차밍수프, 3040 소개팅, 만남 전 가치관 확인, 진지한 만남, 차밍카드, 가치관 매칭"
       />
 
-      <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
+      <main className="min-h-screen bg-white md:bg-[#fbf7ff]">
         <div className="relative min-h-screen overflow-hidden">
           <div className="pointer-events-none absolute inset-0 hidden md:block">
-            <div className="absolute left-1/2 top-[-80px] h-[260px] w-[260px] -translate-x-[260px] rounded-full bg-[#697DE8]/16 blur-3xl" />
-            <div className="absolute left-1/2 top-[120px] h-[280px] w-[280px] translate-x-[120px] rounded-full bg-[#B4D8E9]/28 blur-3xl" />
-            <div className="absolute left-1/2 bottom-[40px] h-[240px] w-[240px] -translate-x-[120px] rounded-full bg-[#8CA3EA]/20 blur-3xl" />
+            <div className="absolute left-1/2 top-[-80px] h-[260px] w-[260px] -translate-x-[260px] rounded-full bg-violet-200/35 blur-3xl" />
+            <div className="absolute left-1/2 top-[120px] h-[280px] w-[280px] translate-x-[120px] rounded-full bg-rose-100/55 blur-3xl" />
+            <div className="absolute left-1/2 bottom-[40px] h-[240px] w-[240px] -translate-x-[120px] rounded-full bg-violet-100/55 blur-3xl" />
           </div>
 
           <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
             <section
               id="app-surface"
-              className="relative w-full max-w-[390px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+              className="relative w-full max-w-[420px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.08)]"
             >
               <Landing />
             </section>

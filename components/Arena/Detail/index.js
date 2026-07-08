@@ -56,6 +56,46 @@ function getSpoonState(user = {}) {
   return { total, free, paid };
 }
 
+function getOfferMaleUids(offerData = {}) {
+  const fromArray = Array.isArray(offerData?.maleUids)
+    ? offerData.maleUids.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  const legacyMaleUid = String(offerData?.maleUid || "").trim();
+
+  return [...new Set([...fromArray, legacyMaleUid].filter(Boolean))];
+}
+
+async function removeCurrentMaleFromArenaOffer(femaleUid, targetUid, nextStatus = "updated") {
+  if (!femaleUid || !targetUid) return;
+
+  const offerRef = doc(db, "arenaOffers", femaleUid);
+  const offerSnap = await getDoc(offerRef);
+
+  if (!offerSnap.exists()) {
+    return;
+  }
+
+  const offerData = offerSnap.data() || {};
+  const nextMaleUids = getOfferMaleUids(offerData).filter(
+    (uid) => String(uid) !== String(targetUid)
+  );
+
+  await setDoc(
+    offerRef,
+    {
+      femaleUid,
+      maleUid: nextMaleUids[0] || "",
+      maleUids: nextMaleUids,
+      count: nextMaleUids.length,
+      status: nextMaleUids.length ? "offered" : nextStatus,
+      lastActedMaleUid: targetUid,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 
 const LIKE_COST = 8;
 
@@ -283,6 +323,8 @@ export default function ArenaDetailScreen({
           malePhone: targetUser?.phonenumber || "",
           status: "sent",
           spoonCost: LIKE_COST,
+          spoonDeductedFree: deductFree,
+          spoonDeductedPaid: deductPaid,
           createdAt: serverTimestamp(),
           expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
           respondedAt: null,
@@ -310,8 +352,11 @@ export default function ArenaDetailScreen({
         await sendLms(targetUser.phonenumber, msg, "차밍수프 호감 도착", {
           forceLms: true,
         });
-      }
 
+
+      }
+      await removeCurrentMaleFromArenaOffer(myUid, targetUid, "liked");
+      
       setLatestSpoon(currentSpoon - LIKE_COST);
       setLikeConfirmOpen(false);
       setActedState("liked");
@@ -344,12 +389,12 @@ export default function ArenaDetailScreen({
         arenaBlockedMaleUids: arrayUnion(targetUid),
       });
 
+      await removeCurrentMaleFromArenaOffer(myUid, targetUid, "passed");
+
       await setDoc(
         doc(db, "arenaOffers", myUid),
         {
           femaleUid: myUid,
-          maleUid: "",
-          status: "passed",
           passedMaleUid: targetUid,
           updatedAt: serverTimestamp(),
         },
@@ -532,19 +577,19 @@ export default function ArenaDetailScreen({
                       expiresAt={offer?.expiresAt}
                     />
 
-                        <ArenaProfileSummary
-                          summary={summary}
-                          valueMatchPercent={valueMatchPercent}
-                          onReport={handleOpenReport}
-                          expiresAt={offer?.expiresAt}
-                          badgeInfo={badgeInfo}
-                        />
+                    <ArenaProfileSummary
+                      summary={summary}
+                      valueMatchPercent={valueMatchPercent}
+                      onReport={handleOpenReport}
+                      expiresAt={offer?.expiresAt}
+                      badgeInfo={badgeInfo}
+                    />
 
                     <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
                       <button
                         type="button"
                         onClick={() => setValueModalOpen(true)}
-                        className="flex h-[42px] bg-violet-400 hover:bg-violet-500 items-center justify-center gap-2 rounded-md border border-slate-200 text-[14px] font-bold text-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
+                        className="flex h-[42px] bg-violet-600 hover:bg-violet-700 items-center justify-center gap-2 rounded-md border border-slate-200 text-[14px] font-bold text-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
                         style={{ cursor: "pointer" }}
                       >
                         가치관
@@ -554,7 +599,7 @@ export default function ArenaDetailScreen({
                       <button
                         type="button"
                         onClick={handleOpenCharmingCards}
-                        className="flex h-[42px] bg-violet-400 hover:bg-violet-500 items-center justify-center gap-2 rounded-md border border-slate-200 text-[14px] font-bold text-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
+                        className="flex h-[42px] bg-sky-600 hover:bg-sky-700 items-center justify-center gap-2 rounded-md border border-slate-200 text-[14px] font-bold text-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
                         style={{ cursor: "pointer" }}
                       >
                         차밍카드
@@ -564,7 +609,7 @@ export default function ArenaDetailScreen({
                       <button
                         type="button"
                         onClick={() => setStyleModalOpen(true)}
-                        className="flex h-[42px] bg-violet-400 hover:bg-violet-500 w-[46px] items-center justify-center rounded-md border border-slate-200 text-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
+                        className="flex h-[42px] bg-slate-600 hover:bg-slate-700 w-[46px] items-center justify-center rounded-md border border-slate-200 text-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]"
                         style={{ cursor: "pointer" }}
                         title="스타일진단"
                       >

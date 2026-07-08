@@ -170,6 +170,10 @@ export default function ArenaPage() {
           const femaleUser = femaleMap[item.femaleUid];
           if (!femaleUser) return null;
 
+          if (isArenaBlockedUser(femaleUser)) {
+            return null;
+          }
+
           if (isAdminMatchExposureBlocked(femaleUser)) {
             return null;
           }
@@ -225,6 +229,7 @@ export default function ArenaPage() {
             ? result.offerCards.filter((item) => {
               const maleUser = item?.male || null;
               if (!maleUser) return false;
+              if (isArenaBlockedUser(maleUser)) return false;
               if (isAdminMatchExposureBlocked(maleUser)) return false;
               return !isBlockedTargetUser(baseUser, maleUser);
             })

@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FiEyeOff, FiGift, FiUnlock, FiLock } from "react-icons/fi";
+import {
+  FiCheckCircle,
+  FiEyeOff,
+  FiGift,
+  FiUnlock,
+  FiLock,
+  FiMessageCircle,
+} from "react-icons/fi";
 import {
   formatDateTime,
   formatLocationValue,
@@ -13,8 +20,12 @@ import {
   getUserGenderLabel,
   getUserMbti,
   getUserThumbImages,
+  getJobLabel,
+  getCompanyLabel,
   isLegacyAutoApprovalCandidate,
   isNewApprovalTarget,
+  isProfileReviewTarget,
+  PROFILE_INCOMPLETE_SMS_REASONS,
 } from "./adminUtils";
 
 const APPROVAL_SPOON_OPTIONS = [0, 3, 5, 8, 10, 20, 30, 50];
@@ -26,24 +37,31 @@ export default function UserDetailModal({
   onClose,
   onApprove,
   approving = false,
+  onApproveProfileReview,
+  approvingProfileReview = false,
   onToggleExposure,
   togglingExposure = false,
   onGrantSpoons,
   grantingSpoons = false,
+  onSendProfileIncompleteSms,
+  sendingProfileIncompleteSms = false,
 }) {
   const images = useMemo(() => getUserThumbImages(user), [user]);
   const [rewardValue, setRewardValue] = useState(8);
   const [manualSpoonValue, setManualSpoonValue] = useState(8);
+  const [profileGuideReasonCode, setProfileGuideReasonCode] = useState("profile_photo");
 
   useEffect(() => {
     if (!open) return;
     setRewardValue(8);
     setManualSpoonValue(8);
+    setProfileGuideReasonCode("profile_photo");
   }, [open, user?.id]);
 
   if (!open || !user) return null;
 
   const exposureBlocked = user?.adminMatchExposureBlocked === true;
+  const profileReviewTarget = isProfileReviewTarget(user);
 
   return (
     <div
@@ -110,6 +128,14 @@ export default function UserDetailModal({
                   value={isLegacyAutoApprovalCandidate(user) ? "예" : "아니오"}
                 />
                 <StatusLine
+                  label="프로필 재심사 요청"
+                  value={profileReviewTarget ? "예" : "아니오"}
+                />
+                <StatusLine
+                  label="재심사 요청일"
+                  value={formatDateTime(user?.reviewRequestedAt)}
+                />
+                <StatusLine
                   label="승인 상태"
                   value={
                     user?.signupApproved === true
@@ -153,7 +179,10 @@ export default function UserDetailModal({
                     type="button"
                     onClick={() => onToggleExposure?.(user, true)}
                     disabled={togglingExposure || exposureBlocked}
-                    style={{ cursor: togglingExposure || exposureBlocked ? "default" : "pointer" }}
+                    style={{
+                      cursor:
+                        togglingExposure || exposureBlocked ? "default" : "pointer",
+                    }}
                     className="flex h-11 items-center justify-center gap-2 rounded-md bg-rose-500 px-4 text-[14px] font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
                   >
                     <FiLock className="text-[15px]" />
@@ -164,7 +193,12 @@ export default function UserDetailModal({
                     type="button"
                     onClick={() => onToggleExposure?.(user, false)}
                     disabled={togglingExposure || !exposureBlocked}
-                    style={{ cursor: togglingExposure || !exposureBlocked ? "default" : "pointer" }}
+                    style={{
+                      cursor:
+                        togglingExposure || !exposureBlocked
+                          ? "default"
+                          : "pointer",
+                    }}
                     className="flex h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-[14px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
                   >
                     <FiUnlock className="text-[15px]" />
@@ -195,13 +229,25 @@ export default function UserDetailModal({
                 <InfoGrid
                   items={[
                     ["학력", getEducationLabel(user)],
-                    ["학교명", user?.educationSchoolName || user?.school || "-"],
-                    ["학력 공개", user?.educationPublic === false ? "비공개" : "공개/기본"],
+                    [
+                      "학교명",
+                      user?.educationSchoolName ||
+                      user?.schoolName ||
+                      user?.school ||
+                      "-",
+                    ],
+                    [
+                      "학력 공개",
+                      user?.educationPublic === false ? "비공개" : "공개/기본",
+                    ],
                     ["종교", getReligionLabel(user)],
-                    ["결혼 상태", user?.maritalStatus || user?.status || "-"],
+                    [
+                      "결혼 상태",
+                      user?.maritalStatus || user?.status || user?.wedding || "-",
+                    ],
                     ["연봉", getSalaryLabel(user)],
-                    ["직업", user?.job || user?.occupation || "-"],
-                    ["회사명", user?.companyName || user?.company || "-"],
+                    ["직업", getJobLabel(user)],
+                    ["회사명", getCompanyLabel(user)],
                     ["스타일진단", getStyleTestLabel(user)],
                     ["취미", getHobbyLabel(user)],
                   ]}
@@ -215,20 +261,112 @@ export default function UserDetailModal({
                     ["유료 스푼", `${Number(user?.spoon_paid || 0)}개`],
                     ["무료 스푼", `${Number(user?.spoon_free || 0)}개`],
                     ["본인인증", user?.verified ? "완료" : "미확인"],
-                    ["재직인증", user?.companyVerified ? "완료" : "미확인"],
+                    [
+                      "재직인증",
+                      user?.companyVerified || user?.company_verified
+                        ? "완료"
+                        : "미확인",
+                    ],
                     ["회사 이메일", user?.companyEmail || "-"],
                     ["pendingStatus", user?.pendingStatus || "-"],
+                    ["reviewStatus", user?.reviewStatus || "-"],
+                    ["date_pending", user?.date_pending === true ? "true" : "false"],
                     ["adminApprovalStatus", user?.adminApprovalStatus || "-"],
-                    ["signupApproved", user?.signupApproved === true ? "true" : "false"],
+                    [
+                      "signupApproved",
+                      user?.signupApproved === true ? "true" : "false",
+                    ],
                   ]}
                 />
               </Panel>
 
               <Panel title="자기소개 / 메모성 확인">
-                <LongText value={user?.introduce || user?.intro || user?.aboutMe || "-"} />
+                <LongText
+                  value={user?.introduce || user?.intro || user?.aboutMe || "-"}
+                />
               </Panel>
 
-              {onApprove ? (
+              {onApproveProfileReview && profileReviewTarget ? (
+                <Panel title="프로필 재심사 승인">
+                  <div className="flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
+                    <FiCheckCircle className="text-[15px]" />
+                    기존 승인회원의 재심사 대기 상태를 승인 완료로 정리해요
+                  </div>
+
+                  <div className="mt-3 rounded-md bg-emerald-50 px-3 py-3 text-[12px] leading-5 text-emerald-700">
+                    이 버튼은 문자/LMS를 발송하지 않습니다.
+                    <br />
+                    reviewStatus, pendingStatus, date_pending 값만 승인 상태로 정리합니다.
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onApproveProfileReview?.(user)}
+                    disabled={approvingProfileReview}
+                    style={{ cursor: approvingProfileReview ? "default" : "pointer" }}
+                    className="mt-3 flex h-11 w-full items-center justify-center rounded-md bg-emerald-600 px-4 text-[14px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {approvingProfileReview ? "처리 중..." : "프로필 재심사 승인"}
+                  </button>
+                </Panel>
+              ) : null}
+
+              {onSendProfileIncompleteSms ? (
+                <Panel title="매칭 이용 보완 안내 문자">
+                  <div className="flex items-center gap-2 text-[13px] font-semibold text-violet-700">
+                    <FiMessageCircle className="text-[15px]" />
+                    프로필 미완성 회원에게 수동으로 안내 문자를 보내요
+                  </div>
+
+                  <div className="mt-3 rounded-md bg-slate-50 px-3 py-3 text-[12px] leading-5 text-slate-500">
+                    과거 회원에게 자동 발송되지 않도록, 이 버튼을 누른 회원에게만
+                    <br />
+                    매칭 이용 보완 안내 문자가 발송됩니다.
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                    <select
+                      value={profileGuideReasonCode}
+                      onChange={(e) => setProfileGuideReasonCode(e.target.value)}
+                      className="h-11 rounded-md border border-violet-200 bg-white px-3 text-[14px] text-slate-900 outline-none"
+                    >
+                      {PROFILE_INCOMPLETE_SMS_REASONS.map((reason) => (
+                        <option key={reason.code} value={reason.code}>
+                          {reason.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSendProfileIncompleteSms?.(user, profileGuideReasonCode)
+                      }
+                      disabled={sendingProfileIncompleteSms}
+                      style={{
+                        cursor: sendingProfileIncompleteSms ? "default" : "pointer",
+                      }}
+                      className="flex h-11 items-center justify-center rounded-md bg-slate-900 px-4 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {sendingProfileIncompleteSms ? "발송 중..." : "문자 발송"}
+                    </button>
+                  </div>
+                </Panel>
+              ) : null}
+
+              {onApproveProfileReview && profileReviewTarget ? (
+              <button
+                type="button"
+                onClick={() => onApproveProfileReview?.(user)}
+                disabled={approvingProfileReview}
+                style={{ cursor: approvingProfileReview ? "default" : "pointer" }}
+                className="flex h-11 items-center justify-center rounded-md bg-emerald-600 px-5 text-[15px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {approvingProfileReview ? "처리 중..." : "프로필 재심사 승인"}
+              </button>
+            ) : null}
+
+            {onApprove ? (
                 <Panel title="가입 승인 이벤트 스푼">
                   <div className="flex items-center gap-2 text-[13px] font-semibold text-violet-700">
                     <FiGift className="text-[15px]" />
@@ -295,6 +433,18 @@ export default function UserDetailModal({
 
         <div className="border-t border-slate-200 px-5 py-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            {onApproveProfileReview && profileReviewTarget ? (
+              <button
+                type="button"
+                onClick={() => onApproveProfileReview?.(user)}
+                disabled={approvingProfileReview}
+                style={{ cursor: approvingProfileReview ? "default" : "pointer" }}
+                className="flex h-11 items-center justify-center rounded-md bg-emerald-600 px-5 text-[15px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {approvingProfileReview ? "처리 중..." : "프로필 재심사 승인"}
+              </button>
+            ) : null}
+
             {onApprove ? (
               <button
                 type="button"
@@ -341,7 +491,10 @@ function InfoGrid({ items = [] }) {
   return (
     <div className="grid grid-cols-1 gap-2">
       {items.map(([label, value]) => (
-        <div key={label} className="flex flex-col gap-1 rounded-md bg-slate-50 px-3 py-3">
+        <div
+          key={label}
+          className="flex flex-col gap-1 rounded-md bg-slate-50 px-3 py-3"
+        >
           <div className="text-[12px] font-semibold text-slate-500">{label}</div>
           <div className="break-keep text-[14px] leading-6 text-slate-800">
             {value || "-"}
@@ -356,7 +509,9 @@ function StatusLine({ label, value }) {
   return (
     <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-3">
       <div className="text-[13px] font-semibold text-slate-500">{label}</div>
-      <div className="text-[13px] font-semibold text-slate-800">{value || "-"}</div>
+      <div className="text-[13px] font-semibold text-slate-800">
+        {value || "-"}
+      </div>
     </div>
   );
 }

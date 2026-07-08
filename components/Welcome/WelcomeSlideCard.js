@@ -1,21 +1,88 @@
 import React from "react";
 
-function ImageOrb({ src, alt }) {
+const FALLBACK_IMAGES = [
+  "/image/landing/section1.png",
+  "/image/landing/section2.png",
+  "/image/landing/section3.png",
+  "/image/landing/landing.png",
+];
+
+function StepDots({ currentIndex, total }) {
   return (
-    <div className="relative mx-auto my-6 flex w-full items-center justify-center">
-      {/* outer gradient glow (강화) */}
-      <div className="absolute h-[235px] w-[235px] rounded-full bg-gradient-to-br from-fuchsia-400/45 via-violet-400/35 to-sky-400/35 blur-2xl" />
-      <div className="absolute h-[215px] w-[215px] rounded-full bg-gradient-to-tr from-rose-300/35 via-transparent to-indigo-300/30 blur-xl" />
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-1.5 rounded-full transition-all ${i === currentIndex ? "w-5 bg-violet-600" : "w-1.5 bg-slate-300"
+            }`}
+        />
+      ))}
+    </div>
+  );
+}
 
-      {/* circular image (꽉차게) */}
-      <div className="relative h-[200px] w-[200px] overflow-hidden rounded-full shadow-[0_20px_45px_rgba(76,29,149,0.18),0_8px_24px_rgba(15,23,42,0.10)] ring-1 ring-white/70">
-        <img src={src} alt={alt} className="h-full w-full object-cover" />
+function HeroImage({ src, alt }) {
+  return (
+    <div className="relative mx-auto mt-5 w-full">
+      <div className="pointer-events-none absolute -inset-4 rounded-[28px] bg-gradient-to-br from-violet-300/35 via-sky-200/25 to-amber-100/35 blur-2xl" />
 
-        {/* edge lighting */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0)_55%,rgba(255,255,255,0.20)_100%)]" />
-        <div className="pointer-events-none absolute inset-0 rounded-full shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]" />
+      <div className="relative overflow-hidden rounded-[22px] bg-slate-100 shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/70">
+        <div className="relative aspect-[4/3] w-full">
+          <img
+            src={src}
+            alt={alt}
+            className="h-full w-full object-cover object-center"
+          />
+
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-white/5" />
+        </div>
       </div>
     </div>
+  );
+}
+
+function QuickActionButton({
+  icon,
+  title,
+  description,
+  onClick,
+  tone = "violet",
+}) {
+  const toneClass =
+    tone === "rose"
+      ? "bg-rose-50 text-rose-500"
+      : "bg-violet-50 text-violet-600";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-[62px] w-full items-center justify-between rounded-md border border-solid border-slate-200 bg-white px-4 py-3 text-left transition hover:bg-slate-50"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[16px] ${toneClass}`}
+        >
+          {icon}
+        </span>
+
+        <span className="min-w-0">
+          <span className="block break-keep text-[13px] font-extrabold text-slate-800">
+            {title}
+          </span>
+
+          {description ? (
+            <span className="mt-0.5 block break-keep text-[11px] font-medium leading-4 text-slate-400">
+              {description}
+            </span>
+          ) : null}
+        </span>
+      </div>
+
+      <span className="shrink-0 text-[22px] font-light text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500">
+        ›
+      </span>
+    </button>
   );
 }
 
@@ -32,96 +99,103 @@ export default function WelcomeSlideCard({
   const isLast = currentIndex === total - 1;
   const canGoPrev = currentIndex > 0;
 
-  return (
-    <div className="flex flex-col bg-white min-h-[760px]">
-      {/* content */}
-      <div className="flex-1 px-5 pt-8 pb-4">
-        {/* top row */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-            {/* STEP {slide.step} */}
-          </div>
+  const imageSrc =
+    slide?.image ||
+    FALLBACK_IMAGES[currentIndex] ||
+    "/image/landing/landing.png";
 
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: total }).map((_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 rounded-full transition-all ${i === currentIndex ? "w-5 bg-slate-900" : "w-1.5 bg-slate-300"
-                  }`}
-              />
-            ))}
+  const imageAlt = slide?.title || "차밍수프 웰컴 이미지";
+
+  return (
+    <div className="flex h-[100svh] min-h-0 w-full flex-col overflow-hidden bg-white md:h-[720px] md:max-h-[calc(100vh-80px)] md:min-h-[560px]">
+      {/* 상단 고정 영역 */}
+      <header className="shrink-0 bg-white px-5 pb-3 pt-[max(14px,env(safe-area-inset-top))]">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={canGoPrev ? onPrev : undefined}
+            disabled={!canGoPrev}
+            className={`flex h-10 w-10 items-center justify-center rounded-md text-[20px] transition ${canGoPrev
+                ? "text-slate-800 hover:bg-slate-100"
+                : "pointer-events-none text-transparent"
+              }`}
+            aria-label="이전"
+          >
+            ‹
+          </button>
+
+          <StepDots currentIndex={currentIndex} total={total} />
+
+          <div className="flex h-10 w-10 items-center justify-center">
+            <span className="text-[11px] font-bold text-slate-300">
+              {currentIndex + 1}/{total}
+            </span>
           </div>
         </div>
+      </header>
 
-        <h1 className="whitespace-pre-line text-3xl font-black pt-4">
-          <span className="bg-clip-text">
-            {slide.title}
-          </span>
-        </h1>
-
-        {slide.description ? (
-          <p className="mt-8 whitespace-pre-line text-md leading-6 text-slate-500">
-            {slide.description}
+      {/* 중간 스크롤 영역 */}
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-2">
+        <div>
+          <p className="text-[12px] font-extrabold text-violet-600">
+            WELCOME
           </p>
-        ) : null}
 
-        <ImageOrb src={slide.image} alt={slide.title} />
+          <h1 className="mt-2 whitespace-pre-line break-keep text-[28px] font-bold leading-[1.14] text-slate-800">
+            {slide.title}
+          </h1>
+
+          {slide.description ? (
+            <p className="mt-3 whitespace-pre-line break-keep text-[14px] font-medium leading-6 text-slate-500">
+              {slide.description}
+            </p>
+          ) : null}
+        </div>
+
+        <HeroImage src={imageSrc} alt={imageAlt} />
 
         {slide.body ? (
-          <p className="py-4 whitespace-pre-line text-sm leading-6 text-slate-700">
-            {slide.body}
-          </p>
+          <div className="mt-5 rounded-md border border-solid border-slate-100 bg-slate-50 px-4 py-4">
+            <p className="whitespace-pre-line break-keep text-[13px] font-medium leading-6 text-slate-600">
+              {slide.body}
+            </p>
+          </div>
         ) : null}
-      </div>
 
-      {/* bottom action area (탐색 버튼 + 이전/다음) */}
-      <div className="px-0 pb-0">
-        <div className="space-y-0.5">
-          <button
-            type="button"
-            onClick={onClickExploreCards}
-            className="flex h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 text-left transition hover:bg-slate-50"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                💬
-              </span>
-              <span className="text-[13px] font-bold text-slate-700">
-                차밍카드 둘러보기
-              </span>
-            </div>
-            <span className="text-slate-400">›</span>
-          </button>
+        {/* 마지막 STEP에서만 노출 */}
+        {isLast ? (
+          <div className="mt-5 space-y-2 pb-2">
+            <QuickActionButton
+              icon="💬"
+              title="차밍카드 둘러보기"
+              description="답변으로 매력을 보여주는 공간"
+              onClick={onClickExploreCards}
+              tone="violet"
+            />
 
-          <button
-            type="button"
-            onClick={onClickTests}
-            className="flex h-14 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 text-left transition hover:bg-slate-50"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-500">
-                ❤
-              </span>
-              <span className="text-[13px] font-bold text-slate-700">
-                연애스타일진단 먼저 해보기
-              </span>
-            </div>
-            <span className="text-slate-400">›</span>
-          </button>
-        </div>
+            <QuickActionButton
+              icon="❤"
+              title="연애스타일진단 먼저 해보기"
+              description="내 연애 성향을 가볍게 확인하기"
+              onClick={onClickTests}
+              tone="rose"
+            />
+          </div>
+        ) : null}
+      </main>
 
-        {/* 이전/다음 row */}
-        {/* 이전/다음 row (STEP 4에서는 숨김) */}
+      {/* 하단 고정 버튼 영역 */}
+      <footer className="shrink-0 border-t border-solid border-slate-100 bg-white px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_24px_rgba(15,23,42,0.04)]">
         {!isLast ? (
           <div
-            className={`mt-3 grid gap-0 ${canGoPrev ? "grid-cols-[104px_1fr]" : "grid-cols-1"
+            className={`grid gap-2 ${canGoPrev ? "grid-cols-[92px_1fr]" : "grid-cols-1"
               }`}
           >
             {canGoPrev ? (
               <button
                 type="button"
                 onClick={onPrev}
-                className="flex h-[54px] items-center justify-center border border-slate-200 text-lg font-bold text-slate-700 transition hover:bg-slate-200 bg-slate-100"
+                className="flex h-12 items-center justify-center rounded-md bg-slate-100 text-[14px] font-extrabold text-slate-600 transition hover:bg-slate-200"
               >
                 이전
               </button>
@@ -130,43 +204,37 @@ export default function WelcomeSlideCard({
             <button
               type="button"
               onClick={onNext}
-              className="flex h-[54px] w-full items-center justify-center bg-rose-500 px-4 text-center text-lg font-extrabold text-white transition hover:brightness-95"
+              className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 px-4 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(124,58,237,0.22)] transition hover:bg-violet-700"
             >
               다음
             </button>
           </div>
-        ) : null}
-      </div>
+        ) : (
+          <div className="grid grid-cols-[92px_1fr] gap-2">
+            <button
+              type="button"
+              onClick={onPrev}
+              className="flex h-12 items-center justify-center rounded-md bg-slate-100 text-[14px] font-extrabold text-slate-600 transition hover:bg-slate-200"
+            >
+              이전
+            </button>
 
-      {/* ✅ 바닥에 딱 붙는 최종 CTA (마지막 슬라이드에서만 노출) */}
-      {isLast ? (
-        <div className="mt-3 px-0 pb-0">
-          <div
-            className={`mt-3 grid gap-0 ${canGoPrev ? "grid-cols-[104px_1fr]" : "grid-cols-1"
-              }`}
-          >
-          <button
-            type="button"
-            onClick={onPrev}
-            className="flex h-[54px] items-center justify-center border border-slate-200 text-lg font-bold text-slate-700 transition hover:bg-slate-200 bg-slate-100"
-          >
-            이전
-          </button>
-          <button
-            type="button"
-            onClick={onFinish}
-            className="flex h-[54px] w-full items-center justify-center bg-rose-500 px-4 text-center text-lg font-extrabold text-white transition hover:brightness-95"
-          >
-            <span className="leading-tight">
-              상세정보 입력후 매칭참여
-              <br />
-              <span className="text-[12px] font-semibold opacity-90">
-                (약 1~2분 소요)
+            <button
+              type="button"
+              onClick={onFinish}
+              className="flex h-12 w-full items-center justify-center rounded-md bg-violet-600 px-4 text-center text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(124,58,237,0.22)] transition hover:bg-violet-700"
+            >
+              <span className="leading-tight">
+                상세정보 입력 후 매칭참여
+                <br />
+                <span className="text-[11px] font-semibold text-white/85">
+                  약 1~2분 소요
+                </span>
               </span>
-            </span>
-            </button></div>
-        </div>
-      ) : null}
+            </button>
+          </div>
+        )}
+      </footer>
     </div>
   );
 }

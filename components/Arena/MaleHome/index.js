@@ -2,9 +2,11 @@ import React from "react";
 import { useRouter } from "next/router";
 import { PiArrowLeft } from "react-icons/pi";
 import BottomNavbar from "components/Common/BottomNavbar";
+import IdentityNudgeBanner from "components/Common/IdentityNudgeBanner";
 import ArenaReceivePauseBar from "components/Arena/Common/ArenaReceivePauseBar";
 import MaleInterestCard from "./MaleInterestCard";
 import MaleEmptyState from "./MaleEmptyState";
+import CharmingCardInsightSection from "./CharmingCardInsightSection";
 
 export default function MaleHome({
   user,
@@ -32,6 +34,8 @@ export default function MaleHome({
                 </div>
               </div>
             </div>
+
+            {isLoggedIn ? <BottomNavbar contained /> : null}
           </section>
         </div>
       </main>
@@ -67,14 +71,22 @@ export default function MaleHome({
                 onToggle={onToggleReceivePause}
               />
 
+              <IdentityNudgeBanner user={user} className="pb-3 pt-3" />
+
+              <CharmingCardInsightSection
+                user={user}
+                onMoveCards={() => router.push("/cards/list")}
+              />
+
               <MaleEmptyState
+                compact
                 nickname={user?.nickname || user?.username || "회원"}
                 onMoveCards={() => router.push("/cards/list")}
                 onMoveProfile={() => router.push("/profile")}
               />
             </div>
 
-            {isLoggedIn ? <BottomNavbar /> : null}
+            {isLoggedIn ? <BottomNavbar contained /> : null}
           </section>
         </div>
       </main>
@@ -109,6 +121,8 @@ export default function MaleHome({
               onToggle={onToggleReceivePause}
             />
 
+            <IdentityNudgeBanner user={user} className="-mx-4 pb-3" />
+
             <div className="space-y-4">
               <div className="rounded-md border border-violet-100 bg-violet-50 px-4 py-4">
                 <div className="text-[16px] font-extrabold text-violet-700">
@@ -134,7 +148,7 @@ export default function MaleHome({
             </div>
           </div>
 
-          {isLoggedIn ? <BottomNavbar /> : null}
+          {isLoggedIn ? <BottomNavbar contained /> : null}
         </section>
       </div>
     </main>

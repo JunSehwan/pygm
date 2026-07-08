@@ -1,20 +1,25 @@
 {
-  "name": "피그말리온",
-  "short_name": "PYGM",
+  "name": "차밍수프",
+  "short_name": "차밍수프",
+  "description": "3040을 위한 결이 맞는 이성소개 서비스",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/logo/logo.png",
+      "src": "/logo/android-icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/logo/logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

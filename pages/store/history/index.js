@@ -192,7 +192,7 @@ export default function StoreHistoryPage() {
           </div>
 
           <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
-            <section className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+            <section className="relative flex h-[100dvh] w-full max-w-[420px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
               <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
                 <div className="text-[16px] font-bold text-slate-900">
                   결제현황
@@ -235,7 +235,7 @@ export default function StoreHistoryPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-md border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                      <div className="rounded-md border border-slate-200 border-solid bg-white px-3 py-3 shadow-sm">
                         <div className="flex items-center gap-1 text-[11px] font-semibold text-sky-600">
                           <PiReceiptDuotone className="text-[14px]" />
                           결제완료
@@ -245,7 +245,7 @@ export default function StoreHistoryPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-md border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                      <div className="rounded-md border border-slate-200 border-solid bg-white px-3 py-3 shadow-sm">
                         <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
                           <PiCheckCircleDuotone className="text-[14px]" />
                           지급완료
@@ -256,7 +256,7 @@ export default function StoreHistoryPage() {
                       </div>
                     </section>
 
-                    <section className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                    <section className="rounded-md border border-slate-200 border-solid bg-white px-4 py-4 shadow-sm">
                       <div className="flex items-center gap-2">
                         <PiCoinsDuotone className="text-[18px] text-violet-600" />
                         <div className="text-[14px] font-bold text-slate-900">

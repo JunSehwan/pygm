@@ -32,6 +32,7 @@ import ProfileCompletePromptModal, {
 
 import { isBlockedTargetUser } from "lib/userBlockRules";
 import { isAdminMatchExposureBlocked } from "lib/arena";
+import { adaptLegacyProfileDoc } from "lib/profileLegacyAdapter";
 
 const SHOW_PENDING_FOR_DEV = false;
 
@@ -79,7 +80,7 @@ function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
     date_sleep: docData.date_sleep ?? false,
     withdraw: docData.withdraw ?? false,
     date_profile_finished: docData.date_profile_finished ?? false,
-    date_pending: docData.date_pending ?? true,
+    date_pending: docData.date_pending ?? false,
 
     maritalStatus: docData.maritalStatus || docData.status || "",
     status: docData.status || "",
@@ -188,9 +189,23 @@ function mapAnswerDoc(docSnap) {
     answererUid: data.answererUid || "",
     answererGender: data.answererGender || "",
     answerText: data.answerText || "",
+    selectedOptionIndex:
+      typeof data.selectedOptionIndex === "number"
+        ? data.selectedOptionIndex
+        : typeof data.selectedIndex === "number"
+          ? data.selectedIndex
+          : null,
     selectedOptionIndexes: Array.isArray(data.selectedOptionIndexes)
       ? data.selectedOptionIndexes
-      : [],
+      : Array.isArray(data.selectedIndexes)
+        ? data.selectedIndexes
+        : typeof data.selectedOptionIndex === "number"
+          ? [data.selectedOptionIndex]
+          : typeof data.selectedIndex === "number"
+            ? [data.selectedIndex]
+            : [],
+    selectedOptionText: data.selectedOptionText || data.selectedText || "",
+    questionType: data.questionType || "",
     createdAt: serializeTimestamp(data.createdAt),
     updatedAt: serializeTimestamp(data.updatedAt),
   };
@@ -265,12 +280,6 @@ export default function CardListPage() {
     let mounted = true;
 
     async function loadCards() {
-      if (!user?.userID) {
-        setCards([]);
-        setCardsLoading(false);
-        return;
-      }
-
       try {
         setCardsLoading(true);
 
@@ -292,6 +301,7 @@ export default function CardListPage() {
           creatorIds.map(async (uid) => {
             const userSnap = await getDoc(doc(db, "users", uid));
             if (!userSnap.exists()) return null;
+
             return {
               uid,
               ...userSnap.data(),
@@ -309,7 +319,12 @@ export default function CardListPage() {
           const creator = creatorMap[card.creatorUid];
           if (!creator) return false;
           if (isAdminMatchExposureBlocked(creator)) return false;
-          return !isBlockedTargetUser(user, creator);
+
+          if (user?.userID) {
+            return !isBlockedTargetUser(user, creator);
+          }
+
+          return true;
         });
 
         if (!mounted) return;
@@ -373,88 +388,74 @@ export default function CardListPage() {
   const isFemale = useMemo(() => isFemaleGender(user?.gender || ""), [user?.gender]);
 
   useEffect(() => {
-    let mounted = true;
+    if (!user?.userID || !isFemale) {
+      setFemaleReviewItems([]);
+      setFemaleReactionByAnswerId({});
+      setFemaleReportedAnswererUids([]);
+      return undefined;
+    }
 
-    async function loadFemaleReviewData() {
-      if (!user?.userID || !isFemale) {
-        setFemaleReviewItems([]);
-        setFemaleReactionByAnswerId({});
-        setFemaleReportedAnswererUids([]);
-        return;
-      }
+    if (!(cards || []).length) {
+      setFemaleReviewItems([]);
+      setFemaleReactionByAnswerId({});
+      setFemaleReportedAnswererUids([]);
+      return undefined;
+    }
+
+    const cardMap = {};
+    (cards || []).forEach((card) => {
+      cardMap[card.id] = card;
+    });
+
+    let isUnmounted = false;
+    let answerDocs = [];
+    let myReactionDocs = [];
+    let myReportDocs = [];
+    let allReactionDocs = [];
+
+    const rebuildFemaleReviewItems = async () => {
+      if (isUnmounted) return;
 
       try {
-        const myCards = (cards || []).filter((card) => card.creatorUid === user.userID);
-        const myCardIds = myCards.map((item) => item.id);
+        const rawAnswers = answerDocs.map(mapAnswerDoc);
 
-        if (myCardIds.length === 0) {
-          if (!mounted) return;
-          setFemaleReviewItems([]);
-          setFemaleReactionByAnswerId({});
-          setFemaleReportedAnswererUids([]);
-          return;
-        }
-
-        const myCardMap = {};
-        myCards.forEach((card) => {
-          myCardMap[card.id] = card;
-        });
-
-        const answersSnap = await getDocs(
-          query(collection(db, "charmingCardAnswers"), orderBy("updatedAt", "desc"))
-        );
-
-        const rawAnswers = answersSnap.docs.map(mapAnswerDoc);
         const filteredAnswers = rawAnswers.filter((item) => {
-          if (!item?.cardId || !myCardMap[item.cardId]) return false;
+          if (!item?.cardId || !cardMap[item.cardId]) return false;
           if (!item?.answererUid) return false;
           return true;
         });
 
         const answerCountByCardId = {};
         filteredAnswers.forEach((item) => {
-          answerCountByCardId[item.cardId] = (answerCountByCardId[item.cardId] || 0) + 1;
+          answerCountByCardId[item.cardId] =
+            (answerCountByCardId[item.cardId] || 0) + 1;
         });
 
-        const myReactionsSnap = await getDocs(
-          query(
-            collection(db, "charmingCardAnswerReactions"),
-            where("ownerUid", "==", user.userID)
-          )
-        );
-
         const nextReactionByAnswerId = {};
-        myReactionsSnap.docs.forEach((item) => {
-          const data = item.data() || {};
+        myReactionDocs.forEach((snap) => {
+          const data = snap.data() || {};
           if (!data?.answerId) return;
           nextReactionByAnswerId[data.answerId] = data.reactionType || "";
         });
 
-        const myReportsSnap = await getDocs(
-          query(collection(db, "charmingCardAnswerReports"), where("ownerUid", "==", user.userID))
-        );
-
         const nextReportedAnswererUids = Array.from(
           new Set(
-            myReportsSnap.docs
-              .map((item) => {
-                const data = item.data() || {};
+            myReportDocs
+              .map((snap) => {
+                const data = snap.data() || {};
                 return data.reportedAnswererUid || data.answererUid || "";
               })
               .filter(Boolean)
           )
         );
 
-        const allReactionsSnap = await getDocs(
-          query(collection(db, "charmingCardAnswerReactions"), orderBy("updatedAt", "desc"))
-        );
-
         const likeCountByCardId = {};
-        allReactionsSnap.docs.forEach((item) => {
-          const data = item.data() || {};
+        allReactionDocs.forEach((snap) => {
+          const data = snap.data() || {};
           if (data?.reactionType !== "like") return;
           if (!data?.cardId) return;
-          likeCountByCardId[data.cardId] = (likeCountByCardId[data.cardId] || 0) + 1;
+          likeCountByCardId[data.cardId] =
+            (likeCountByCardId[data.cardId] || 0) + 1;
         });
 
         const answererIds = Array.from(
@@ -465,15 +466,27 @@ export default function CardListPage() {
           answererIds.map(async (uid) => {
             const userSnap = await getDoc(doc(db, "users", uid));
             if (!userSnap.exists()) return null;
+
             const data = userSnap.data() || {};
+            const adapted = adaptLegacyProfileDoc(data, { uid }, uid);
 
             return {
               uid,
+              ...adapted,
               ...data,
               styleTest: serializeStyleTest(data.styleTest || {}),
+              residence: adapted.residence,
+              workArea: adapted.workArea,
+              address_sido: adapted.address_sido,
+              address_sigugun: adapted.address_sigugun,
+              company_location_sido: adapted.company_location_sido,
+              company_location_sigugun: adapted.company_location_sigugun,
+              mbti: adapted.mbti || data.mbti || "",
             };
           })
         );
+
+        if (isUnmounted) return;
 
         const answererMap = {};
         answererDocs.forEach((item) => {
@@ -483,47 +496,110 @@ export default function CardListPage() {
 
         const nextItems = filteredAnswers
           .map((answer) => {
-            const card = myCardMap[answer.cardId];
+            const card = cardMap[answer.cardId];
             const answerer = answererMap[answer.answererUid] || null;
 
             if (!card || !answerer) return null;
             if (isAdminMatchExposureBlocked(answerer)) return null;
             if (isBlockedTargetUser(user, answerer)) return null;
 
+            const selectedOptionTexts = (answer.selectedOptionIndexes || [])
+              .map((index) => card?.options?.[index] || "")
+              .filter(Boolean);
+
+            const selectedOptionText =
+              answer.selectedOptionText ||
+              selectedOptionTexts.join(", ") ||
+              (typeof answer.selectedOptionIndex === "number"
+                ? card?.options?.[answer.selectedOptionIndex] || ""
+                : "");
+
             return {
               id: answer.id,
               card,
-              answer,
+              answer: {
+                ...answer,
+                questionType: answer.questionType || card?.questionType || "",
+                selectedOptionText,
+              },
               answerer,
               stats: {
-                viewCount: card.views || 0,
-                answerCount: answerCountByCardId[card.id] || 0,
-                likeCount:
-                  typeof likeCountByCardId[card.id] === "number"
-                    ? likeCountByCardId[card.id]
-                    : card.interestedCount || 0,
+                viewCount: Number(card?.views || 0),
+                answerCount: Number(answerCountByCardId[answer.cardId] || 0),
+                likeCount: Number(likeCountByCardId[answer.cardId] || 0),
               },
             };
           })
           .filter(Boolean);
 
-        if (!mounted) return;
         setFemaleReviewItems(nextItems);
         setFemaleReactionByAnswerId(nextReactionByAnswerId);
         setFemaleReportedAnswererUids(nextReportedAnswererUids);
       } catch (error) {
-        console.error("[cards/list] female review load error:", error);
-        if (!mounted) return;
+        console.error("[cards/list] female review rebuild error:", error);
+        if (isUnmounted) return;
         setFemaleReviewItems([]);
         setFemaleReactionByAnswerId({});
         setFemaleReportedAnswererUids([]);
       }
-    }
+    };
 
-    loadFemaleReviewData();
+    const answersUnsub = onSnapshot(
+      query(collection(db, "charmingCardAnswers"), orderBy("updatedAt", "desc")),
+      async (snap) => {
+        answerDocs = snap.docs;
+        await rebuildFemaleReviewItems();
+      },
+      (error) => {
+        console.error("[cards/list] female answers snapshot error:", error);
+      }
+    );
+
+    const myReactionsUnsub = onSnapshot(
+      query(
+        collection(db, "charmingCardAnswerReactions"),
+        where("ownerUid", "==", user.userID)
+      ),
+      async (snap) => {
+        myReactionDocs = snap.docs;
+        await rebuildFemaleReviewItems();
+      },
+      (error) => {
+        console.error("[cards/list] female my reactions snapshot error:", error);
+      }
+    );
+
+    const myReportsUnsub = onSnapshot(
+      query(
+        collection(db, "charmingCardAnswerReports"),
+        where("ownerUid", "==", user.userID)
+      ),
+      async (snap) => {
+        myReportDocs = snap.docs;
+        await rebuildFemaleReviewItems();
+      },
+      (error) => {
+        console.error("[cards/list] female my reports snapshot error:", error);
+      }
+    );
+
+    const allReactionsUnsub = onSnapshot(
+      query(collection(db, "charmingCardAnswerReactions"), orderBy("updatedAt", "desc")),
+      async (snap) => {
+        allReactionDocs = snap.docs;
+        await rebuildFemaleReviewItems();
+      },
+      (error) => {
+        console.error("[cards/list] female all reactions snapshot error:", error);
+      }
+    );
 
     return () => {
-      mounted = false;
+      isUnmounted = true;
+      answersUnsub();
+      myReactionsUnsub();
+      myReportsUnsub();
+      allReactionsUnsub();
     };
   }, [cards, isFemale, user?.userID]);
 
@@ -553,7 +629,7 @@ export default function CardListPage() {
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-6">
               <section
                 id="app-surface"
-                className="relative flex h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                className="relative flex h-[100dvh] w-full max-w-[420px] flex-col overflow-hidden bg-slate-50 md:h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
               >
                 <div className="min-h-0 flex-1">
                   <CardListContainer

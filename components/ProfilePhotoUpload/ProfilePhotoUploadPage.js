@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { AnimatePresence, motion } from "framer-motion";
-import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import {
+  deleteObject,
+  getDownloadURL,
+  ref,
+  uploadBytesResumable,
+} from "firebase/storage";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Toaster, toast } from "react-hot-toast";
 import { ToggleSwitch } from "flowbite-react";
@@ -12,8 +17,13 @@ import PhotoGuideSheet from "./PhotoGuideSheet";
 import { FaExchangeAlt } from "react-icons/fa";
 import { TiDelete } from "react-icons/ti";
 import { FiLoader } from "react-icons/fi";
+import {
+  buildDatingReviewPatch,
+  getDatingReviewMissingItems,
+} from "lib/reviewEligibility";
 
 const PHOTO_COUNT = 6;
+const MIN_REQUIRED_PHOTO_COUNT = 3;
 
 const EMPTY_PHOTOS = Array.from({ length: PHOTO_COUNT }, () => ({
   url: "",
@@ -48,14 +58,15 @@ export default function ProfilePhotoUploadPage({ user }) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
-
-  // 사진 업로드
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
 
-    const savedPhotos = Array.isArray(user.profilePhotos) ? user.profilePhotos : [];
+    const savedPhotos = Array.isArray(user.profilePhotos)
+      ? user.profilePhotos
+      : [];
+
     const mergedPhotos = EMPTY_PHOTOS.map((item, index) => {
       if (savedPhotos[index]) {
         return {
@@ -63,6 +74,7 @@ export default function ProfilePhotoUploadPage({ user }) {
           path: savedPhotos[index].path || "",
         };
       }
+
       return item;
     });
 
@@ -76,7 +88,7 @@ export default function ProfilePhotoUploadPage({ user }) {
   }, [photos]);
 
   const hasMainPhoto = !!photos[0]?.url;
-  const canSubmit = hasMainPhoto && uploadedCount >= 3;
+  const canSubmit = hasMainPhoto && uploadedCount >= MIN_REQUIRED_PHOTO_COUNT;
 
   const showInfoToast = (message) => {
     toast.dismiss();
@@ -98,7 +110,7 @@ export default function ProfilePhotoUploadPage({ user }) {
       position: "bottom-center",
       style: {
         ...toastBaseStyle,
-        maxWidth: "220px",
+        maxWidth: "240px",
         textAlign: "center",
       },
       iconTheme: {
@@ -115,7 +127,7 @@ export default function ProfilePhotoUploadPage({ user }) {
       position: "bottom-center",
       style: {
         ...errorToastStyle,
-        maxWidth: "240px",
+        maxWidth: "260px",
         textAlign: "center",
       },
       iconTheme: {
@@ -125,7 +137,13 @@ export default function ProfilePhotoUploadPage({ user }) {
     });
   };
 
-  const saveProfileData = async (nextPhotos, nextPublic) => {
+  /**
+   * 중요:
+   * 사진 업로드/삭제/공개 토글은 사진 데이터만 저장한다.
+   * 여기서 buildDatingReviewPatch를 실행하면 사진 업로드 순간 심사상태가 조용히 pending으로 바뀌고,
+   * 이후 하단 "매칭심사 진행" 버튼에서 shouldMoveToPending이 false가 되어 심사화면으로 안 넘어갈 수 있다.
+   */
+  const savePhotoDataOnly = async (nextPhotos, nextPublic) => {
     if (!uid) {
       throw new Error("유저 ID가 없습니다.");
     }
@@ -136,28 +154,225 @@ export default function ProfilePhotoUploadPage({ user }) {
       userRef,
       {
         profilePhotos: nextPhotos,
+        thumbimage: nextPhotos?.[0]?.url || "",
         charmingCardPhotoPublic: nextPublic,
         profilePhotoUpdatedAt: serverTimestamp(),
+        date_sleep: false,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
   };
 
+  const MAX_SOURCE_FILE_SIZE = 25 * 1024 * 1024;
+
+  const getFileExtension = (file) => {
+    const name = String(file?.name || "").toLowerCase();
+    const ext = name.includes(".") ? name.split(".").pop() : "";
+
+    if (ext) return ext;
+
+    if (file?.type === "image/jpeg") return "jpg";
+    if (file?.type === "image/png") return "png";
+    if (file?.type === "image/webp") return "webp";
+    if (file?.type === "image/heic") return "heic";
+    if (file?.type === "image/heif") return "heif";
+
+    return "jpg";
+  };
+
   const validateFile = (file) => {
     if (!file) return "이미지를 선택해주세요.";
 
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    const fileType = String(file.type || "").toLowerCase();
+    const extension = getFileExtension(file);
 
-    if (!allowedTypes.includes(file.type)) {
-      return "JPG, PNG, WEBP 파일만 업로드할 수 있어요.";
+    const isImageMime = fileType.startsWith("image/");
+    const isImageExtension = [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "heic",
+      "heif",
+    ].includes(extension);
+
+    if (!isImageMime && !isImageExtension) {
+      return "이미지 파일만 업로드할 수 있어요.";
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      return "이미지 용량은 8MB 이하만 업로드할 수 있어요.";
+    if (file.size > MAX_SOURCE_FILE_SIZE) {
+      return "이미지 용량이 너무 커요. 25MB 이하 사진만 등록해주세요.";
     }
 
     return "";
+  };
+
+  const loadImageElement = (file) => {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("이미지를 읽을 수 없습니다."));
+      };
+
+      image.src = objectUrl;
+    });
+  };
+
+  const canvasToBlob = (canvas, type = "image/jpeg", quality = 0.84) => {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("이미지 변환에 실패했습니다."));
+            return;
+          }
+
+          resolve(blob);
+        },
+        type,
+        quality
+      );
+    });
+  };
+
+  const prepareImageForUpload = async (file) => {
+    const fileType = String(file?.type || "").toLowerCase();
+    const extension = getFileExtension(file);
+
+    const isHeicLike = ["heic", "heif"].includes(extension) || [
+      "image/heic",
+      "image/heif",
+    ].includes(fileType);
+
+    try {
+      const image = await loadImageElement(file);
+
+      const maxWidth = 1600;
+      const maxHeight = 1600;
+
+      const originalWidth = image.naturalWidth || image.width;
+      const originalHeight = image.naturalHeight || image.height;
+
+      if (!originalWidth || !originalHeight) {
+        throw new Error("이미지 크기를 확인할 수 없습니다.");
+      }
+
+      const ratio = Math.min(
+        1,
+        maxWidth / originalWidth,
+        maxHeight / originalHeight
+      );
+
+      const targetWidth = Math.max(1, Math.round(originalWidth * ratio));
+      const targetHeight = Math.max(1, Math.round(originalHeight * ratio));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("이미지 변환을 시작할 수 없습니다.");
+      }
+
+      ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      const blob = await canvasToBlob(canvas, "image/jpeg", 0.84);
+
+      const safeName = String(file.name || "profile-photo")
+        .replace(/\.[^.]+$/, "")
+        .replace(/[^\w가-힣.-]+/g, "_");
+
+      return new File([blob], `${safeName || "profile-photo"}.jpg`, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    } catch (error) {
+      console.error("[prepareImageForUpload] error:", error);
+
+      if (isHeicLike) {
+        throw new Error(
+          "아이폰 HEIC 사진을 변환하지 못했어요. 사진 앱에서 JPG로 저장한 뒤 다시 시도해주세요."
+        );
+      }
+
+      return file;
+    }
+  };
+
+  const uploadFileToStorage = (storageRef, file, metadata) => {
+    return new Promise((resolve, reject) => {
+      const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+      uploadTask.on(
+        "state_changed",
+        null,
+        (error) => {
+          reject(error);
+        },
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(downloadURL);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    });
+  };
+
+  const getUploadErrorMessage = (error) => {
+    const code = error?.code || "";
+
+    if (code === "storage/unauthorized") {
+      return "로그인 인증이 풀렸어요. 다시 로그인 후 시도해주세요.";
+    }
+
+    if (code === "storage/retry-limit-exceeded") {
+      return "네트워크가 불안정해요. 와이파이에서 다시 시도해주세요.";
+    }
+
+    if (code === "storage/canceled") {
+      return "사진 업로드가 취소되었어요.";
+    }
+
+    if (code === "storage/quota-exceeded") {
+      return "저장공간 한도를 초과했어요. 관리자에게 문의해주세요.";
+    }
+
+    if (error?.message?.includes("HEIC")) {
+      return error.message;
+    }
+
+    return "사진 업로드 중 오류가 발생했어요. 다른 사진으로 다시 시도해주세요.";
+  };
+
+  const getSaveErrorMessage = (error) => {
+    const code = error?.code || "";
+
+    if (code === "permission-denied") {
+      return "사진은 업로드됐지만, 프로필 저장 권한이 막혀 있어요. 관리자에게 문의해주세요.";
+    }
+
+    if (code === "unavailable") {
+      return "사진은 업로드됐지만, 서버 연결이 불안정해요. 잠시 후 다시 시도해주세요.";
+    }
+
+    if (code === "unauthenticated") {
+      return "로그인 인증이 풀렸어요. 다시 로그인 후 시도해주세요.";
+    }
+
+    return "사진은 업로드됐지만, 프로필 정보 저장 중 오류가 발생했어요.";
   };
 
   const getUploadTargetSlots = (startSlot, currentPhotos, fileCount) => {
@@ -176,7 +391,6 @@ export default function ProfilePhotoUploadPage({ user }) {
 
     return slots.slice(0, fileCount);
   };
-
 
   const openGuide = (slotIndex) => {
     setSelectedSlot(slotIndex);
@@ -208,6 +422,23 @@ export default function ProfilePhotoUploadPage({ user }) {
     }
 
     const invalidMessage = files.map(validateFile).find(Boolean);
+
+    const currentUploadedCount = photos.filter((item) => item.url).length;
+    const remainingNeededCount = Math.max(
+      0,
+      MIN_REQUIRED_PHOTO_COUNT - currentUploadedCount
+    );
+
+    if (
+      currentUploadedCount < MIN_REQUIRED_PHOTO_COUNT &&
+      files.length < remainingNeededCount
+    ) {
+      showErrorToast(
+        `사진은 최소 ${MIN_REQUIRED_PHOTO_COUNT}장 이상 필요해요. 지금은 ${remainingNeededCount}장 더 선택해주세요.`
+      );
+      return;
+    }
+
     if (invalidMessage) {
       showErrorToast(invalidMessage);
       return;
@@ -236,21 +467,26 @@ export default function ProfilePhotoUploadPage({ user }) {
         const slotIndex = targetSlots[i];
 
         const prevPhoto = nextPhotos[slotIndex];
-        const extension = file.name?.split(".").pop() || "jpg";
+
+        const preparedFile = await prepareImageForUpload(file);
+        const extension = getFileExtension(preparedFile) || "jpg";
+
         const storagePath = `users/${uid}/profilePhotos/${slotIndex}-${Date.now()}-${i}.${extension}`;
         const storageRef = ref(storage, storagePath);
 
-        await uploadBytes(storageRef, file, {
-          contentType: file.type,
+        const downloadURL = await uploadFileToStorage(storageRef, preparedFile, {
+          contentType: preparedFile.type || "image/jpeg",
+          cacheControl: "public,max-age=31536000",
         });
-
-        const downloadURL = await getDownloadURL(storageRef);
 
         if (prevPhoto?.path) {
           try {
             await deleteObject(ref(storage, prevPhoto.path));
           } catch (deleteError) {
-            console.warn("[ProfilePhotoUploadPage] old photo delete fail:", deleteError);
+            console.warn(
+              "[ProfilePhotoUploadPage] old photo delete fail:",
+              deleteError
+            );
           }
         }
 
@@ -261,7 +497,20 @@ export default function ProfilePhotoUploadPage({ user }) {
       }
 
       setPhotos(nextPhotos);
-      await saveProfileData(nextPhotos, charmingCardPhotoPublic);
+
+      try {
+        await savePhotoDataOnly(nextPhotos, charmingCardPhotoPublic);
+      } catch (saveError) {
+        console.error("[ProfilePhotoUploadPage] firestore save error:", {
+          code: saveError?.code,
+          message: saveError?.message,
+          name: saveError?.name,
+          error: saveError,
+        });
+
+        showErrorToast(getSaveErrorMessage(saveError));
+        return;
+      }
 
       if (targetSlots.length === 1) {
         showSuccessToast("사진이 등록되었어요.");
@@ -269,8 +518,14 @@ export default function ProfilePhotoUploadPage({ user }) {
         showSuccessToast(`${targetSlots.length}장의 사진이 등록되었어요.`);
       }
     } catch (error) {
-      console.error("[ProfilePhotoUploadPage] upload error:", error);
-      showErrorToast("사진 업로드 중 오류가 발생했어요.");
+      console.error("[ProfilePhotoUploadPage] upload error:", {
+        code: error?.code,
+        message: error?.message,
+        name: error?.name,
+        error,
+      });
+
+      showErrorToast(getUploadErrorMessage(error));
     } finally {
       setSaving(false);
       setUploading(false);
@@ -282,7 +537,6 @@ export default function ProfilePhotoUploadPage({ user }) {
     if (!target?.url) return;
 
     setSaving(true);
-    // setUploading(true);
 
     try {
       if (target.path) {
@@ -297,14 +551,14 @@ export default function ProfilePhotoUploadPage({ user }) {
       nextPhotos[slotIndex] = { url: "", path: "" };
 
       setPhotos(nextPhotos);
-      await saveProfileData(nextPhotos, charmingCardPhotoPublic);
+      await savePhotoDataOnly(nextPhotos, charmingCardPhotoPublic);
 
-      <TiDelete />
+      showSuccessToast("사진이 삭제되었어요.");
     } catch (error) {
       console.error("[ProfilePhotoUploadPage] delete error:", error);
+      showErrorToast("사진 삭제 중 오류가 발생했어요.");
     } finally {
       setSaving(false);
-      // setUploading(false);
     }
   };
 
@@ -313,8 +567,10 @@ export default function ProfilePhotoUploadPage({ user }) {
     setCharmingCardPhotoPublic(nextValue);
 
     try {
-      await saveProfileData(photos, nextValue);
-      showSuccessToast(nextValue ? "차밍카드 공개가 켜졌어요." : "차밍카드 공개가 꺼졌어요.");
+      await savePhotoDataOnly(photos, nextValue);
+      showSuccessToast(
+        nextValue ? "차밍카드 공개가 켜졌어요." : "차밍카드 공개가 꺼졌어요."
+      );
     } catch (error) {
       console.error("[ProfilePhotoUploadPage] toggle error:", error);
       setCharmingCardPhotoPublic(!nextValue);
@@ -332,8 +588,10 @@ export default function ProfilePhotoUploadPage({ user }) {
       return;
     }
 
-    if (uploadedCount < 3) {
-      showErrorToast("사진은 최소 3장 이상 등록해주세요.");
+    if (uploadedCount < MIN_REQUIRED_PHOTO_COUNT) {
+      showErrorToast(
+        `사진은 최소 ${MIN_REQUIRED_PHOTO_COUNT}장 이상 등록해주세요.`
+      );
       return;
     }
 
@@ -344,26 +602,71 @@ export default function ProfilePhotoUploadPage({ user }) {
 
     try {
       setSaving(true);
-      setUploading(true);
+
+      const nextUser = {
+        ...(user || {}),
+        profilePhotos: photos,
+        charmingCardPhotoPublic,
+        profile_setup_step: 2,
+        profile_setup_required_done: true,
+        profile_photo_required_done: true,
+        date_sleep: false,
+      };
+
+      const { patch: reviewPatch } = buildDatingReviewPatch(
+        nextUser,
+        user || {}
+      );
+
+      const missingItems = getDatingReviewMissingItems(nextUser);
+
+      if (missingItems.length > 0) {
+        const firstMissing = missingItems[0];
+
+        showErrorToast(
+          `${firstMissing.label} 항목이 아직 필요해요.`
+        );
+
+        if (firstMissing.key !== "profilePhotos") {
+          setTimeout(() => {
+            router.push("/profile/setup");
+          }, 700);
+        }
+
+        return;
+      }
+
 
       await setDoc(
         doc(db, "users", uid),
         {
+          profilePhotos: photos,
+          charmingCardPhotoPublic,
           profile_photo_required_done: true,
           profile_setup_step: 2,
-          date_profile_finished: true,
+          date_sleep: false,
+          ...reviewPatch,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
 
-      router.push("/arena/pending");
+      const movedToPending =
+        reviewPatch?.reviewStatus === "pending" ||
+        reviewPatch?.pendingStatus === "reviewing" ||
+        reviewPatch?.date_pending === true;
+
+      if (movedToPending) {
+        router.replace("/arena/pending");
+        return;
+      }
+
+      showSuccessToast("프로필 사진이 저장되었어요.");
     } catch (error) {
       console.error("[ProfilePhotoUploadPage] submit error:", error);
       showErrorToast("저장 중 오류가 발생했어요.");
     } finally {
       setSaving(false);
-      setUploading(false);
     }
   };
 
@@ -389,7 +692,7 @@ export default function ProfilePhotoUploadPage({ user }) {
             />
 
             {label ? (
-              <div className="absolute left-1.5 top-1.5 rounded-full bg-[#0b63ce]/95 text-white shadow-md px-2 py-2 text-[10px] font-extrabold ">
+              <div className="absolute left-1.5 top-1.5 rounded-full bg-[#0b63ce]/95 px-2 py-2 text-[10px] font-extrabold text-white shadow-md">
                 {label}
               </div>
             ) : null}
@@ -410,7 +713,7 @@ export default function ProfilePhotoUploadPage({ user }) {
               <button
                 type="button"
                 className={`${large ? "px-2 py-2 text-md" : "px-2 py-2 text-md"
-                  } rounded-full bg-rose-500/95 hover:bg-rose-700 font-bold text-white`}
+                  } rounded-full bg-rose-500/95 font-bold text-white hover:bg-rose-700`}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeletePhoto(slotIndex);
@@ -424,21 +727,12 @@ export default function ProfilePhotoUploadPage({ user }) {
           <div className="flex h-full w-full flex-col items-center justify-center">
             <div
               className={`${large
-                ? "mb-2 flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#0b63ce] text-[32px] text-white"
-                : "flex h-[30px] w-[30px] items-center justify-center rounded-full bg-blue-50 text-[20px] text-[#0b63ce]"
+                  ? "mb-2 flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#0b63ce] text-[32px] text-white"
+                  : "flex h-[30px] w-[30px] items-center justify-center rounded-full bg-blue-50 text-[20px] text-[#0b63ce]"
                 }`}
             >
               +
             </div>
-
-            {/* <span
-              className={`${large
-                ? "text-[18px] font-black text-[#0b63ce]"
-                : "mt-2 text-[12px] font-bold text-slate-500"
-                }`}
-            >
-              등록+
-            </span> */}
 
             {large ? (
               <span className="mt-0.5 text-md text-blue-600">대표 사진</span>
@@ -452,7 +746,9 @@ export default function ProfilePhotoUploadPage({ user }) {
   if (pageLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-[15px] font-semibold text-slate-500">불러오는 중...</div>
+        <div className="text-[15px] font-semibold text-slate-500">
+          불러오는 중...
+        </div>
       </div>
     );
   }
@@ -468,7 +764,7 @@ export default function ProfilePhotoUploadPage({ user }) {
       />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-[390px] flex-col bg-white md:min-h-[760px] md:max-w-[430px]">
-        <div className="px-5 pt-5 pb-3">
+        <div className="px-5 pb-3 pt-5">
           <button
             type="button"
             onClick={() => router.back()}
@@ -478,11 +774,14 @@ export default function ProfilePhotoUploadPage({ user }) {
           </button>
 
           <h1 className="text-[28px] font-black text-slate-900">
-            당신다운 사진이 <br />가장 매력적이에요!
+            당신다운 사진이 <br />
+            가장 매력적이에요!
           </h1>
 
           <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-500">
             첫 사진은 대표 이미지로 보여져요.
+            {"\n"}
+            가입 심사를 위해 사진은 최소 3장 이상 등록해주세요.
             {"\n"}
             자연스럽고 선명한 사진일수록 매력이 더 잘 전달됩니다.
           </p>
@@ -513,6 +812,7 @@ export default function ProfilePhotoUploadPage({ user }) {
                             alt={`프로필 사진 ${slotIndex + 1}`}
                             className="h-full w-full object-cover"
                           />
+
                           <div className="absolute inset-x-1.5 bottom-0.5 flex gap-0.5">
                             <button
                               type="button"
@@ -524,9 +824,10 @@ export default function ProfilePhotoUploadPage({ user }) {
                             >
                               <FaExchangeAlt />
                             </button>
+
                             <button
                               type="button"
-                              className="rounded-full bg-rose-500/95 hover:bg-rose-700 p-1.5 text-sm font-bold text-white"
+                              className="rounded-full bg-rose-500/95 p-1.5 text-sm font-bold text-white hover:bg-rose-700"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeletePhoto(slotIndex);
@@ -566,10 +867,9 @@ export default function ProfilePhotoUploadPage({ user }) {
                 </button>
               </div>
 
-              <div className="[&>button]:focus:ring-0 [&>button]:focus:outline-none">
+              <div className="[&>button]:focus:outline-none [&>button]:focus:ring-0">
                 <ToggleSwitch
                   checked={charmingCardPhotoPublic}
-                  // label="Toggle"
                   sizing="md"
                   onChange={handleTogglePublic}
                   color="pink"
@@ -583,10 +883,9 @@ export default function ProfilePhotoUploadPage({ user }) {
               }`}
           >
             {canSubmit
-              ? "사진 조건이 충족되었어요."
-              : `현재 ${uploadedCount}장 등록됨 · 대표 사진 포함 최소 3장 필요`}
+              ? "사진 조건이 충족되었어요. 아래 버튼을 눌러 심사를 요청해주세요."
+              : `현재 ${uploadedCount}장 등록됨 · 대표 사진 포함 최소 ${MIN_REQUIRED_PHOTO_COUNT}장 필요`}
           </p>
-
         </div>
 
         <AnimatePresence>
@@ -604,8 +903,12 @@ export default function ProfilePhotoUploadPage({ user }) {
                 className="mx-6 flex w-full max-w-[220px] flex-col items-center rounded-[22px] bg-white px-6 py-5 shadow-[0_12px_40px_rgba(15,23,42,0.14)]"
               >
                 <FiLoader className="mb-3 animate-spin text-[26px] text-[#ff4458]" />
-                <p className="text-[15px] font-bold text-slate-800">사진 업로드 중...</p>
-                <p className="mt-1 text-[12px] text-slate-500">잠시만 기다려주세요</p>
+                <p className="text-[15px] font-bold text-slate-800">
+                  사진 업로드 중...
+                </p>
+                <p className="mt-1 text-[12px] text-slate-500">
+                  잠시만 기다려주세요
+                </p>
               </motion.div>
             </motion.div>
           ) : null}
@@ -617,54 +920,34 @@ export default function ProfilePhotoUploadPage({ user }) {
         onClose={() => setGuideOpen(false)}
         onSelectPhoto={handleSelectPhotoClick}
       />
+
       <div className="absolute bottom-0 left-0 right-0 z-[40]">
         <div className="border-t border-slate-200/80 bg-white/92 px-0 pt-3 backdrop-blur-xl">
           <button
             type="button"
             onClick={handleSubmit}
             disabled={saving || !canSubmit}
-            className="flex h-[62px] w-full items-center justify-center bg-gradient-to-r from-pink-500 via-[#ff4d67] to-pink-700 hover:bg-pink-800 text-[18px] font-black tracking-[-0.02em] text-white shadow-[0_-6px_24px_rgba(255,68,88,0.22)] transition duration-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+            className="flex h-[62px] w-full items-center justify-center bg-gradient-to-r from-pink-500 via-[#ff4d67] to-pink-700 text-[18px] font-black tracking-[-0.02em] text-white shadow-[0_-6px_24px_rgba(255,68,88,0.22)] transition duration-200 hover:bg-pink-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
           >
             {saving
               ? "처리중..."
               : !hasMainPhoto
                 ? "대표 사진을 등록해주세요"
-                : uploadedCount < 3
-                  ? "사진 3장 이상 필요"
+                : uploadedCount < MIN_REQUIRED_PHOTO_COUNT
+                  ? `사진 ${MIN_REQUIRED_PHOTO_COUNT}장 이상 필요`
                   : "매칭심사 진행"}
           </button>
         </div>
       </div>
+
       <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/png,image/jpeg,image/jpg,image/webp"
+        accept="image/*"
         className="hidden"
         onChange={handleFileChange}
       />
-      {/* <AnimatePresence>
-        {uploading ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[80] flex items-center justify-center bg-white/70 backdrop-blur-[2px]"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              className="flex flex-col items-center rounded-[22px] bg-white px-6 py-5 shadow-[0_12px_40px_rgba(15,23,42,0.14)]"
-            >
-              <FiLoader className="mb-3 animate-spin text-[26px] text-[#ff4458]" />
-              <p className="text-[15px] font-bold text-slate-800">사진 업로드 중...</p>
-              <p className="mt-1 text-[12px] text-slate-500">잠시만 기다려주세요</p>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence> */}
     </>
-
   );
 }

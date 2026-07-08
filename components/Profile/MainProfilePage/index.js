@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import {
   collection,
@@ -10,8 +10,19 @@ import {
 import { FiArrowLeft } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { db } from "firebaseConfig";
+import { db, saveIdentityVerificationToUser } from "firebaseConfig";
+import {
+  buildDatingReviewPatch,
+  getDatingReviewMissingItems,
+} from "lib/reviewEligibility";
 import { requestPortoneIdentityVerification } from "lib/portoneIdentity";
+import {
+  clearPendingIdentityVerification,
+  createIdentityVerificationId,
+  getPendingIdentityVerification,
+  prepareIdentityVerificationPending,
+  verifyIdentityResultWithServer,
+} from "lib/identityVerificationClient";
 import ProfileFieldModal from "../ProfileFieldModal";
 import CompanyVerificationFlowModal from "../CompanyVerificationFlowModal";
 import ProfilePhotoEditModal from "../ProfilePhotoEditModal";
@@ -79,6 +90,85 @@ const EDUCATION_OPTIONS = [
   "기타/비공개",
 ];
 
+
+const MBTI_KEYS = {
+  ei: ["E", "I"],
+  sn: ["S", "N"],
+  tf: ["T", "F"],
+  jp: ["J", "P"],
+};
+
+function parseMbtiString(value = "") {
+  const text = String(value || "").trim().toUpperCase();
+
+  return {
+    ei: MBTI_KEYS.ei.includes(text[0]) ? text[0] : "",
+    sn: MBTI_KEYS.sn.includes(text[1]) ? text[1] : "",
+    tf: MBTI_KEYS.tf.includes(text[2]) ? text[2] : "",
+    jp: MBTI_KEYS.jp.includes(text[3]) ? text[3] : "",
+  };
+}
+
+function normalizeMbtiValue(value) {
+  if (value && typeof value === "object") {
+    return {
+      ei: MBTI_KEYS.ei.includes(String(value.ei || "").toUpperCase())
+        ? String(value.ei).toUpperCase()
+        : "",
+      sn: MBTI_KEYS.sn.includes(String(value.sn || "").toUpperCase())
+        ? String(value.sn).toUpperCase()
+        : "",
+      tf: MBTI_KEYS.tf.includes(String(value.tf || "").toUpperCase())
+        ? String(value.tf).toUpperCase()
+        : "",
+      jp: MBTI_KEYS.jp.includes(String(value.jp || "").toUpperCase())
+        ? String(value.jp).toUpperCase()
+        : "",
+    };
+  }
+
+  return parseMbtiString(value);
+}
+
+function getFullMbti(value) {
+  const mbti = normalizeMbtiValue(value);
+  const full = `${mbti.ei}${mbti.sn}${mbti.tf}${mbti.jp}`;
+  return full.length === 4 ? full : "";
+}
+
+function getUserMbtiValue(userDoc = {}) {
+  const fromParts = normalizeMbtiValue({
+    ei: userDoc?.mbti_ei,
+    sn: userDoc?.mbti_sn,
+    tf: userDoc?.mbti_tf,
+    jp: userDoc?.mbti_jp,
+  });
+
+  const fullFromParts = getFullMbti(fromParts);
+  if (fullFromParts) return fullFromParts;
+
+  return getFullMbti(userDoc?.mbti) || String(userDoc?.mbti || "").trim().toUpperCase();
+}
+
+function getUserMbtiObject(userDoc = {}) {
+  const fromParts = normalizeMbtiValue({
+    ei: userDoc?.mbti_ei,
+    sn: userDoc?.mbti_sn,
+    tf: userDoc?.mbti_tf,
+    jp: userDoc?.mbti_jp,
+  });
+
+  if (getFullMbti(fromParts)) return fromParts;
+
+  const fromString = normalizeMbtiValue(userDoc?.mbti);
+  return {
+    ei: fromParts.ei || fromString.ei,
+    sn: fromParts.sn || fromString.sn,
+    tf: fromParts.tf || fromString.tf,
+    jp: fromParts.jp || fromString.jp,
+  };
+}
+
 function getSchoolNameText(user) {
   return user?.schoolName || user?.educationSchoolName || user?.school || "";
 }
@@ -94,6 +184,61 @@ function getBirthdayText(birthday) {
 function getAddressText(address) {
   if (!address) return "";
   return [address?.sido, address?.sigugun].filter(Boolean).join(" ");
+}
+
+function getSafeProfileName(userDoc = {}) {
+  return (
+    userDoc?.identity_name ||
+    userDoc?.name ||
+    ""
+  );
+}
+
+function getSafeProfilePhone(userDoc = {}) {
+  return String(
+    userDoc?.phonenumber ||
+    ""
+  ).replace(/[^0-9]/g, "");
+}
+
+function getVerifiedProfilePhone(userDoc = {}) {
+  return String(
+    userDoc?.identity_phone ||
+    userDoc?.identityPhone ||
+    userDoc?.verifiedPhone ||
+    userDoc?.identityVerification?.phone ||
+    userDoc?.identityVerifiedData?.phone ||
+    userDoc?.phonenumber ||
+    ""
+  ).replace(/[^0-9]/g, "");
+}
+
+function hasIdentityVerified(userDoc = {}) {
+  return Boolean(
+    userDoc?.identityVerified === true ||
+      userDoc?.phone_verified === true ||
+      userDoc?.phone_verified === "true" ||
+      userDoc?.phoneVerified === true ||
+      userDoc?.telVerified === true ||
+      userDoc?.identityVerifiedAt ||
+      userDoc?.phone_verified_at ||
+      userDoc?.identityVerification?.verifiedAt ||
+      userDoc?.identityVerifiedData?.verified === true
+  );
+}
+
+function getSafeNickname(userDoc = {}) {
+  const nickname = String(userDoc?.nickname || "").trim();
+  if (nickname) return nickname;
+
+  const username = String(userDoc?.username || "").trim();
+  const realName =
+    String(userDoc?.identity_name || userDoc?.name || "").trim();
+
+  if (!username) return "";
+  if (realName && username === realName) return "";
+
+  return username;
 }
 
 function normalizeHeight(value) {
@@ -129,10 +274,65 @@ function SaveToast({ open, message }) {
   );
 }
 
+function ReviewCompleteModal({ open, onClose, onMovePending }) {
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          className="fixed inset-0 z-[11000] flex items-center justify-center bg-slate-950/35 px-5 backdrop-blur-[2px]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onMouseDown={onClose}
+        >
+          <motion.div
+            className="w-full max-w-[330px] rounded-2xl bg-white px-5 py-5 text-center shadow-[0_24px_70px_rgba(15,23,42,0.24)]"
+            initial={{ opacity: 0, y: 12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-50 text-[24px]">
+              ✨
+            </div>
+
+            <div className="mt-4 break-keep text-[20px] font-extrabold leading-7 text-slate-900">
+              매칭정보 입력이 완료됐어요
+            </div>
+
+            <p className="mt-2 break-keep text-[13px] font-medium leading-5 text-slate-500">
+              이제 차밍수프 운영팀이 데이팅 매칭 가능 여부를 검토할게요.
+              검토가 끝나면 소개 화면에서 진행 상태를 확인할 수 있어요.
+            </p>
+
+            <button
+              type="button"
+              onClick={onMovePending}
+              className="mt-5 w-full rounded-md bg-violet-600 py-3 text-[14px] font-bold text-white shadow-[0_10px_24px_rgba(124,58,237,0.22)] transition active:scale-[0.99]"
+            >
+              심사 상태 보러가기
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 w-full rounded-md py-2 text-[13px] font-semibold text-slate-400 transition hover:bg-slate-50"
+            >
+              계속 프로필 보기
+            </button>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 export default function ProfileMainPage({ user }) {
   const router = useRouter();
   const scrollRef = useRef(null);
   const toastTimerRef = useRef(null);
+  const processingIdentityVerificationRef = useRef(null);
 
   const [activeTab, setActiveTab] = useState("basic");
   const [tabsVisible, setTabsVisible] = useState(true);
@@ -140,10 +340,48 @@ export default function ProfileMainPage({ user }) {
 
   const [draftUser, setDraftUser] = useState(user || {});
   const [fieldSaving, setFieldSaving] = useState(false);
+  const [identityVerifying, setIdentityVerifying] = useState(false);
+
+  const isContactVerified = useMemo(() => {
+    const source = draftUser || user || {};
+
+    if (!hasIdentityVerified(source)) return false;
+
+    const currentPhone = getSafeProfilePhone(source);
+    const verifiedPhone = getVerifiedProfilePhone(source);
+
+    if (currentPhone && verifiedPhone) {
+      return currentPhone === verifiedPhone;
+    }
+
+    return true;
+  }, [draftUser, user]);
+
+  const reviewMissingItems = useMemo(() => {
+    return getDatingReviewMissingItems(draftUser || {});
+  }, [draftUser]);
+
+  const reviewGuideState = useMemo(() => {
+    const status = String(draftUser?.reviewStatus || "");
+    const pending =
+      status === "pending" ||
+      draftUser?.date_pending === true ||
+      draftUser?.pendingStatus === "reviewing";
+    const approved = status === "approved" && draftUser?.date_profile_finished === true;
+
+    return {
+      pending,
+      approved,
+      missingItems: reviewMissingItems,
+      completed: reviewMissingItems.length === 0,
+    };
+  }, [draftUser, reviewMissingItems]);
 
   const [fieldModal, setFieldModal] = useState(null);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+
+  const hadVerifiedBeforeIdentityRef = useRef(false);
 
   const [badgeInfo, setBadgeInfo] = useState({
     totalUsers: 0,
@@ -155,6 +393,81 @@ export default function ProfileMainPage({ user }) {
     open: false,
     message: "",
   });
+
+  const [reviewCompleteModalOpen, setReviewCompleteModalOpen] = useState(false);
+
+  const applyIdentityVerifiedToProfile = useCallback(
+    async (verified) => {
+      if (!user?.userID || !verified?.verified) return;
+
+      const verifiedPhone = verified?.phone
+        ? String(verified.phone).replace(/[^0-9]/g, "")
+        : "";
+
+      const verifiedName = String(verified?.name || "").trim();
+      const verifiedGender = String(verified?.gender || "").trim();
+      const verifiedBirth = String(verified?.birth || "").replace(/[^0-9]/g, "");
+
+      const identityPatch = {
+        identityVerified: true,
+        identityVerifiedAt: serverTimestamp(),
+        identity_name: verifiedName || "",
+        identity_phone: verifiedPhone || "",
+        identity_birth: verifiedBirth || "",
+        identity_gender: verifiedGender || "",
+        identity_carrier: verified?.carrier || "",
+        name: verifiedName || "",
+        phonenumber: verifiedPhone || "",
+        gender: verifiedGender || "",
+      };
+
+      const nextUser = {
+        ...(draftUser || {}),
+        ...identityPatch,
+      };
+
+      const { patch: reviewPatch, shouldMoveToPending } = buildDatingReviewPatch(
+        nextUser,
+        draftUser || {}
+      );
+
+      await saveIdentityVerificationToUser(user.userID, {
+        provider: verified.provider || "PORTONE_DANAL",
+        phone: verifiedPhone,
+        name: verifiedName,
+        birth: verifiedBirth,
+        gender: verifiedGender,
+        carrier: verified.carrier || "",
+        ci: verified.ci || "",
+        di: verified.di || "",
+        syncUsername: false,
+        syncNameField: true,
+      });
+
+      await setDoc(
+        doc(db, "users", user.userID),
+        {
+          ...identityPatch,
+          ...reviewPatch,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      setDraftUser((prev) => ({
+        ...prev,
+        ...identityPatch,
+        ...reviewPatch,
+        identityVerifiedAt: new Date(),
+      }));
+
+      if (shouldMoveToPending) {
+        setReviewCompleteModalOpen(true);
+        showToast("매칭정보 입력이 완료되었습니다.");
+      }
+    },
+    [user?.userID, draftUser]
+  );
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -184,6 +497,76 @@ export default function ProfileMainPage({ user }) {
   useEffect(() => {
     setDraftUser(user || {});
   }, [user]);
+
+  useEffect(() => {
+    if (!router.isReady || !user?.userID) return;
+
+    const queryIdentityVerificationId =
+      router.query?.idv ||
+      router.query?.identityVerificationId ||
+      router.query?.identity_verification_id ||
+      router.query?.id ||
+      "";
+
+    const identityVerificationId = Array.isArray(queryIdentityVerificationId)
+      ? queryIdentityVerificationId[0]
+      : String(queryIdentityVerificationId || "");
+
+    if (!identityVerificationId) return;
+    if (processingIdentityVerificationRef.current === identityVerificationId) return;
+
+    processingIdentityVerificationRef.current = identityVerificationId;
+    setIdentityVerifying(true);
+
+    const pending = getPendingIdentityVerification();
+    const isProfileVerification = !pending?.source || pending.source === "profile";
+
+    (async () => {
+      try {
+        if (!isProfileVerification) return;
+
+        const verified = await verifyIdentityResultWithServer({
+          identityVerificationId,
+          requestedPhone: pending?.requestedPhone || "",
+          requestedCarrier: pending?.requestedCarrier || "",
+        });
+
+        if (!verified?.verified) {
+          window.alert(verified?.message || "본인인증 검증에 실패했습니다.");
+          return;
+        }
+
+        await applyIdentityVerifiedToProfile(verified);
+        clearPendingIdentityVerification();
+        showToast("본인인증 정보가 저장되었습니다.");
+      } catch (error) {
+        console.error("[ProfileMainPage] redirect identity save error:", error);
+        window.alert("본인인증 저장 중 오류가 발생했습니다.");
+      } finally {
+        const cleanQuery = { ...router.query };
+        delete cleanQuery.idv;
+        delete cleanQuery.identityVerificationId;
+        delete cleanQuery.identity_verification_id;
+        delete cleanQuery.id;
+
+        router.replace(
+          {
+            pathname: router.pathname,
+            query: cleanQuery,
+          },
+          undefined,
+          { shallow: true }
+        );
+        setIdentityVerifying(false);
+      }
+    })();
+  }, [
+    applyIdentityVerifiedToProfile,
+    router,
+    router.isReady,
+    router.query,
+    user?.userID,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -240,10 +623,19 @@ export default function ProfileMainPage({ user }) {
       {
         label: "닉네임",
         key: "nickname",
-        value: draftUser?.nickname || draftUser?.username || "",
+        value: getSafeNickname(draftUser),
         type: "text",
       },
-      { label: "본명", key: "name", value: draftUser?.name, type: "text" },
+      {
+        label: "본명",
+        key: "name",
+        value: getSafeProfileName(draftUser) || draftUser?.username || "",
+        type: "text",
+        locked: true,
+        subText: isContactVerified
+          ? "본인인증 결과가 반영된 정보예요."
+          : "가입 시 입력한 이름이에요. 본인인증 후 더 신뢰도가 높아져요.",
+      },
       {
         label: "거주지역",
         key: "residence",
@@ -313,10 +705,13 @@ export default function ProfileMainPage({ user }) {
         locked: true,
       },
       {
-        label: "연락처",
+        label: "본인인증",
         key: "phonenumber",
-        value: draftUser?.phonenumber,
+        value: isContactVerified ? getSafeProfilePhone(draftUser) : "",
         locked: true,
+        subText: isContactVerified
+          ? "프로필에 본인인증 마크가 표시돼요."
+          : "선택 인증이에요. 인증하면 프로필 신뢰도가 올라가요.",
       },
       {
         label: "상태",
@@ -329,7 +724,7 @@ export default function ProfileMainPage({ user }) {
         ],
       },
       { label: "키", key: "height", value: draftUser?.height, type: "number" },
-      { label: "MBTI", key: "mbti", value: draftUser?.mbti, type: "mbti" },
+      { label: "MBTI", key: "mbti", value: getUserMbtiValue(draftUser), type: "mbti" },
       {
         label: "종교",
         key: "religion",
@@ -340,13 +735,18 @@ export default function ProfileMainPage({ user }) {
       {
         label: "연봉수준",
         key: "salary",
-        value: draftUser?.salary,
-        type: "select",
+        value: draftUser?.salary || "",
+        type: "salary",
         options: SALARY_OPTIONS,
+        subText: draftUser?.salary
+          ? draftUser?.salaryPublic
+            ? "현재 공개로 설정되어 있어요."
+            : "현재 비공개로 설정되어 있어요."
+          : "선택 입력 항목이에요.",
       },
       { label: "이메일", key: "email", value: draftUser?.email, type: "text" },
     ];
-  }, [draftUser]);
+  }, [draftUser, isContactVerified]);
 
   const getFieldValueForModal = (field) => {
     if (!field) return "";
@@ -385,6 +785,10 @@ export default function ProfileMainPage({ user }) {
       return String(draftUser?.height || "").replace(/[^0-9]/g, "");
     }
 
+    if (field.key === "mbti") {
+      return getUserMbtiObject(draftUser);
+    }
+
     return draftUser?.[field.key] || "";
   };
 
@@ -403,12 +807,29 @@ export default function ProfileMainPage({ user }) {
       return patch;
     }
 
+    if (field.key === "mbti") {
+      const mbtiValue = normalizeMbtiValue(payload);
+      const fullMbti = getFullMbti(mbtiValue);
+
+      patch.mbti_ei = mbtiValue.ei || "";
+      patch.mbti_sn = mbtiValue.sn || "";
+      patch.mbti_tf = mbtiValue.tf || "";
+      patch.mbti_jp = mbtiValue.jp || "";
+      patch.mbti = fullMbti;
+
+      return patch;
+    }
+
     if (field.key === "company") {
       patch.company = String(payload?.value || "").trim();
       patch.companyPublic = payload?.companyPublic ?? true;
       return patch;
     }
-
+    if (field.key === "salary") {
+      patch.salary = String(payload?.value || "").trim();
+      patch.salaryPublic = payload?.salaryPublic ?? false;
+      return patch;
+    }
     if (field.key === "education") {
       const nextEducation = String(payload?.value || "").trim();
       const nextSchoolName = String(payload?.schoolName || "").trim();
@@ -446,22 +867,43 @@ export default function ProfileMainPage({ user }) {
     setFieldSaving(true);
 
     try {
+      const nextUser = {
+        ...(draftUser || {}),
+        ...patch,
+      };
+
+      const { patch: reviewPatch, shouldMoveToPending } = buildDatingReviewPatch(
+        nextUser,
+        draftUser || {}
+      );
+
+      const finalPatch = {
+        ...patch,
+        ...reviewPatch,
+      };
+
       setDraftUser((prev) => ({
         ...prev,
-        ...patch,
+        ...finalPatch,
       }));
 
       await setDoc(
         doc(db, "users", user.userID),
         {
-          ...patch,
+          ...finalPatch,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
 
       setFieldModal(null);
-      showToast(`${field.label}이 저장되었습니다.`);
+
+      if (shouldMoveToPending) {
+        setReviewCompleteModalOpen(true);
+        showToast("매칭정보 입력이 완료되었습니다.");
+      } else {
+        showToast(`${field.label}이 저장되었습니다.`);
+      }
     } catch (error) {
       console.error("[ProfileMainPage] field save error:", error);
       window.alert("저장 중 오류가 발생했습니다.");
@@ -471,36 +913,83 @@ export default function ProfileMainPage({ user }) {
   };
 
   const handleIdentityVerification = async () => {
-    const result = await requestPortoneIdentityVerification({
-      phone: draftUser?.phonenumber || "",
-      name: draftUser?.name || draftUser?.nickname || draftUser?.username || "",
-    });
-
-    if (!result?.ok) {
-      window.alert(result?.message || "본인인증을 진행하지 못했습니다.");
-      return;
-    }
+    if (typeof window === "undefined") return;
+    if (identityVerifying) return;
+    hadVerifiedBeforeIdentityRef.current = isContactVerified;
+    setIdentityVerifying(true);
 
     try {
-      await setDoc(
-        doc(db, "users", user.userID),
-        {
-          identityVerified: true,
-          identityVerifiedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const profileSource = draftUser || user || {};
+      const requestedPhone = getSafeProfilePhone(profileSource);
+      const requestedName = getSafeProfileName(profileSource);
+      const identityVerificationId = createIdentityVerificationId("profile");
+      const redirectUrl = `${window.location.origin}/profile?tab=basic&idv=${encodeURIComponent(
+        identityVerificationId
+      )}`;
 
-      showToast("본인인증이 저장되었습니다.");
+      prepareIdentityVerificationPending({
+        source: "profile",
+        returnUrl: redirectUrl,
+        requestedPhone,
+        requestedCarrier: "",
+        identityVerificationId,
+      });
+
+      const result = await requestPortoneIdentityVerification({
+        phone: requestedPhone,
+        name: requestedName,
+        source: "profile",
+        identityVerificationId,
+        redirectUrl,
+        timeoutMs: 180000,
+      });
+
+      if (!result?.ok) {
+        if (hadVerifiedBeforeIdentityRef.current) {
+          showToast("새 인증은 완료되지 않았지만 기존 연락처 인증은 유지돼요.");
+        } else {
+          window.alert(result?.message || "본인인증을 진행하지 못했습니다.");
+        }
+
+        return;
+      }
+
+      const verified = await verifyIdentityResultWithServer({
+        identityVerificationId: result.identityVerificationId || identityVerificationId,
+        requestedPhone,
+        requestedCarrier: "",
+      });
+
+      if (!verified?.verified) {
+        window.alert(verified?.message || "본인인증 검증에 실패했습니다.");
+        return;
+      }
+
+      await applyIdentityVerifiedToProfile(verified);
+      clearPendingIdentityVerification();
+      showToast("본인인증 정보가 저장되었습니다.");
     } catch (error) {
       console.error("[ProfileMainPage] identity verify save error:", error);
+
+      if (hadVerifiedBeforeIdentityRef.current) {
+        showToast("새 인증은 완료되지 않았지만 기존 연락처 인증은 유지돼요.");
+      } else {
+        window.alert(error?.message || "본인인증 저장 중 오류가 발생했습니다.");
+      }
+    } finally {
+      setIdentityVerifying(false);
     }
   };
 
   return (
     <>
       <SaveToast open={toast.open} message={toast.message} />
+
+      <ReviewCompleteModal
+        open={reviewCompleteModalOpen}
+        onClose={() => setReviewCompleteModalOpen(false)}
+        onMovePending={() => router.push("/arena/pending")}
+      />
 
       <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-slate-50">
         <div className="shrink-0 border-b border-slate-200 bg-white">
@@ -577,7 +1066,7 @@ export default function ProfileMainPage({ user }) {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="min-h-0 flex-1 overflow-y-auto pb-[calc(64px+20px+env(safe-area-inset-bottom))]"
+          className="min-h-0 flex-1 overflow-y-auto"
         >
           {activeTab === "basic" && (
             <ProfileBasicTab
@@ -588,6 +1077,10 @@ export default function ProfileMainPage({ user }) {
               onOpenCompanyModal={() => setCompanyModalOpen(true)}
               onOpenPhotoModal={() => setPhotoModalOpen(true)}
               onIdentityVerify={handleIdentityVerification}
+              identityVerifying={identityVerifying}
+              isContactVerified={isContactVerified}
+              reviewGuideState={reviewGuideState}
+              onMoveReviewPending={() => router.push("/arena/pending")}
             />
           )}
 
@@ -595,12 +1088,38 @@ export default function ProfileMainPage({ user }) {
             <ProfileSurveyTab
               user={draftUser}
               userId={user?.userID}
-              onSaved={(patch, message) => {
+              onSaved={async (patch, message) => {
+                const nextUser = {
+                  ...(draftUser || {}),
+                  ...(patch || {}),
+                };
+
+                const { patch: reviewPatch, shouldMoveToPending } =
+                  buildDatingReviewPatch(nextUser, draftUser || {});
+
+                if (Object.keys(reviewPatch || {}).length > 0 && user?.userID) {
+                  await setDoc(
+                    doc(db, "users", user.userID),
+                    {
+                      ...reviewPatch,
+                      updatedAt: serverTimestamp(),
+                    },
+                    { merge: true }
+                  );
+                }
+
                 setDraftUser((prev) => ({
                   ...prev,
-                  ...patch,
+                  ...(patch || {}),
+                  ...(reviewPatch || {}),
                 }));
-                showToast(message || "가치관 설문이 저장되었습니다.");
+
+                if (shouldMoveToPending) {
+                  setReviewCompleteModalOpen(true);
+                  showToast("매칭정보 입력이 완료되었습니다.");
+                } else {
+                  showToast(message || "가치관 설문이 저장되었습니다.");
+                }
               }}
             />
           )}
@@ -619,6 +1138,7 @@ export default function ProfileMainPage({ user }) {
           extra={{
             companyPublic: draftUser?.companyPublic,
             educationPublic: draftUser?.educationPublic,
+            salaryPublic: draftUser?.salaryPublic ?? false,
             schoolName: getSchoolNameText(draftUser),
             educationValue: draftUser?.education || "",
           }}
@@ -674,6 +1194,7 @@ export default function ProfileMainPage({ user }) {
           open={photoModalOpen}
           userId={user?.userID}
           photos={draftUser?.profilePhotos || []}
+          currentUser={draftUser || {}}
           onClose={() => setPhotoModalOpen(false)}
           onSaved={(patch) => {
             setDraftUser((prev) => ({

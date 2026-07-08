@@ -1,14 +1,21 @@
-export async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (error) {
-    console.error("[styleShareUtils] copy fail:", error);
-    return false;
+function waitForFonts() {
+  if (typeof document === "undefined" || !document.fonts?.ready) {
+    return Promise.resolve();
   }
+  return document.fonts.ready.catch(() => undefined);
 }
 
-function drawRoundedRect(ctx, x, y, width, height, radius) {
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve(img);
+    img.onerror = (error) => reject(error);
+    img.src = src;
+  });
+}
+
+function roundedRect(ctx, x, y, width, height, radius) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.lineTo(x + width - radius, y);
@@ -22,22 +29,17 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function wrapText(ctx, text, maxWidth) {
-  const lines = [];
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
   const paragraphs = String(text || "").split("\n");
+  const lines = [];
 
   paragraphs.forEach((paragraph) => {
-    if (!paragraph.trim()) {
-      lines.push("");
-      return;
-    }
-
     const words = paragraph.split(" ");
     let line = "";
 
     words.forEach((word) => {
       const testLine = line ? `${line} ${word}` : word;
-      const width = ctx.measureText(testLine).width;
+      const { width } = ctx.measureText(testLine);
 
       if (width > maxWidth && line) {
         lines.push(line);
@@ -48,189 +50,258 @@ function wrapText(ctx, text, maxWidth) {
     });
 
     if (line) lines.push(line);
+    if (!paragraph.trim()) lines.push("");
   });
 
-  return lines;
+  lines.slice(0, maxLines).forEach((item, index) => {
+    ctx.fillText(item, x, y + index * lineHeight);
+  });
 }
 
 export async function createStyleResultShareImage({
   finalType,
-  axisSummary,
+  axisSummary = [],
   brandName = "차밍수프",
 }) {
+  await waitForFonts();
+
+  const width = 1080;
+  const height = 1450;
   const canvas = document.createElement("canvas");
-  canvas.width = 1080;
-  canvas.height = 1350;
+  canvas.width = width;
+  canvas.height = height;
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("canvas context 생성 실패");
+  if (!ctx) {
+    throw new Error("canvas context 생성 실패");
+  }
 
-  const gradient = ctx.createLinearGradient(0, 0, 1080, 1350);
-  gradient.addColorStop(0, "#fff7fb");
-  gradient.addColorStop(0.5, "#fff1f5");
-  gradient.addColorStop(1, "#f8fafc");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textBaseline = "top";
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
-  ctx.fillStyle = "#ec4899";
+  const bgColor = "#FFF7FB";
+  const cardColor = "#FFFFFF";
+  const titleColor = "#0F172A";
+  const subColor = "#64748B";
+  const pointPink = "#EC4899";
+  const pointViolet = "#EDE9FE";
+  const pointBlue = "#60A5FA";
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = pointPink;
   ctx.beginPath();
-  ctx.arc(140, 120, 110, 0, Math.PI * 2);
+  ctx.arc(122, 128, 88, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "rgba(59,130,246,0.10)";
+  ctx.fillStyle = pointViolet;
   ctx.beginPath();
-  ctx.arc(900, 180, 140, 0, Math.PI * 2);
+  ctx.arc(912, 148, 94, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#be185d";
-  ctx.font = "700 34px sans-serif";
-  ctx.fillText(brandName, 72, 86);
+  ctx.fillStyle = "rgba(236,72,153,0.9)";
+  ctx.font = "700 30px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText(brandName, 56, 92);
 
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "800 68px sans-serif";
-  ctx.fillText("내 연애스타일 결과", 72, 190);
+  ctx.fillStyle = titleColor;
+  ctx.font = "800 68px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText("내 연애스타일 결과", 56, 180);
 
-  ctx.fillStyle = "#64748b";
-  ctx.font = "500 28px sans-serif";
-  ctx.fillText("16가지 유형 진단테스트", 72, 236);
+  ctx.fillStyle = subColor;
+  ctx.font = "500 32px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText("16가지 유형 진단테스트", 56, 268);
 
-  drawRoundedRect(ctx, 72, 290, 936, 320, 34);
-  ctx.fillStyle = "#ffffff";
+  roundedRect(ctx, 56, 340, 968, 320, 28);
+  ctx.fillStyle = cardColor;
   ctx.fill();
 
-  ctx.fillStyle = "#ec4899";
-  ctx.font = "800 28px sans-serif";
-  ctx.fillText(finalType?.meta?.code || "", 112, 350);
+  ctx.fillStyle = pointPink;
+  ctx.font = "700 38px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText(finalType.meta.code, 96, 394);
 
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "900 72px sans-serif";
-  ctx.fillText(finalType?.meta?.ko || "", 112, 445);
+  ctx.fillStyle = titleColor;
+  ctx.font = "800 70px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText(finalType.meta.ko, 96, 468);
 
-  ctx.fillStyle = "#475569";
-  ctx.font = "600 30px sans-serif";
-  const oneLineLines = wrapText(ctx, finalType?.meta?.oneLine || "", 780);
-  oneLineLines.slice(0, 3).forEach((line, index) => {
-    ctx.fillText(line, 112, 510 + index * 42);
-  });
+  ctx.fillStyle = subColor;
+  ctx.font = "600 34px Apple SD Gothic Neo, Pretendard, sans-serif";
+  drawWrappedText(
+    ctx,
+    finalType.meta.oneLine || "",
+    96,
+    560,
+    500,
+    48,
+    2
+  );
 
-  drawRoundedRect(ctx, 72, 650, 936, 500, 34);
-  ctx.fillStyle = "#ffffff";
+  const imageSrc = finalType.meta.image?.startsWith("http")
+    ? finalType.meta.image
+    : finalType.meta.image || "";
+
+  try {
+    if (imageSrc) {
+      const characterImage = await loadImage(imageSrc);
+
+      const imageBoxX = 704;
+      const imageBoxY = 386;
+      const imageBoxW = 236;
+      const imageBoxH = 236;
+
+      ctx.save();
+      roundedRect(ctx, imageBoxX, imageBoxY, imageBoxW, imageBoxH, 24);
+      ctx.clip();
+
+      ctx.fillStyle = "#F8FAFC";
+      ctx.fillRect(imageBoxX, imageBoxY, imageBoxW, imageBoxH);
+
+      const ratio = Math.min(
+        imageBoxW / characterImage.width,
+        imageBoxH / characterImage.height
+      );
+      const drawW = characterImage.width * ratio;
+      const drawH = characterImage.height * ratio;
+      const drawX = imageBoxX + (imageBoxW - drawW) / 2;
+      const drawY = imageBoxY + (imageBoxH - drawH) / 2;
+
+      ctx.drawImage(characterImage, drawX, drawY, drawW, drawH);
+      ctx.restore();
+    }
+  } catch (error) {
+    console.error("[StyleShareUtils] character image load error:", error);
+  }
+
+  roundedRect(ctx, 56, 700, 968, 650, 28);
+  ctx.fillStyle = cardColor;
   ctx.fill();
 
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "800 40px sans-serif";
-  ctx.fillText("성향 밸런스", 112, 720);
+  ctx.fillStyle = titleColor;
+  ctx.font = "800 50px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText("성향 밸런스", 88, 752);
 
-  let startY = 790;
-  axisSummary.forEach((item) => {
-    ctx.fillStyle = "#64748b";
-    ctx.font = "700 24px sans-serif";
-    ctx.fillText(item.label, 112, startY);
+  const rows = Array.isArray(axisSummary) ? axisSummary.slice(0, 4) : [];
+  const startY = 846;
+  const rowGap = 136;
 
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "800 28px sans-serif";
-    ctx.fillText(item.selectedLabel, 112, startY + 38);
+  rows.forEach((item, index) => {
+    const y = startY + index * rowGap;
+    const leftPercent = Number(item.leftPercent) || 0;
+    const rightPercent = Number(item.rightPercent) || 0;
 
-    const barX = 112;
-    const barY = startY + 62;
-    const barWidth = 856;
-    const barHeight = 18;
+    ctx.fillStyle = titleColor;
+    ctx.font = "800 34px Apple SD Gothic Neo, Pretendard, sans-serif";
+    ctx.fillText(item.selectedLabel, 96, y);
 
-    drawRoundedRect(ctx, barX, barY, barWidth, barHeight, 9);
-    ctx.fillStyle = "#e2e8f0";
+    const barX = 96;
+    const barY = y + 54;
+    const barW = 860;
+    const barH = 18;
+
+    ctx.fillStyle = "#E2E8F0";
+    roundedRect(ctx, barX, barY, barW, barH, 9);
     ctx.fill();
 
-    const leftWidth = Math.round((barWidth * item.leftPercent) / 100);
-    const rightWidth = barWidth - leftWidth;
+    const leftW = Math.max((barW * leftPercent) / 100, 8);
+    const rightW = Math.max((barW * rightPercent) / 100, 8);
 
-    drawRoundedRect(ctx, barX, barY, leftWidth, barHeight, 9);
-    ctx.fillStyle = "#ec4899";
+    ctx.fillStyle = pointPink;
+    roundedRect(ctx, barX, barY, leftW, barH, 9);
     ctx.fill();
 
-    drawRoundedRect(ctx, barX + leftWidth, barY, rightWidth, barHeight, 9);
-    ctx.fillStyle = "#60a5fa";
+    ctx.fillStyle = pointBlue;
+    roundedRect(ctx, barX + barW - rightW, barY, rightW, barH, 9);
     ctx.fill();
 
-    ctx.fillStyle = "#ec4899";
-    ctx.font = "700 22px sans-serif";
-    ctx.fillText(`${item.leftLabel} ${item.leftPercent}%`, 112, startY + 112);
+    ctx.fillStyle = pointPink;
+    ctx.font = "700 24px Apple SD Gothic Neo, Pretendard, sans-serif";
+    ctx.fillText(`${item.leftLabel} ${leftPercent}%`, 96, y + 88);
 
-    ctx.fillStyle = "#3b82f6";
-    ctx.font = "700 22px sans-serif";
-    const rightText = `${item.rightLabel} ${item.rightPercent}%`;
-    const textWidth = ctx.measureText(rightText).width;
-    ctx.fillText(rightText, 968 - textWidth, startY + 112);
-
-    startY += 105;
+    const rightText = `${item.rightLabel} ${rightPercent}%`;
+    const rightWidth = ctx.measureText(rightText).width;
+    ctx.fillStyle = pointBlue;
+    ctx.fillText(rightText, 96 + barW - rightWidth, y + 88);
   });
 
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "600 24px sans-serif";
-  ctx.fillText("나도 테스트하기", 72, 1265);
+  ctx.fillStyle = subColor;
+  ctx.font = "700 28px Apple SD Gothic Neo, Pretendard, sans-serif";
+  ctx.fillText("나도 테스트하기 · charmingsoup.com", 72, 1382);
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("이미지 생성 실패"));
-        return;
-      }
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob(resolve, "image/png", 1)
+  );
 
-      const file = new File([blob], "style-test-result.png", {
-        type: "image/png",
-      });
+  if (!blob) {
+    throw new Error("이미지 생성 실패");
+  }
 
-      resolve({ file, blob });
-    }, "image/png");
+  const file = new File([blob], `style-result-${finalType.meta.code}.png`, {
+    type: "image/png",
   });
+
+  return {
+    blob,
+    file,
+    dataUrl: canvas.toDataURL("image/png", 1),
+  };
 }
 
-export async function shareWithSystem({ title, text, url, file }) {
-  if (
-    navigator.share &&
-    file &&
-    navigator.canShare &&
-    navigator.canShare({ files: [file] })
-  ) {
-    await navigator.share({
-      title,
-      text,
-      url,
-      files: [file],
-    });
-    return { ok: true, mode: "native-file" };
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.error("[StyleShareUtils] copyText error:", error);
+    return false;
   }
-
-  if (navigator.share) {
-    await navigator.share({
-      title,
-      text,
-      url,
-    });
-    return { ok: true, mode: "native-text" };
-  }
-
-  return { ok: false, mode: "fallback" };
 }
 
 export function downloadFile(file) {
-  const fileUrl = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = fileUrl;
-  link.download = file.name || "share-image.png";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(fileUrl);
-}
-
-export function openFacebookShare({ url }) {
-  const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-    url
-  )}`;
-  window.open(shareUrl, "_blank", "width=640,height=720");
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name || "share-image.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function openSmsShare({ text, url }) {
-  const body = `${text}\n${url}`;
-  window.location.href = `sms:?&body=${encodeURIComponent(body)}`;
+  const shareBody = `${text}\n${url}`;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const smsUrl = isIOS
+    ? `sms:&body=${encodeURIComponent(shareBody)}`
+    : `sms:?body=${encodeURIComponent(shareBody)}`;
+
+  window.location.href = smsUrl;
+}
+
+export async function shareWithSystem({ title, text, url, file }) {
+  try {
+    if (navigator.canShare && file && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title,
+        text,
+        url,
+        files: [file],
+      });
+      return { ok: true };
+    }
+
+    if (navigator.share) {
+      await navigator.share({
+        title,
+        text,
+        url,
+      });
+      return { ok: true };
+    }
+
+    return { ok: false };
+  } catch (error) {
+    console.error("[StyleShareUtils] shareWithSystem error:", error);
+    return { ok: false };
+  }
 }

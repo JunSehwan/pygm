@@ -46,7 +46,7 @@ export default function RealismIntroPage() {
   return (
     <>
       <Head>
-        <title>현실파악 테스트 | 피그말리온 연구소</title>
+        <title>현실파악 테스트 | 차밍수프</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -60,7 +60,7 @@ export default function RealismIntroPage() {
           <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
             <section
               id="app-surface"
-              className="relative flex min-h-[100dvh] w-full max-w-[390px] flex-col overflow-hidden bg-white md:min-h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+              className="relative flex min-h-[100dvh] w-full max-w-[420px] flex-col overflow-hidden bg-white md:min-h-[760px] md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
             >
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="sticky top-0 z-10 flex h-14 items-center border-b border-gray-100 bg-white px-3">
@@ -125,7 +125,7 @@ export default function RealismIntroPage() {
                   </div>
 
                   <div className="mt-6 text-center text-xs text-gray-300">
-                    © pygm.co.kr · tests/realism
+                    © charmingsoup.com · tests/realism
                   </div>
                 </div>
               </div>

@@ -62,7 +62,7 @@ export default function StyleTestSurvey({
   };
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col bg-white md:h-[760px] md:min-h-[760px]">
+    <div className="relative flex h-full min-h-0 flex-col bg-white md:h-full md:min-h-0">
       <div className="px-5 pt-5 pb-4">
         <div className="w-full flex justify-between items-center mb-3">
           <div className="font-bold text-gray-500 text-lg">테스트 진행중</div>
@@ -93,7 +93,7 @@ export default function StyleTestSurvey({
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-[calc(24px+env(safe-area-inset-bottom))] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="space-y-4">
           {questions.map((question, index) => {
             const selectedValue = answers[index];

@@ -142,11 +142,11 @@ export default function ArenaCharmingCardModal({
                     return (
                       <div
                         key={`${current.id}-option-${optionIndex}`}
-                        className={`flex items-center gap-3 rounded-md px-4 py-4 ${active ? "bg-slate-200" : "bg-slate-100"
+                        className={`flex items-center gap-3 rounded-md px-4 py-4 ${active ? "bg-violet-200" : "bg-slate-100"
                           }`}
                       >
                         <span
-                          className={`h-[22px] w-[22px] rounded-full border-2 ${active
+                          className={`h-[22px] w-[22px] rounded-full border-solid border-2 ${active
                               ? "border-violet-500 bg-violet-100"
                               : "border-slate-300 bg-white"
                             }`}
@@ -166,11 +166,11 @@ export default function ArenaCharmingCardModal({
             </div>
           </div>
 
-          <div className="mt-6 flex items-center border-t border-slate-200 pt-4">
+          <div className="mt-6 flex items-center border-t border-slate-200 pt-4 gap-2">
             <button
               type="button"
               onClick={movePrev}
-              className="flex-1 text-left text-[18px] font-medium text-slate-500"
+              className="flex-1 text-[18px] text-center font-medium text-slate-600 h-[58px] bg-slate-100"
               style={{ cursor: "pointer" }}
             >
               이전

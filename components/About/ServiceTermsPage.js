@@ -48,6 +48,7 @@ export default function ServiceTermsPage() {
         <InfoLine label="서비스명" value={LEGAL_META.serviceName} />
         <InfoLine label="운영사" value={LEGAL_META.companyName} />
         <InfoLine label="대표자" value={LEGAL_META.representativeName} />
+        {/* <InfoLine label="대표 연락처" value={LEGAL_META.phone} /> */}
         <InfoLine
           label="사업자등록번호"
           value={LEGAL_META.businessRegistrationNumber}

@@ -22,7 +22,7 @@ export default function FloatingField({
     <div>
       <div
         className={cn(
-          "relative rounded-md border bg-white shadow-[0_1px_6px_rgba(15,23,42,0.04)] transition",
+          "relative border-solid rounded-md border bg-white shadow-[0_1px_6px_rgba(15,23,42,0.04)] transition",
           error
             ? "border-red-400"
             : focused
@@ -35,7 +35,7 @@ export default function FloatingField({
             "pointer-events-none absolute left-4 transition-all duration-200",
             isActive
               ? "top-3 text-[12px] font-medium text-slate-500"
-              : "top-1/2 -translate-y-1/2 text-[16px] font-medium text-slate-400"
+              : "top-1/2 -translate-y-1/2 text-[14px] font-medium text-slate-400"
           )}
         >
           {label}
@@ -52,7 +52,7 @@ export default function FloatingField({
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             className={cn(
-              "w-full resize-none appearance-none border-0 rounded-md bg-transparent px-4 pb-4 text-[16px] leading-6 text-slate-700 outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none",
+              "w-full resize-none appearance-none border-0 rounded-md bg-transparent px-4 pb-4 text-[14px] leading-6 text-slate-700 outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none mt-[28px]",
               isActive ? "pt-8" : "pt-6"
             )}
             style={{
@@ -73,7 +73,7 @@ export default function FloatingField({
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               className={cn(
-                "h-[60px] w-full appearance-none border-0 rounded-md bg-transparent px-4 text-[16px] text-slate-700 outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none",
+                "h-[60px] w-full appearance-none border-0 rounded-md bg-transparent px-4 text-[14px] text-slate-700 outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 focus:shadow-none",
                 isActive ? "pb-2 pt-5" : "pb-0 pt-0"
               )}
               style={{

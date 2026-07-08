@@ -455,7 +455,10 @@ export default function BottomNavbar({ contained = true }) {
   return (
     <>
       <div
-        className={`absolute inset-x-0 bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white shadow-[0_-10px_24px_rgba(15,23,42,0.08)]`}
+        className={`${contained
+          ? "relative z-20 shrink-0 border-t border-zinc-200 bg-white"
+          : "absolute inset-x-0 bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white shadow-[0_-10px_24px_rgba(15,23,42,0.08)]"
+          }`}
       >
         <div className="grid h-[64px] grid-cols-5">
           {NAV_ITEMS.map((item) => {

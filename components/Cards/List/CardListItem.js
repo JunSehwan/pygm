@@ -13,6 +13,9 @@ function cn(...arr) {
   return arr.filter(Boolean).join(" ");
 }
 
+const CARD_PRESS_CLASS =
+  "transition-all duration-150 ease-out hover:shadow-[0_8px_24px_rgba(15,23,42,0.07)] active:translate-y-[1px] active:scale-[0.99] active:shadow-sm";
+
 function GuestLockOverlay({ onClick }) {
   return (
     <button
@@ -43,13 +46,17 @@ export default function CardListItem({
       <button
         type="button"
         onClick={isLocked ? onLockedClick : onCardClick}
-        className="relative w-full rounded-md border border-slate-200 bg-white px-4 py-4 text-left shadow-[0_1px_8px_rgba(15,23,42,0.04)] transition hover:border-slate-300 hover:bg-violet-50"
+        className={cn(
+          "relative w-full rounded-md border border-slate-200 bg-white px-4 py-4 text-left shadow-[0_1px_8px_rgba(15,23,42,0.04)]",
+          CARD_PRESS_CLASS
+        )}
       >
         <div className={cn(isLocked ? "select-none blur-[1.5px]" : "")}>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="rounded-md border border-slate-300 bg-slate-100 px-3 py-[7px] text-[13px] font-medium text-slate-500">
               {CARD_CATEGORY_LABEL[card.category] || "카테고리"}
             </span>
+
             <span className="rounded-md border border-slate-300 bg-slate-100 px-3 py-[7px] text-[13px] font-medium text-slate-500">
               {CARD_TYPE_LABEL[card.questionType] || "작성형"}
             </span>
@@ -69,10 +76,12 @@ export default function CardListItem({
                 <FiEye className="text-[14px]" />
                 {(card.views || 0).toLocaleString()}
               </span>
+
               <span className="inline-flex items-center gap-1.5">
                 <FiMessageCircle className="text-[14px]" />
                 {(card.answerCount || 0).toLocaleString()}
               </span>
+
               <span className="inline-flex items-center gap-1.5">
                 <FiHeart className="text-[14px]" />
                 {(card.interestedCount || 0).toLocaleString()}
@@ -87,7 +96,7 @@ export default function CardListItem({
               ) : null}
 
               {actionMode === "write" ? (
-                <div className="rounded-md bg-[#7c6cff] px-4 py-2 text-[14px] font-semibold text-white">
+                <div className="rounded-md bg-violet-600 px-4 py-2 text-[14px] font-semibold text-white">
                   작성하기
                 </div>
               ) : null}

@@ -155,7 +155,7 @@ export default function ResultPage() {
             </div>
           </section>
 
-          <div style={styles.footer}>© pygm.co.kr · tests/realism/result</div>
+          <div style={styles.footer}>© charmingsoup.com · tests/realism/result</div>
         </div>
       </div>
     </>

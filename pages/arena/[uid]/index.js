@@ -13,8 +13,19 @@ import {
   getUserDocId,
   getValueMatchPercent,
   isAdminMatchExposureBlocked,
+  isArenaBlockedUser,
 } from "lib/arena";
 import { isBlockedTargetUser } from "lib/userBlockRules";
+
+function getOfferMaleUids(offerData = {}) {
+  const fromArray = Array.isArray(offerData?.maleUids)
+    ? offerData.maleUids.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  const legacyMaleUid = String(offerData?.maleUid || "").trim();
+
+  return [...new Set([...fromArray, legacyMaleUid].filter(Boolean))];
+}
 
 export default function ArenaDetailPage() {
   const router = useRouter();
@@ -84,10 +95,18 @@ export default function ArenaDetailPage() {
           ...targetSnap.data(),
         };
 
-        if (isAdminMatchExposureBlocked(userData)) {
+        if (isArenaBlockedUser(userData) || isAdminMatchExposureBlocked(userData)) {
           if (mounted) {
             setTargetUser(null);
             router.replace("/arena");
+          }
+          return;
+        }
+
+        if (viewerReady && viewer?.userID && isArenaBlockedUser(viewer)) {
+          if (mounted) {
+            setTargetUser(null);
+            router.replace("/arena/pending");
           }
           return;
         }
@@ -149,7 +168,10 @@ export default function ArenaDetailPage() {
         }
 
         const offerData = offerSnap.data() || {};
-        if (String(offerData?.maleUid || "") !== String(uid || "")) {
+        const offerMaleUids = getOfferMaleUids(offerData);
+        const targetUid = String(uid || "").trim();
+
+        if (!offerMaleUids.includes(targetUid)) {
           setOffer(null);
           return;
         }
@@ -157,7 +179,13 @@ export default function ArenaDetailPage() {
         setOffer({
           id: offerSnap.id,
           ...offerData,
+          maleUid: targetUid,
+          maleUids: offerMaleUids,
+          valueMatchPercent:
+            Number(offerData?.valueMatchPercentMap?.[targetUid] || 0) ||
+            Number(offerData?.valueMatchPercent || 0),
         });
+        
       } catch (error) {
         console.error("[arena/detail] offer load error:", error);
         if (mounted) setOffer(null);

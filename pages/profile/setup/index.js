@@ -27,6 +27,28 @@ function buildCurrentUser(firebaseUser, docData = {}, userDocId) {
     phonenumber: docData.phonenumber || "",
     thumbimage: docData.thumbimage || "",
     date_sleep: docData.date_sleep ?? false,
+    // 본인인증 관련
+    identityVerified: docData.identityVerified === true,
+    phoneVerified:
+      docData.phoneVerified === true ||
+      docData.phone_verified === true ||
+      docData.phone_verified === "true",
+    telVerified: docData.telVerified === true,
+    identityVerifiedAt: docData.identityVerifiedAt || docData.phone_verified_at || null,
+    identityVerification: docData.identityVerification || null,
+    identityVerifiedData: docData.identityVerifiedData || null,
+    identity_phone: docData.identity_phone || "",
+    identityPhone: docData.identityPhone || "",
+    verifiedPhone: docData.verifiedPhone || "",
+    phone_verified: docData.phone_verified === true,
+    phone_verified_at: docData.phone_verified_at || null,
+    identity_name: docData.identity_name || "",
+    identity_birth: docData.identity_birth || "",
+    identity_gender: docData.identity_gender || "",
+    identity_provider: docData.identity_provider || "",
+    identity_ci: docData.identity_ci || "",
+    identity_di: docData.identity_di || "",
+
     withdraw: docData.withdraw ?? false,
     date_profile_finished: docData.date_profile_finished ?? false,
     date_pending: docData.date_pending ?? false,
@@ -129,7 +151,7 @@ export default function ProfileSetupPage() {
             <div className="relative mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6 md:py-10">
                 <section
                   id="app-surface"
-                  className="relative w-full max-w-[390px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
+                  className="relative w-full max-w-[420px] overflow-hidden bg-white md:max-w-[430px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]"
                 >
                   <ProfileSetupFlow />
                 </section>

@@ -14,7 +14,7 @@ export default function CardReviewEmptyState({
   onBack,
 }) {
   return (
-    <div className="flex h-screen flex-col bg-slate-50 md:h-[760px]">
+    <div className="flex h-full min-h-0 flex-col bg-slate-50">
       <div className="shrink-0 border-b border-slate-200 bg-white px-5 pb-4 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="text-[24px] font-bold tracking-[-0.03em] text-slate-900">

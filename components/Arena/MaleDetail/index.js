@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  runTransaction,
 } from "firebase/firestore";
 import { useRouter } from "next/router";
 import { PiHeartDuotone, PiSparkleDuotone, PiWarningCircleDuotone } from "react-icons/pi";
@@ -45,6 +46,36 @@ function getSpoonState(user = {}) {
 }
 
 const ACCEPT_COST = 8;
+
+function getRefundBucketState(interestData = {}, refundAmount = 0) {
+  const normalizedAmount = Math.max(Number(refundAmount || 0), 0);
+  const storedFree = Number(interestData?.spoonDeductedFree);
+  const storedPaid = Number(interestData?.spoonDeductedPaid);
+
+  if (
+    normalizedAmount > 0 &&
+    Number.isFinite(storedFree) &&
+    Number.isFinite(storedPaid) &&
+    storedFree + storedPaid > 0
+  ) {
+    const refundPaid = Math.max(Math.min(storedPaid, normalizedAmount), 0);
+    const refundFreeBase = Math.max(
+      Math.min(storedFree, normalizedAmount - refundPaid),
+      0
+    );
+    const remainder = Math.max(normalizedAmount - refundPaid - refundFreeBase, 0);
+
+    return {
+      refundFree: refundFreeBase + remainder,
+      refundPaid,
+    };
+  }
+
+  return {
+    refundFree: normalizedAmount,
+    refundPaid: 0,
+  };
+}
 
 export default function MaleDetailScreen({
   viewer,
@@ -271,35 +302,189 @@ export default function MaleDetailScreen({
   const handleReject = async () => {
     try {
       const interestId = interest?.id || "";
-      if (!interestId) return;
+      const myUid = viewer?.userID || "";
+      if (!interestId || !myUid) return;
 
-      await setDoc(
-        doc(db, "arenaInterests", interestId),
-        {
+      const interestRef = doc(db, "arenaInterests", interestId);
+      let refundResult = {
+        refunded: false,
+        refundAmount: 0,
+        alreadyClosed: false,
+      };
+
+      refundResult = await runTransaction(db, async (transaction) => {
+        const interestSnap = await transaction.get(interestRef);
+
+        if (!interestSnap.exists()) {
+          throw new Error("interest_not_found");
+        }
+
+        const interestData = interestSnap.data() || {};
+        const currentStatus = String(interestData?.status || "");
+        const femaleUid = String(
+          interestData?.femaleUid || targetUser?.userID || ""
+        ).trim();
+        const refundAmount = Math.max(
+          Number(interestData?.spoonCost || ACCEPT_COST),
+          0
+        );
+        const alreadyRefunded = Boolean(interestData?.refundProcessedAt);
+
+        if (currentStatus === "accepted") {
+          throw new Error("interest_already_accepted");
+        }
+
+        if (currentStatus && !["sent", "rejected"].includes(currentStatus)) {
+          return {
+            refunded: false,
+            refundAmount: 0,
+            alreadyClosed: true,
+            status: currentStatus,
+          };
+        }
+
+        const baseRejectPayload = {
           status: "rejected",
           respondedAt: serverTimestamp(),
           rejectedAt: serverTimestamp(),
-          rejectedBy: viewer?.userID || "",
-        },
-        { merge: true }
-      );
+          rejectedBy: myUid,
+          updatedAt: serverTimestamp(),
+        };
+
+        if (!femaleUid || refundAmount <= 0 || alreadyRefunded) {
+          transaction.set(interestRef, baseRejectPayload, { merge: true });
+          return {
+            refunded: false,
+            refundAmount: 0,
+            alreadyClosed: alreadyRefunded,
+            status: "rejected",
+          };
+        }
+
+        const femaleRef = doc(db, "users", femaleUid);
+        const femaleSnap = await transaction.get(femaleRef);
+
+        if (!femaleSnap.exists()) {
+          transaction.set(
+            interestRef,
+            {
+              ...baseRejectPayload,
+              refundSkippedAt: serverTimestamp(),
+              refundSkippedReason: "female_user_not_found",
+            },
+            { merge: true }
+          );
+
+          return {
+            refunded: false,
+            refundAmount: 0,
+            alreadyClosed: false,
+            status: "rejected",
+          };
+        }
+
+        const femaleData = femaleSnap.data() || {};
+        const spoonState = getSpoonState(femaleData);
+        const { refundFree, refundPaid } = getRefundBucketState(
+          interestData,
+          refundAmount
+        );
+
+        transaction.set(
+          femaleRef,
+          {
+            spoon: spoonState.total + refundAmount,
+            spoon_free: spoonState.free + refundFree,
+            spoon_paid: spoonState.paid + refundPaid,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        transaction.set(
+          interestRef,
+          {
+            ...baseRejectPayload,
+            refundProcessedAt: serverTimestamp(),
+            refundAmount,
+            refundReason: "male_rejected",
+            refundedTo: refundPaid > 0 ? "original_bucket" : "free",
+          },
+          { merge: true }
+        );
+
+        const historyRef = doc(collection(db, "spoonHistories"));
+        transaction.set(historyRef, {
+          uid: femaleUid,
+          type: "arena_like_refund_rejected",
+          amount: refundAmount,
+          balanceBefore: spoonState.total,
+          balanceAfter: spoonState.total + refundAmount,
+          spoonFreeBefore: spoonState.free,
+          spoonFreeAfter: spoonState.free + refundFree,
+          spoonPaidBefore: spoonState.paid,
+          spoonPaidAfter: spoonState.paid + refundPaid,
+          refundedFree: refundFree,
+          refundedPaid: refundPaid,
+          targetUid: myUid,
+          interestId,
+          createdAt: serverTimestamp(),
+        });
+
+        const notificationRef = doc(collection(db, "notifications"));
+        transaction.set(notificationRef, {
+          targetUid: femaleUid,
+          type: "arena_like_refund_rejected",
+          title: `스푼 ${refundAmount}개가 반환됐어요`,
+          body: "상대가 호감표시를 거절해 사용한 스푼이 반환되었어요.",
+          href: "/arena",
+          isRead: false,
+          createdAt: serverTimestamp(),
+        });
+
+        return {
+          refunded: true,
+          refundAmount,
+          alreadyClosed: false,
+          status: "rejected",
+        };
+      });
 
       if (targetUser?.phonenumber) {
-        await sendLms(
-          targetUser.phonenumber,
-          `[차밍수프]\n안타깝지만 상대방이 호감표시를 거절했습니다.`,
-          "차밍수프 호감 거절 안내",
-          { forceLms: true }
-        );
+        try {
+          const refundLine = refundResult?.refunded
+            ? `\n사용한 스푼 ${refundResult.refundAmount}개는 반환되었습니다.`
+            : "";
+
+          await sendLms(
+            targetUser.phonenumber,
+            `[차밍수프]\n안타깝지만 상대방이 호감표시를 거절했습니다.${refundLine}`,
+            "차밍수프 호감 거절 안내",
+            { forceLms: true }
+          );
+        } catch (smsError) {
+          console.warn("[arena/maleDetail] reject sms error:", smsError);
+        }
       }
 
       setRejectConfirmOpen(false);
       setDoneTitle("거절 완료");
-      setDoneDescription("호감을 거절했어요.\n상대에게 문자 안내가 발송됩니다.");
+      setDoneDescription(
+        refundResult?.refunded
+          ? `호감을 거절했어요.\n상대에게 스푼 ${refundResult.refundAmount}개가 반환됩니다.`
+          : "호감을 거절했어요.\n상대에게 문자 안내가 발송됩니다."
+      );
       setDoneOpen(true);
       await onDone?.();
     } catch (error) {
       console.error("[arena/maleDetail] reject error:", error);
+
+      if (error?.message === "interest_already_accepted") {
+        alert("이미 승낙 처리된 호감입니다.");
+        router.replace("/arena");
+        return;
+      }
+
       alert("거절 처리 중 문제가 발생했어요.");
     }
   };

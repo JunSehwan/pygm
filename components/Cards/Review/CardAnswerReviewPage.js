@@ -142,6 +142,7 @@ function getLikeCount(card) {
  */
 function buildReviewFeed({
   initialCardId,
+  initialAnswerId = "",
   answers,
   reactedAnswerIds,
   profileCharmingMode = false,
@@ -163,6 +164,27 @@ function buildReviewFeed({
     (item) => item?.id && !reactedSet.has(item.id)
   );
 
+  if (initialAnswerId) {
+    const picked = filtered.find((item) => item.id === initialAnswerId) || null;
+    const others = filtered.filter((item) => item.id !== initialAnswerId);
+
+    const sameCardAnswers = others
+      .filter((item) => item.cardId === initialCardId)
+      .sort(
+        (a, b) =>
+          toMillis(b.updatedAt || b.createdAt) - toMillis(a.updatedAt || a.createdAt)
+      );
+
+    const otherAnswers = others
+      .filter((item) => item.cardId !== initialCardId)
+      .sort(
+        (a, b) =>
+          toMillis(b.updatedAt || b.createdAt) - toMillis(a.updatedAt || a.createdAt)
+      );
+
+    return picked ? [picked, ...sameCardAnswers, ...otherAnswers] : [...sameCardAnswers, ...otherAnswers];
+  }
+
   const currentCardAnswers = filtered
     .filter((item) => item.cardId === initialCardId)
     .sort(
@@ -177,25 +199,7 @@ function buildReviewFeed({
         toMillis(b.updatedAt || b.createdAt) - toMillis(a.updatedAt || a.createdAt)
     );
 
-  const randomizedOthers = [];
-  const remaining = [...otherAnswers];
-
-  while (remaining.length > 0) {
-    const pool = remaining.slice(0, Math.min(5, remaining.length));
-    const pickedIndex = Math.floor(Math.random() * pool.length);
-    const picked = pool[pickedIndex];
-
-    randomizedOthers.push(picked);
-
-    const realIndex = remaining.findIndex((item) => item.id === picked.id);
-    if (realIndex >= 0) {
-      remaining.splice(realIndex, 1);
-    } else {
-      break;
-    }
-  }
-
-  return [...currentCardAnswers, ...randomizedOthers];
+  return [...currentCardAnswers, ...otherAnswers];
 }
 
 // =========================
@@ -203,30 +207,31 @@ function buildReviewFeed({
 // =========================
 
 function ChoiceAnswerBlock({ currentCard, currentAnswer }) {
-  const selectedIndex =
-    typeof currentAnswer?.selectedOptionIndex === "number"
-      ? currentAnswer.selectedOptionIndex
-      : null;
+  const selectedIndexes = Array.isArray(currentAnswer?.selectedOptionIndexes)
+    ? currentAnswer.selectedOptionIndexes
+    : typeof currentAnswer?.selectedOptionIndex === "number"
+      ? [currentAnswer.selectedOptionIndex]
+      : [];
 
   const selectedText = currentAnswer?.selectedOptionText || "";
 
   return (
     <div>
-      <div className="mb-2 text-[14px] font-semibold text-slate-700">
+      <div className="mb-2 text-[14px] font-semibold text-blue-700">
         선택한 답변
       </div>
 
       <div className="space-y-2">
         {(currentCard?.options || []).map((option, index) => {
           const active =
-            selectedIndex === index ||
-            (!!selectedText && selectedText === option);
+            selectedIndexes.includes(index) ||
+            (!!selectedText && selectedText.split(",").map((v) => v.trim()).includes(option));
 
           return (
             <div
               key={`${currentCard?.id || "card"}-option-${index}`}
               className={cn(
-                "rounded-md border px-4 py-4 text-[15px] leading-6 transition",
+                "rounded-md border px-4 py-4 text-[15px] leading-6 transition border-solid",
                 active
                   ? "border-violet-300 bg-violet-100 text-violet-700"
                   : "border-slate-200 bg-white text-slate-600"
@@ -235,7 +240,7 @@ function ChoiceAnswerBlock({ currentCard, currentAnswer }) {
               <div className="flex items-start gap-3">
                 <span
                   className={cn(
-                    "mt-[2px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                    "mt-[2px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-solid",
                     active ? "border-violet-400" : "border-slate-400"
                   )}
                 >
@@ -264,7 +269,7 @@ function ChoiceAnswerBlock({ currentCard, currentAnswer }) {
 function TextAnswerBlock({ currentAnswerContent }) {
   return (
     <div>
-      <div className="mb-2 text-[14px] font-semibold text-slate-700">
+      <div className="mb-2 text-[14px] font-semibold text-blue-700">
         답변
       </div>
       <div className="whitespace-pre-line rounded-md bg-violet-100 px-4 py-4 text-[15px] leading-7 text-violet-700">
@@ -331,6 +336,7 @@ function ActionOverlay({ action }) {
 
 export default function CardAnswerReviewPage({
   initialCardId,
+  initialAnswerId = "",
   ownerUid,
   cardsById,
   answers,
@@ -422,6 +428,7 @@ export default function CardAnswerReviewPage({
 
     const nextQueue = buildReviewFeed({
       initialCardId,
+      initialAnswerId,
       answers,
       reactedAnswerIds,
       profileCharmingMode,
@@ -435,6 +442,7 @@ export default function CardAnswerReviewPage({
     usageLoading,
     profileCharmingMode,
     initialCardId,
+    initialAnswerId,
     answers,
     reactedAnswerIds,
     answerViewedIds,
@@ -497,12 +505,8 @@ export default function CardAnswerReviewPage({
       nickname:
         currentProfile?.nickname ||
         currentAnswer?.answererNickname ||
-        currentAnswer?.answererUsername ||
         "답변자",
-      username:
-        currentProfile?.username ||
-        currentAnswer?.answererUsername ||
-        "",
+      username: "",
       birthday: currentProfile?.birthday || "",
       mbti: currentProfile?.mbti || currentProfile?.styleTest?.typeCode || "",
       job: currentProfile?.job || "",
@@ -522,7 +526,10 @@ export default function CardAnswerReviewPage({
 
   const profileSubtitle = useMemo(() => {
     const age = calcAgeFromBirthdayMap(mergedProfile?.birthday);
-    const locationText = [mergedProfile?.address_sido, mergedProfile?.address_sigugun]
+    const locationText = [
+      mergedProfile?.residence?.sido || mergedProfile?.address_sido,
+      mergedProfile?.residence?.sigugun || mergedProfile?.address_sigugun,
+    ]
       .filter(Boolean)
       .join(" ");
 
@@ -724,7 +731,7 @@ export default function CardAnswerReviewPage({
 
   if (usageLoading) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-white px-6 text-center md:h-[760px]">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-white px-6 text-center md:h-[760px]">
         <div className="text-[18px] font-semibold text-slate-700">
           불러오는 중...
         </div>
@@ -738,7 +745,7 @@ export default function CardAnswerReviewPage({
 
   if (!currentCard) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-white px-6 text-center md:h-[760px]">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center bg-slate-50 px-6 text-center">
         <div className="text-[20px] font-semibold text-slate-800">
           카드를 불러올 수 없어요
         </div>
@@ -811,7 +818,7 @@ export default function CardAnswerReviewPage({
 
   return (
     <>
-      <div className="relative flex h-screen flex-col bg-white md:h-[760px]">
+      <div className="relative flex h-full min-h-0 flex-col bg-white">
         <ActionOverlay action={overlayAction} />
 
         <CardReviewHeader
@@ -833,14 +840,17 @@ export default function CardAnswerReviewPage({
           subtitle={profileSubtitle}
         />
 
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-gray-100">
-          <div className="px-4 pb-4 pt-4">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto bg-white overscroll-contain"
+        >
+          <div className="px-4 pb-6 pt-4">
             <div className="space-y-4">
               <div>
                 <div className="mb-2 text-[14px] font-bold text-slate-700">
                   질문 제목
                 </div>
-                <div className="rounded-md bg-white px-4 py-4 text-[15px] font-bold leading-6 text-slate-700">
+                <div className="rounded-md bg-slate-50 px-4 py-4 text-[15px] font-bold leading-6 text-slate-700">
                   {answerCard?.title || ""}
                 </div>
               </div>
@@ -849,7 +859,7 @@ export default function CardAnswerReviewPage({
                 <div className="mb-2 text-[14px] font-semibold text-slate-700">
                   질문 내용
                 </div>
-                <div className="whitespace-pre-line rounded-md bg-white px-4 py-4 text-[15px] leading-6 text-slate-700">
+                <div className="whitespace-pre-line rounded-md bg-slate-50 px-4 py-4 text-[15px] leading-6 text-slate-700">
                   {answerCard?.body || answerCard?.guide || ""}
                 </div>
               </div>
@@ -859,7 +869,7 @@ export default function CardAnswerReviewPage({
                   <div className="mb-2 text-[14px] font-semibold text-slate-700">
                     부가설명
                   </div>
-                  <div className="whitespace-pre-line rounded-md bg-white px-4 py-4 text-[15px] leading-6 text-slate-700">
+                  <div className="whitespace-pre-line rounded-md bg-slate-50 px-4 py-4 text-[15px] leading-6 text-slate-700">
                     {answerCard.guide}
                   </div>
                 </div>

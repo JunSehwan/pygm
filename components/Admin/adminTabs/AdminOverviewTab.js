@@ -12,7 +12,7 @@ export default function AdminOverviewTab({ counts }) {
   return (
     <div className="space-y-4">
       <section className="grid grid-cols-2 gap-3 md:grid-cols-2">
-        <SummaryCard icon={PiUsersThreeDuotone} title="가입 승인 대기" value={`${counts.pendingUsers}명`} accent="violet" />
+        <SummaryCard icon={PiUsersThreeDuotone} title="회원 승인/재심사" value={`${counts.approvalUsers || 0}명`} accent="violet" />
         <SummaryCard icon={PiCardsDuotone} title="카드 승인 대기" value={`${counts.pendingCards}건`} accent="blue" />
         <SummaryCard icon={PiSealWarningDuotone} title="신고 검토" value={`${counts.pendingReports}건`} accent="rose" />
         <SummaryCard icon={PiCreditCardDuotone} title="입금 확인 대기" value={`${counts.pendingPayments}건`} accent="emerald" />
@@ -23,6 +23,7 @@ export default function AdminOverviewTab({ counts }) {
         title="운영 체크 요약"
         description="현재 관리자 페이지에서 바로 확인해야 하는 핵심 수치예요."
       >
+        <InfoRow title="프로필 재심사 요청" value={`${counts.profileReviewUsers || 0}명`} />
         <InfoRow title="신규 심사 대상" value={`${counts.pendingUsers}명`} />
         <InfoRow title="기존 가입자 일괄 승인 대상" value={`${counts.legacyUsers}명`} />
         <InfoRow title="카드 승인 대기" value={`${counts.pendingCards}건`} />

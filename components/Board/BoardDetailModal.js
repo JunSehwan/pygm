@@ -9,7 +9,7 @@ import {
   PiPhoneCallDuotone,
   PiWarningCircleDuotone,
 } from "react-icons/pi";
-
+import Image from "next/image";
 import ImageWithSkeleton from "components/Common/ImageWithSkeleton";
 import ArenaBasicInfoList from "components/Arena/Detail/ArenaBasicInfoList";
 import ArenaValueModal from "components/Arena/Detail/ArenaValueModal";
@@ -20,6 +20,7 @@ import {
   isIdentityVerified,
 } from "components/Arena/Detail/arenaDetailUtils";
 import { getDisplayName } from "lib/arena";
+import { adaptLegacyProfileDoc } from "lib/profileLegacyAdapter";
 
 
 const STYLE_TYPE_CODE_TO_INDEX = {
@@ -40,6 +41,18 @@ const STYLE_TYPE_CODE_TO_INDEX = {
   TLFP: 15,
   TLFJ: 16,
 };
+
+function getSafeBoardUser(user = {}) {
+  if (!user || typeof user !== "object") return {};
+
+  const uid = user?.userID || user?.uid || user?.id || "";
+  const adapted = adaptLegacyProfileDoc(user, { uid }, uid);
+
+  return {
+    ...user,
+    ...adapted,
+  };
+}
 
 function toDate(value) {
   if (!value) return null;
@@ -84,10 +97,11 @@ function formatPhoneDisplay(value) {
 }
 
 function getMbti(user = {}) {
-  const mbti = String(user?.mbti || "").trim().toUpperCase();
+  const safeUser = getSafeBoardUser(user);
+  const mbti = String(safeUser?.mbti || "").trim().toUpperCase();
   if (mbti.length === 4) return mbti;
 
-  const legacy = `${user?.mbti_ei || ""}${user?.mbti_sn || ""}${user?.mbti_tf || ""}${user?.mbti_jp || ""}`
+  const legacy = `${safeUser?.mbti_ei || ""}${safeUser?.mbti_sn || ""}${safeUser?.mbti_tf || ""}${safeUser?.mbti_jp || ""}`
     .toUpperCase()
     .trim();
 
@@ -95,15 +109,18 @@ function getMbti(user = {}) {
 }
 
 function getStyleCode(user = {}) {
-  return String(user?.styleTest?.typeCode || "").trim().toUpperCase();
+  const safeUser = getSafeBoardUser(user);
+  return String(safeUser?.styleTest?.typeCode || "").trim().toUpperCase();
 }
 
 function getStyleTitle(user = {}) {
-  return String(user?.styleTest?.typeTitle || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  return String(safeUser?.styleTest?.typeTitle || "").trim();
 }
 
 function getStyleOneLine(user = {}) {
-  return String(user?.styleTest?.oneLine || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  return String(safeUser?.styleTest?.oneLine || "").trim();
 }
 
 function getStyleImage(user = {}) {
@@ -114,32 +131,29 @@ function getStyleImage(user = {}) {
 }
 
 function getResidenceText(user = {}) {
-  return [user?.residence?.sido, user?.residence?.sigugun]
+  const safeUser = getSafeBoardUser(user);
+  return [safeUser?.residence?.sido, safeUser?.residence?.sigugun]
     .filter(Boolean)
     .join(" ");
 }
 
 function getWorkAreaText(user = {}) {
-  const sido =
-    user?.workArea?.sido ||
-    user?.company_location_sido ||
-    "";
-  const sigugun =
-    user?.workArea?.sigugun ||
-    user?.company_location_sigugun ||
-    "";
+  const safeUser = getSafeBoardUser(user);
+  const sido = safeUser?.workArea?.sido || safeUser?.company_location_sido || "";
+  const sigugun = safeUser?.workArea?.sigugun || safeUser?.company_location_sigugun || "";
 
   return [sido, sigugun].filter(Boolean).join(" ");
 }
 
 function getEducationText(user = {}) {
-  const education = String(user?.education || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  const education = String(safeUser?.education || "").trim();
   const schoolName =
-    user?.educationPublic === true
+    safeUser?.educationPublic === true
       ? String(
-        user?.educationSchoolName ||
-        user?.schoolName ||
-        user?.school ||
+        safeUser?.educationSchoolName ||
+        safeUser?.schoolName ||
+        safeUser?.school ||
         ""
       ).trim()
       : "";
@@ -148,47 +162,54 @@ function getEducationText(user = {}) {
 }
 
 function getJobText(user = {}) {
-  const job = String(user?.job || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  const job = String(safeUser?.job || "").trim();
   const companyName =
-    user?.companyVerified === true && user?.companyNamePublic === true
-      ? String(user?.companyName || "").trim()
-      : String(user?.companyName || "").trim();
+    safeUser?.companyVerified === true && safeUser?.companyNamePublic === true
+      ? String(safeUser?.companyName || safeUser?.company || "").trim()
+      : String(safeUser?.companyName || safeUser?.company || "").trim();
 
   return [job, companyName].filter(Boolean).join(" · ");
 }
 
 function getSalaryText(user = {}) {
-  return String(user?.salary || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  if (safeUser?.salaryPublic !== true) return "";
+  return String(safeUser?.salary || "").trim();
 }
 
 function getReligionText(user = {}) {
-  return String(user?.religion || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  return String(safeUser?.religion || "").trim();
 }
 
 function getMaritalStatusText(user = {}) {
-  return String(user?.maritalStatus || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  return String(safeUser?.maritalStatus || "").trim();
 }
 
 function getHeightText(user = {}) {
-  const h = String(user?.height || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  const h = String(safeUser?.height || "").trim();
   return h ? `${h}cm` : "";
 }
 
 function normalizeInterestText(user = {}) {
-  const hobby = String(user?.hobby || "").trim();
+  const safeUser = getSafeBoardUser(user);
+  const hobby = String(safeUser?.hobby || "").trim();
   if (hobby) {
     return hobby.replace(/\|/g, ", ");
   }
 
-  if (Array.isArray(user?.hobbyList) && user.hobbyList.length) {
-    return user.hobbyList
+  if (Array.isArray(safeUser?.hobbyList) && safeUser.hobbyList.length) {
+    return safeUser.hobbyList
       .map((item) => String(item || "").trim())
       .filter(Boolean)
       .join(", ");
   }
 
-  if (Array.isArray(user?.interest) && user.interest.length) {
-    return user.interest
+  if (Array.isArray(safeUser?.interest) && safeUser.interest.length) {
+    return safeUser.interest
       .map((item) => String(item || "").trim())
       .filter(Boolean)
       .join(", ");
@@ -357,8 +378,8 @@ function PhotoViewer({ photoList = [] }) {
                   type="button"
                   onClick={() => moveTo(idx)}
                   className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-md border ${idx === index
-                      ? "border-violet-400 ring-2 ring-violet-100"
-                      : "border-slate-200"
+                    ? "border-violet-400 ring-2 ring-violet-100"
+                    : "border-slate-200"
                     }`}
                   style={{ cursor: "pointer" }}
                 >
@@ -625,7 +646,7 @@ export default function BoardDetailModal({
   const [valueOpen, setValueOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
 
-  const otherUser = item?.otherUser || {};
+  const otherUser = getSafeBoardUser(item?.otherUser || {});
   const summary = useMemo(() => getProfileSummary(otherUser), [otherUser]);
   const photoList = useMemo(() => getPhotoList(otherUser), [otherUser]);
 

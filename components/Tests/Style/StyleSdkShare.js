@@ -1,3 +1,30 @@
+function waitForFacebookSdk(timeout = 8000) {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("window 없음"));
+      return;
+    }
+
+    const startedAt = Date.now();
+
+    const check = () => {
+      if (window.FB && typeof window.FB.init === "function" && typeof window.FB.ui === "function") {
+        resolve(window.FB);
+        return;
+      }
+
+      if (Date.now() - startedAt > timeout) {
+        reject(new Error("Facebook SDK 로드 대기 시간 초과"));
+        return;
+      }
+
+      setTimeout(check, 120);
+    };
+
+    check();
+  });
+}
+
 export function initKakaoSdk() {
   if (typeof window === "undefined") return false;
   if (!window.Kakao) return false;
@@ -15,9 +42,8 @@ export function initKakaoSdk() {
   return true;
 }
 
-export function initFacebookSdk() {
+export async function initFacebookSdk() {
   if (typeof window === "undefined") return false;
-  if (!window.FB) return false;
 
   const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
   if (!appId) {
@@ -25,11 +51,13 @@ export function initFacebookSdk() {
     return false;
   }
 
+  const FB = await waitForFacebookSdk();
+
   if (!window.__styleFbInitDone) {
-    window.FB.init({
+    FB.init({
       appId,
       xfbml: false,
-      version: "v23.0",
+      version: "v20.0",
     });
     window.__styleFbInitDone = true;
   }
@@ -41,7 +69,8 @@ export function shareResultToKakao({
   title,
   description,
   imageUrl,
-  shareUrl,
+  resultUrl,
+  introUrl,
 }) {
   const ok = initKakaoSdk();
   if (!ok) throw new Error("Kakao SDK 초기화 실패");
@@ -53,16 +82,23 @@ export function shareResultToKakao({
       description,
       imageUrl,
       link: {
-        mobileWebUrl: shareUrl,
-        webUrl: shareUrl,
+        mobileWebUrl: resultUrl,
+        webUrl: resultUrl,
       },
     },
     buttons: [
       {
+        title: "내 결과 보기",
+        link: {
+          mobileWebUrl: resultUrl,
+          webUrl: resultUrl,
+        },
+      },
+      {
         title: "테스트 바로하기",
         link: {
-          mobileWebUrl: shareUrl,
-          webUrl: shareUrl,
+          mobileWebUrl: introUrl,
+          webUrl: introUrl,
         },
       },
     ],
@@ -98,18 +134,24 @@ export function shareIntroToKakao({ shareUrl, imageUrl }) {
   });
 }
 
-export function shareToFacebook({ shareUrl }) {
-  const ok = initFacebookSdk();
+export async function shareToFacebook({ shareUrl }) {
+  const ok = await initFacebookSdk();
   if (!ok) throw new Error("Facebook SDK 초기화 실패");
 
-  window.FB.ui(
-    {
-      method: "share",
-      href: shareUrl,
-      hashtag: "#연애스타일테스트",
-    },
-    function (response) {
-      console.log("[Facebook Share response]", response);
-    }
-  );
+  return new Promise((resolve, reject) => {
+    window.FB.ui(
+      {
+        method: "share",
+        href: shareUrl,
+        hashtag: "#연애스타일테스트",
+      },
+      function (response) {
+        if (response === undefined || response === null) {
+          resolve(false);
+          return;
+        }
+        resolve(true);
+      }
+    );
+  });
 }

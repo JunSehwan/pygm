@@ -156,7 +156,7 @@ export default function CardAnswerChoicePage({
           type: "charming_card_answer_arrived",
           targetUid: card.creatorUid,
           actorUid: user.userID,
-          actorNickname: user.nickname || user.username || "",
+          actorNickname: user.nickname || "회원",
           cardId: card.id,
           cardTitle: card.title || "",
           isRead: false,
@@ -177,7 +177,7 @@ export default function CardAnswerChoicePage({
 
   return (
     <>
-      <div className="flex h-screen flex-col bg-slate-50 md:h-[760px]">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-50">
         <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 pb-4 pt-5">
           <div className="flex items-center justify-between">
             <div className="text-[14px] font-medium text-slate-400">
@@ -224,7 +224,7 @@ export default function CardAnswerChoicePage({
         </div>
 
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="px-5 pb-6 pt-4">
+          <div className="px-3 pb-3 pt-4">
             <div className="space-y-3">
               <div>
                 <div className="mb-2 text-[14px] font-medium text-violet-700">
@@ -261,11 +261,11 @@ export default function CardAnswerChoicePage({
                   alreadyAnswered ? "border-slate-200" : "border-violet-300"
                 )}
               >
-                <div className="p-4 text-[16px] font-semibold text-slate-900 border-b-2 border-solid border-slate-100">
+                <div className="border-b border-solid border-slate-100 px-4 py-4 text-[16px] font-semibold text-slate-900">
                   보기 선택하기
                 </div>
 
-                <div className="mt-3 space-y-2">
+                <div className="space-y-2 px-4 pb-4 pt-3">
                   {(card.options || []).map((option, index) => {
                     const active = selectedIndex === index;
 
@@ -311,27 +311,29 @@ export default function CardAnswerChoicePage({
                   })}
                 </div>
 
-                <div className="mt-2 min-h-[20px] text-[13px] leading-5 text-red-500">
-                  {error || ""}
-                </div>
-
-                {alreadyAnswered ? (
-                  <div className="mt-2 text-[13px] font-medium text-slate-500">
-                    이미 작성하신 답변입니다.
+                <div className="px-4 pb-4">
+                  <div className="min-h-[20px] text-[13px] leading-5 text-red-500">
+                    {error || ""}
                   </div>
-                ) : null}
+
+                  {alreadyAnswered ? (
+                    <div className="mt-2 text-[13px] font-medium text-slate-500">
+                      이미 작성하신 답변입니다.
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="shrink-0 bg-slate-50">
+        <div className="shrink-0 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
           <div className="grid grid-cols-2">
             {alreadyAnswered ?
               <button
                 type="button"
                 onClick={handleBackToOrigin}
-                className="h-[60px] bg-white text-[16px] font-medium text-slate-700"
+                className="h-[58px] bg-white text-[15px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 돌아가기
               </button>
@@ -339,7 +341,7 @@ export default function CardAnswerChoicePage({
               <button
                 type="button"
                 onClick={handleBackToOrigin}
-                className="h-[60px] bg-white text-[16px] font-medium text-slate-700"
+                className="h-[58px] bg-white text-[15px] font-semibold text-slate-700 hover:bg-slate-50"
               >
                 다음에 작성하기
               </button>
@@ -349,8 +351,8 @@ export default function CardAnswerChoicePage({
               onClick={handleOpenConfirm}
               disabled={saving || alreadyAnswered}
               className={cn(
-                "h-[60px] text-[18px] font-semibold text-white",
-                saving || alreadyAnswered ? "bg-slate-400" : "bg-black"
+                "h-[58px] text-[16px] font-semibold text-white transition",
+                saving || alreadyAnswered ? "bg-slate-400" : "bg-violet-600 hover:bg-violet-700"
               )}
             >
               작성완료

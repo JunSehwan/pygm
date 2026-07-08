@@ -1,4 +1,4 @@
-export function toMillis(value) {
+function toMillis(value) {
   if (!value) return 0;
   if (typeof value === "string") return new Date(value).getTime();
   if (typeof value?.toDate === "function") return value.toDate().getTime();
@@ -6,48 +6,56 @@ export function toMillis(value) {
   return 0;
 }
 
-export function sortCards(cards, tabKey, answeredIdsSet) {
-  const next = [...cards];
+function compareAnsweredFirst(a, b, answeredIdsSet) {
+  const aAnswered = answeredIdsSet?.has?.(a?.id) ? 1 : 0;
+  const bAnswered = answeredIdsSet?.has?.(b?.id) ? 1 : 0;
 
-  if (tabKey === "unanswered") {
-    return next.filter((card) => !answeredIdsSet.has(card.id));
+  // 미작성(0) 먼저, 작성완료(1) 나중
+  if (aAnswered !== bAnswered) {
+    return aAnswered - bAnswered;
   }
 
-  if (tabKey === "mine") {
-    return next.filter((card) => answeredIdsSet.has(card.id));
-  }
-
-  if (tabKey === "latest") {
-    return next.sort(
-      (a, b) => toMillis(b.updatedAt || b.createdAt) - toMillis(a.updatedAt || a.createdAt)
-    );
-  }
-
-  if (tabKey === "popular") {
-    return next.sort(
-      (a, b) =>
-        b.answerCount + b.interestedCount + b.views * 0.01 -
-        (a.answerCount + a.interestedCount + a.views * 0.01)
-    );
-  }
-
-  return next.sort((a, b) => (b.recommendedScore || 0) - (a.recommendedScore || 0));
+  return 0;
 }
 
-export function getTodayRecommendCard(cards, answeredIdsSet) {
-  const unanswered = (cards || []).filter((card) => !answeredIdsSet.has(card.id));
+export function sortCards(cards = [], activeTab = "recommended", answeredIdsSet = new Set()) {
+  const next = [...(cards || [])];
 
-  if (unanswered.length > 0) {
-    return [...unanswered].sort(
-      (a, b) => (b.recommendedScore || 0) - (a.recommendedScore || 0)
-    )[0];
-  }
+  const sortByTab = (a, b) => {
+    if (activeTab === "latest") {
+      return (
+        toMillis(b?.updatedAt || b?.createdAt) -
+        toMillis(a?.updatedAt || a?.createdAt)
+      );
+    }
 
-  if ((cards || []).length > 0) {
-    return [...cards].sort(
-      (a, b) => (b.recommendedScore || 0) - (a.recommendedScore || 0)
-    )[0];
-  }
+    if (activeTab === "popular") {
+      const aScore =
+        Number(a?.interestedCount || 0) * 1.2 + Number(a?.views || 0) * 0.01;
+      const bScore =
+        Number(b?.interestedCount || 0) * 1.2 + Number(b?.views || 0) * 0.01;
 
-  return null;
+      return bScore - aScore;
+    }
+
+    // recommended 기본값
+    const aScore =
+      Number(a?.views || 0) * 0.55 + Number(a?.interestedCount || 0) * 0.45;
+    const bScore =
+      Number(b?.views || 0) * 0.55 + Number(b?.interestedCount || 0) * 0.45;
+
+    return bScore - aScore;
+  };
+
+  return next.sort((a, b) => {
+    const answeredCompare = compareAnsweredFirst(a, b, answeredIdsSet);
+    if (answeredCompare !== 0) return answeredCompare;
+
+    return sortByTab(a, b);
+  });
+}
+
+export function getTodayRecommendCard(cards = [], answeredIdsSet = new Set()) {
+  const sorted = sortCards(cards, "recommended", answeredIdsSet);
+  return sorted?.[0] || null;
 }

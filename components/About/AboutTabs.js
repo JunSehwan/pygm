@@ -11,7 +11,7 @@ export default function AboutTabs({ activeKey = "spoon" }) {
   const router = useRouter();
 
   return (
-    <div className="border-t border-slate-100 bg-white px-4 pt-2">
+    <div className="border-t border-slate-100 bg-trasparent px-4 py-2">
       <div className="flex items-center rounded-md bg-slate-100 p-1">
         {ABOUT_TABS.map((tab) => {
           const active = tab.key === activeKey;

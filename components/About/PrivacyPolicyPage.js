@@ -87,8 +87,9 @@ export default function PrivacyPolicyPage() {
 
         <p className="pt-2 font-semibold text-slate-800">다. 본인확인 및 인증</p>
         <p>
-          휴대전화번호, 본인확인 결과값, 재직 또는 추가 인증을 위해 회원이
-          제출한 정보 및 이미지
+          휴대전화번호, 이름, 생년월일, 성별, 내/외국인 정보, 본인확인 결과값,
+          DI(동일인 식별 및 중복가입 확인을 위한 식별값), 재직 또는 추가 인증을 위해
+          회원이 제출한 정보 및 이미지
         </p>
 
         <p className="pt-2 font-semibold text-slate-800">라. 결제 및 환불</p>
@@ -146,26 +147,55 @@ export default function PrivacyPolicyPage() {
 
       <LegalSectionCard title="5. 개인정보 처리의 위탁">
         <p>
-          회사는 서비스 제공을 위하여 필요한 범위에서 개인정보 처리업무를
-          외부에 위탁할 수 있습니다.
+          회사는 원활한 서비스 제공 및 회원 본인확인, 서비스 운영을 위하여 필요한
+          범위에서 개인정보 처리업무를 외부에 위탁할 수 있습니다.
+        </p>
+
+        <p className="pt-2 font-semibold text-slate-800">
+          가. 본인인증 연동 위탁
+        </p>
+
+        <div className="space-y-2 pt-1">
+          <InfoLine label="수탁업체" value="주식회사 코리아포트원" />
+          <InfoLine
+            label="위탁업무"
+            value="휴대폰 본인인증 연동, 본인확인 결과 연계 및 처리"
+          />
+          <InfoLine
+            label="위탁목적"
+            value="회원가입 시 본인확인, 동일인 중복가입 방지, 계정 도용 방지, 부정이용 방지"
+          />
+          <InfoLine
+            label="처리항목"
+            value="이름, 휴대전화번호, 생년월일, 성별, 내/외국인 정보, 본인확인 결과값, DI(동일인 식별 및 중복가입 확인값)"
+          />
+          <InfoLine
+            label="보유기간"
+            value="본인확인 절차 완료 시까지 또는 관계 법령 및 회사 내부정책에 따른 보관기간까지"
+          />
+        </div>
+
+        <p className="pt-3 font-semibold text-slate-800">
+          나. 일반 운영 위탁
         </p>
 
         <div className="space-y-2 pt-1">
           <PolicyBullet text="클라우드 인프라, 데이터베이스, 인증, 파일 저장 등 서비스 운영 업무" />
-          <PolicyBullet text="결제 처리, 결제 검증, 환불 처리 업무" />
           <PolicyBullet text="문자 또는 알림 발송 업무" />
         </div>
 
-        <p className="pt-1">
-          실제 수탁사 명칭과 위탁 업무는 운영 현황에 맞게 서비스 화면 또는 본
-          방침에 즉시 반영합니다.
+        <p className="pt-3 text-[13px] leading-6 text-slate-600">
+          회사는 위탁계약 체결 시 관련 법령에 따라 위탁업무 수행 목적 외 개인정보
+          처리 금지, 기술적·관리적 보호조치, 재위탁 제한, 수탁자에 대한 관리·감독
+          및 책임에 관한 사항을 계약서 등 문서에 명시하고, 수탁자가 개인정보를
+          안전하게 처리하는지를 감독합니다.
         </p>
 
-        {/* <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-[13px] leading-5 text-amber-800">
-          아래 수탁사 정보는 실제 운영 기준으로 반드시 확인 후 교체하세요.
-          <br />
-          - 예시: Google Firebase / Google Cloud, 결제대행사, 문자발송사
-        </div> */}
+        <p className="pt-3 text-[13px] leading-6 text-slate-600">
+          회사는 현재 기관 간 연계 식별을 위한 CI는 요청하지 않으며, 동일인 식별 및
+          중복가입 확인을 위한 DI만 처리합니다. 향후 위탁업체 또는 위탁업무 내용이
+          변경되는 경우 본 개인정보처리방침을 통하여 지체 없이 반영 및 고지합니다.
+        </p>
       </LegalSectionCard>
 
       <LegalSectionCard title="6. 개인정보의 파기 절차 및 방법">

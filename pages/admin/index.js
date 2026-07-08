@@ -1,8 +1,15 @@
 import React from "react";
 import Head from "next/head";
 import AdminDashboardPage from "components/Admin/AdminDashboardPage";
-
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 export default function AdminIndexPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    console.log("[admin mounted]", router.pathname);
+  }, [router]);
+
   return (
     <>
       <Head>

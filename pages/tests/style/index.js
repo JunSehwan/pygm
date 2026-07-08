@@ -30,7 +30,7 @@ export default function StyleTestPage() {
           <div className="relative mx-auto flex h-full w-full max-w-[1200px] items-start justify-center px-0 py-0 md:items-center md:px-6">
             <section className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-white md:h-[760px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
               <div
-                className={`min-h-0 flex-1 overflow-hidden ${showNavbar ? "pb-[64px]" : ""
+                className={`min-h-0 flex-1 overflow-hidden ${showNavbar ? "" : ""
                   }`}
               >
                 <StyleTestFlow />

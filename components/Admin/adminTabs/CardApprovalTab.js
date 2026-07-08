@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   PiCardsDuotone,
   PiSparkleDuotone,
@@ -19,6 +19,48 @@ import {
   normalizeQuestionType,
   CARD_REJECTION_REASONS,
 } from "../adminUtils";
+
+import { getFunctions, httpsCallable } from "firebase/functions";
+
+const CATEGORY_LABEL_MAP = {
+  sense: "센스",
+  value: "가치관",
+  date: "연애",
+  lifestyle: "생활",
+  marriage: "결혼관",
+};
+
+const CATEGORY_PRIORITY_ORDER = ["sense", "value", "date", "lifestyle", "marriage"];
+
+function collectTopicKeys(list = []) {
+  return Array.from(
+    new Set(
+      (Array.isArray(list) ? list : [])
+        .map((item) => String(item?.topicKey || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function pickRareCategoryHint(existingCards = [], currentDrafts = []) {
+  const usageMap = CATEGORY_PRIORITY_ORDER.reduce((acc, key) => {
+    acc[key] = 0;
+    return acc;
+  }, {});
+
+  [...existingCards, ...currentDrafts].forEach((item) => {
+    const category = String(item?.category || "").trim();
+    if (usageMap[category] !== undefined) {
+      usageMap[category] += 1;
+    }
+  });
+
+  return CATEGORY_PRIORITY_ORDER.slice().sort((a, b) => usageMap[a] - usageMap[b])[0] || "";
+}
+
+function buildSeedJump(seedIndex = 0) {
+  return ((seedIndex * 31 + Date.now()) % 89) + 17;
+}
 
 function PendingCardItem({
   item,
@@ -119,6 +161,7 @@ function DraftEditor({
           <MiniBadge>{item.categoryLabel || item.category || "-"}</MiniBadge>
           <MiniBadge>{getQuestionTypeLabel(questionType)}</MiniBadge>
           <MiniBadge>{item.source === "ai" ? "AI추천" : item.source || "로컬추천"}</MiniBadge>
+          {item.topicKey ? <MiniBadge>{item.topicKey}</MiniBadge> : null}
         </div>
 
         <button
@@ -169,15 +212,8 @@ function DraftEditor({
             value={item.category || "sense"}
             onChange={(e) => {
               const value = e.target.value;
-              const labelMap = {
-                sense: "센스",
-                value: "가치관",
-                date: "연애",
-                lifestyle: "생활",
-                marriage: "결혼관",
-              };
               onChangeField(item.id, "category", value);
-              onChangeField(item.id, "categoryLabel", labelMap[value] || "기타");
+              onChangeField(item.id, "categoryLabel", CATEGORY_LABEL_MAP[value] || "기타");
             }}
             className="h-11 rounded-md border border-slate-200 bg-white px-3 text-[14px] outline-none"
           >
@@ -205,6 +241,12 @@ function DraftEditor({
           </div>
         ) : null}
 
+        {item.viralWhy ? (
+          <div className="rounded-md border border-violet-100 bg-violet-50 px-3 py-2 text-[12px] leading-5 text-violet-700">
+            왜 이슈가 되기 쉬운가: {item.viralWhy}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <OutlineButton
             onClick={() => onRefreshAI(item)}
@@ -223,32 +265,28 @@ function DraftEditor({
   );
 }
 
-async function requestAIDrafts({ count, existingCards, currentDrafts }) {
+async function requestAIDrafts({
+  count,
+  existingCards,
+  currentDrafts,
+  excludedTopicKeys = [],
+  categoryHint = "",
+}) {
   try {
-    const response = await fetch("/api/admin/cards/recommend", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        count,
-        existingCards,
-        currentDrafts,
-      }),
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const recommendAdminCards = httpsCallable(functions, "recommendAdminCards");
+
+    const result = await recommendAdminCards({
+      count,
+      existingCards,
+      currentDrafts,
+      excludedTopicKeys,
+      categoryHint,
     });
 
-    const text = await response.text();
+    const data = result?.data || {};
 
-    let data = null;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error(
-        `AI 추천 API 응답이 JSON이 아니에요. status=${response.status}, body=${text.slice(0, 120)}`
-      );
-    }
-
-    if (!response.ok || !data?.ok) {
+    if (!data?.ok) {
       throw new Error(data?.message || "AI 추천 초안 생성에 실패했어요.");
     }
 
@@ -285,7 +323,18 @@ export default function CardApprovalTab({
   const [addingOne, setAddingOne] = useState(false);
   const [loadingInitialDrafts, setLoadingInitialDrafts] = useState(false);
   const [refreshingDraftId, setRefreshingDraftId] = useState("");
+
   const seedRef = useRef(0);
+
+  const allTopicKeys = useMemo(
+    () => collectTopicKeys([...existingCards, ...generatedCards]),
+    [existingCards, generatedCards]
+  );
+
+  const rareCategoryHint = useMemo(
+    () => pickRareCategoryHint(existingCards, generatedCards),
+    [existingCards, generatedCards]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -301,9 +350,11 @@ export default function CardApprovalTab({
 
       try {
         const aiResult = await requestAIDrafts({
-          count: 2,
+          count: 4,
           existingCards,
           currentDrafts: [],
+          excludedTopicKeys: allTopicKeys,
+          categoryHint: rareCategoryHint,
         });
 
         const aiDrafts = Array.isArray(aiResult?.drafts) ? aiResult.drafts : [];
@@ -315,13 +366,15 @@ export default function CardApprovalTab({
         }
 
         const fallback = buildRecommendedDrafts({
-          count: 2,
+          count: 4,
           existingCards,
           currentDrafts: [],
           seedStart: seedRef.current,
+          categoryHint: rareCategoryHint,
+          excludedTopicKeys: allTopicKeys,
         });
 
-        seedRef.current += 20;
+        seedRef.current += buildSeedJump(seedRef.current);
 
         if (!cancelled) {
           setGeneratedCards(fallback);
@@ -331,13 +384,15 @@ export default function CardApprovalTab({
         console.error("[CardApprovalTab] initial ai draft error:", error);
 
         const fallback = buildRecommendedDrafts({
-          count: 2,
+          count: 4,
           existingCards,
           currentDrafts: [],
           seedStart: seedRef.current,
+          categoryHint: rareCategoryHint,
+          excludedTopicKeys: allTopicKeys,
         });
 
-        seedRef.current += 20;
+        seedRef.current += buildSeedJump(seedRef.current);
 
         if (!cancelled) {
           setGeneratedCards(fallback);
@@ -355,7 +410,14 @@ export default function CardApprovalTab({
     return () => {
       cancelled = true;
     };
-  }, [bootstrapped, existingCards, generatedCards.length, setGeneratedCards]);
+  }, [
+    bootstrapped,
+    existingCards,
+    generatedCards.length,
+    setGeneratedCards,
+    allTopicKeys,
+    rareCategoryHint,
+  ]);
 
   const handleFieldChange = (id, field, value) => {
     setGeneratedCards((prev) =>
@@ -392,10 +454,15 @@ export default function CardApprovalTab({
     try {
       setAddingOne(true);
 
+      const excludedTopicKeys = collectTopicKeys([...existingCards, ...generatedCards]);
+      const categoryHint = pickRareCategoryHint(existingCards, generatedCards);
+
       const aiResult = await requestAIDrafts({
         count: 1,
         existingCards,
         currentDrafts: generatedCards,
+        excludedTopicKeys,
+        categoryHint,
       });
 
       const aiDrafts = Array.isArray(aiResult?.drafts) ? aiResult.drafts : [];
@@ -410,9 +477,11 @@ export default function CardApprovalTab({
         existingCards,
         currentDrafts: generatedCards,
         seedStart: seedRef.current,
+        categoryHint,
+        excludedTopicKeys,
       });
 
-      seedRef.current += 20;
+      seedRef.current += buildSeedJump(seedRef.current);
 
       if (fallback.length) {
         setGeneratedCards((prev) => [...prev, ...fallback]);
@@ -422,14 +491,19 @@ export default function CardApprovalTab({
     } catch (error) {
       console.error("[CardApprovalTab] add ai draft error:", error);
 
+      const excludedTopicKeys = collectTopicKeys([...existingCards, ...generatedCards]);
+      const categoryHint = pickRareCategoryHint(existingCards, generatedCards);
+
       const fallback = buildRecommendedDrafts({
         count: 1,
         existingCards,
         currentDrafts: generatedCards,
         seedStart: seedRef.current,
+        categoryHint,
+        excludedTopicKeys,
       });
 
-      seedRef.current += 20;
+      seedRef.current += buildSeedJump(seedRef.current);
 
       if (fallback.length) {
         setGeneratedCards((prev) => [...prev, ...fallback]);
@@ -446,11 +520,15 @@ export default function CardApprovalTab({
       setRefreshingDraftId(item.id);
 
       const compareDrafts = generatedCards.filter((draft) => draft.id !== item.id);
+      const excludedTopicKeys = collectTopicKeys([...existingCards, ...compareDrafts]);
+      const categoryHint = pickRareCategoryHint(existingCards, compareDrafts);
 
       const aiResult = await requestAIDrafts({
         count: 1,
         existingCards,
         currentDrafts: compareDrafts,
+        excludedTopicKeys,
+        categoryHint,
       });
 
       const aiDrafts = Array.isArray(aiResult?.drafts) ? aiResult.drafts : [];
@@ -469,9 +547,11 @@ export default function CardApprovalTab({
         existingCards,
         currentDrafts: compareDrafts,
         seedStart: seedRef.current,
+        categoryHint,
+        excludedTopicKeys,
       });
 
-      seedRef.current += 20;
+      seedRef.current += buildSeedJump(seedRef.current);
 
       if (!fallback.length) {
         alert("중복되지 않는 새 추천을 만들지 못했어요.");
@@ -519,15 +599,13 @@ export default function CardApprovalTab({
       <SectionCard
         icon={PiSparkleDuotone}
         title="추천 초안"
-        description="AI 추천 초안을 먼저 받고, 필요하면 다시 추천으로 다른 방향을 받아올 수 있어요."
+        description="AI가 이슈형 연애 질문을 다양하게 추천해줘요. 비슷한 주제는 topicKey 기준으로 최대한 걸러냅니다."
       >
         <div className="grid grid-cols-2 gap-2">
           <OutlineButton onClick={handleAddOne} disabled={addingOne || loadingInitialDrafts}>
             <div className="flex items-center gap-2">
               <PiPlusBold className="text-[14px]" />
-              <span>
-                {addingOne ? "AI 추천 중..." : "카드 1개 더 추가"}
-              </span>
+              <span>{addingOne ? "AI 추천 중..." : "카드 1개 더 추가"}</span>
             </div>
           </OutlineButton>
 
@@ -538,6 +616,11 @@ export default function CardApprovalTab({
           >
             {savingGeneratedCards ? "승인 생성 중..." : "전체 승인 후 생성"}
           </ActionButton>
+        </div>
+
+        <div className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-[12px] leading-5 text-slate-500">
+          최근 추천은 <span className="font-semibold text-slate-700">{rareCategoryHint || "-"}</span> 카테고리를 우선 보강하고 있어요.
+          중복 방지를 위해 같은 topicKey는 다시 추천하지 않도록 처리합니다.
         </div>
 
         <div className="mt-3 space-y-3">

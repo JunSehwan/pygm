@@ -127,7 +127,7 @@ export default function PendingReviewPage({ user }) {
   };
 
   const handleMoveCharmingCard = () => {
-    router.push("/charmingcard");
+    router.push("/cards/list");
   };
 
   const handleMoveProfile = () => {
@@ -154,7 +154,7 @@ export default function PendingReviewPage({ user }) {
         }}
       />
 
-      <div className="relative flex h-screen min-h-screen w-full flex-col bg-white md:h-[760px] md:min-h-[760px]">
+      <div className="relative flex h-full min-h-0 w-full flex-col bg-white">
         <div className="px-5 pt-4 pb-3">
           <button
             type="button"
@@ -221,7 +221,7 @@ export default function PendingReviewPage({ user }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden px-5 pb-5">
+        <div className="min-h-0 flex-1 overflow-hidden px-5 pb-[calc(20px+env(safe-area-inset-bottom))]">
           <div className="grid h-full grid-rows-[auto_1fr] gap-3">
             <div className="rounded-md px-2 py-2 flex justify-between bg-slate-50">
               <div className="">

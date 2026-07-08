@@ -62,7 +62,7 @@ export default function ArenaActionBar({
   onLike,
 }) {
   return (
-    <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3">
+    <div className="shrink-0 border-t border-slate-200 bg-trasparent px-4 py-3">
       <div className="flex items-center justify-center gap-6">
         <ActionButton
           icon={PiClockAfternoonDuotone}

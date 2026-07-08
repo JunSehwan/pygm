@@ -10,7 +10,15 @@ export default function TodayRecommendCard({ card, onClick }) {
       <button
         type="button"
         onClick={onClick}
-        className="w-full rounded-md border border-violet-200 bg-white px-4 py-4 text-left shadow-[0_1px_8px_rgba(15,23,42,0.04)]"
+        className="
+          w-full rounded-md border border-violet-200 bg-white px-4 py-4 text-left
+          shadow-[0_1px_8px_rgba(15,23,42,0.04)]
+          transition-all duration-150 ease-out
+          hover:shadow-[0_8px_24px_rgba(124,58,237,0.10)]
+          active:translate-y-[1px]
+          active:scale-[0.99]
+          active:shadow-sm
+        "
       >
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-[12px] font-medium text-violet-700">
           <FiStar className="text-[13px]" />
@@ -21,6 +29,7 @@ export default function TodayRecommendCard({ card, onClick }) {
           <span className="rounded-md border border-slate-300 bg-slate-100 px-3 py-[6px] text-[12px] font-medium text-slate-500">
             {CARD_CATEGORY_LABEL[card.category] || "카테고리"}
           </span>
+
           <span className="rounded-md border border-slate-300 bg-slate-100 px-3 py-[6px] text-[12px] font-medium text-slate-500">
             {CARD_TYPE_LABEL[card.questionType] || "작성형"}
           </span>
@@ -29,6 +38,7 @@ export default function TodayRecommendCard({ card, onClick }) {
         <div className="text-[17px] font-semibold leading-7 tracking-[-0.02em] text-slate-800">
           {card.title}
         </div>
+
         <p className="mt-1 line-clamp-2 text-[14px] leading-6 text-slate-600">
           {card.body || card.guide || ""}
         </p>

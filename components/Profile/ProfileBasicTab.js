@@ -16,17 +16,17 @@ function Badge({ label, imageSrc, fallbackIcon = "🏆", dark = false }) {
     <div
       className={cn(
         "flex items-center gap-2 rounded-full px-2 py-1",
-        dark ? "bg-[#3f3f46] text-white shadow" : "bg-yellow-50 text-slate-700 border border-slate-200 shadow"
+        dark ? "bg-emerald-500 text-white shadow" : "bg-emerald-50 text-slate-700 border border-slate-200 shadow"
       )}
     >
-      <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white/90">
+      <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-white/90 text-emerald-500">
         {imageSrc ? (
-          <img src={imageSrc} alt={label} className="h-7 w-7 object-contain" />
+          <img src={imageSrc} alt={label} className="h-5 w-5 object-contain" />
         ) : (
           <span className="text-[14px]">{fallbackIcon}</span>
         )}
       </div>
-      <span className="text-[12px] text-yellow-900 font-bold">{label}</span>
+      <span className="text-[12px] font-bold">{label}</span>
     </div>
   );
 }
@@ -96,9 +96,9 @@ function InfoCard({ label, value, muted, locked, onClick, helperRight, subText }
             {value || "미작성"}
           </div>
 
-          {subText ? (
+          {/* {subText ? (
             <div className="mt-1 text-[12px] text-slate-400">{subText}</div>
-          ) : null}
+          ) : null} */}
         </div>
 
         <div
@@ -118,6 +118,88 @@ function InfoCard({ label, value, muted, locked, onClick, helperRight, subText }
   );
 }
 
+function MatchingReviewGuideCard({ state, onMoveReviewPending }) {
+  if (!state) return null;
+
+  const missingItems = Array.isArray(state.missingItems) ? state.missingItems : [];
+
+  if (state.approved) {
+    return (
+      <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3">
+        <div className="text-[13px] font-extrabold text-emerald-700">매칭서비스 이용 가능</div>
+        <p className="mt-1 break-keep text-[12px] leading-5 text-emerald-700/80">
+          프로필 심사가 완료되어 소개 서비스를 이용할 수 있어요.
+        </p>
+      </div>
+    );
+  }
+
+  if (state.pending) {
+    return (
+      <button
+        type="button"
+        onClick={onMoveReviewPending}
+        className="w-full rounded-md border border-violet-100 bg-violet-50 px-4 py-3 text-left transition active:scale-[0.998]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[13px] font-extrabold text-violet-700">데이팅 검토중</div>
+            <p className="mt-1 break-keep text-[12px] leading-5 text-violet-700/75">
+              매칭정보 입력이 완료되어 운영팀이 검토하고 있어요.
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-violet-600 shadow-sm">
+            확인
+          </span>
+        </div>
+      </button>
+    );
+  }
+
+  if (missingItems.length === 0) {
+    return (
+      <div className="rounded-md border border-violet-100 bg-violet-50 px-4 py-3">
+        <div className="text-[13px] font-extrabold text-violet-700">매칭심사 준비 완료</div>
+        <p className="mt-1 break-keep text-[12px] leading-5 text-violet-700/75">
+          저장이 반영되면 데이팅 검토 단계로 넘어가요.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-violet-100 bg-white px-4 py-3 shadow-[0_1px_6px_rgba(15,23,42,0.04)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[13px] font-extrabold text-slate-900">매칭심사 전 필요한 정보</div>
+          <p className="mt-1 break-keep text-[12px] leading-5 text-slate-500">
+            아래 정보를 채우면 매칭이 진행됩니다.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-600">
+          {missingItems.length}개 남음
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {missingItems.slice(0, 5).map((item) => (
+          <span
+            key={item.key}
+            className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600"
+          >
+            {item.label}
+          </span>
+        ))}
+        {missingItems.length > 5 ? (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-400">
+            +{missingItems.length - 5}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfileBasicTab({
   user,
   basicFields,
@@ -126,13 +208,17 @@ export default function ProfileBasicTab({
   onOpenCompanyModal,
   onOpenPhotoModal,
   onIdentityVerify,
+  identityVerifying = false,
+  isContactVerified = false,
+  reviewGuideState = null,
+  onMoveReviewPending,
 }) {
   const styleCard = useMemo(() => getStyleCardData(user), [user]);
 
   const badgeNodes = useMemo(() => {
     const arr = [];
 
-    if (user?.identityVerified) {
+    if (isContactVerified) {
       arr.push(
         <Badge
           key="identity"
@@ -166,7 +252,7 @@ export default function ProfileBasicTab({
     }
 
     return arr;
-  }, [badgeInfo?.top1, badgeInfo?.top5, user?.identityVerified]);
+  }, [badgeInfo?.top1, badgeInfo?.top5, isContactVerified]);
 
   return (
     <div className="space-y-3 px-3 pb-4 pt-4">
@@ -176,6 +262,11 @@ export default function ProfileBasicTab({
           {badgeNodes}
         </div>
       </div>
+
+      <MatchingReviewGuideCard
+        state={reviewGuideState}
+        onMoveReviewPending={onMoveReviewPending}
+      />
 
       <div className="rounded-md border border-slate-200 bg-white px-3 py-3">
         <div className="mb-3 flex items-center justify-between">
@@ -207,17 +298,18 @@ export default function ProfileBasicTab({
               const url = item?.url || "";
               return (
                 <div
-                  key={index}
+                  key={`${index}-${url || "empty"}`}
                   className="relative h-[120px] overflow-hidden rounded-md bg-slate-200"
                 >
                   {url ? (
                     <ImageWithSkeleton
+                      key={url}
                       src={url}
                       alt={`프로필 사진 ${index + 1}`}
                       fill
                       className="h-full w-full"
                       imageClassName="object-cover"
-                      fallbackSrc="/image/logo.png"
+                      fallbackSrc=""
                       unoptimized
                       sizes="(max-width: 768px) 50vw, 220px"
                     />
@@ -237,17 +329,18 @@ export default function ProfileBasicTab({
               const url = item?.url || "";
               return (
                 <div
-                  key={index}
+                  key={`${index}-${url || "empty"}`}
                   className="relative h-[88px] overflow-hidden rounded-md bg-slate-200"
                 >
                   {url ? (
                     <ImageWithSkeleton
+                      key={url}
                       src={url}
                       alt={`프로필 사진 ${index + 1}`}
                       fill
                       className="h-full w-full"
                       imageClassName="object-cover"
-                      fallbackSrc="/image/logo.png"
+                      fallbackSrc=""
                       unoptimized
                       sizes="120px"
                     />
@@ -289,11 +382,23 @@ export default function ProfileBasicTab({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onIdentityVerify();
+                    if (!identityVerifying) onIdentityVerify();
                   }}
-                  className="rounded-full bg-[#eef2ff] px-3 py-1.5 text-[11px] font-medium text-[#3655ff]"
+                  disabled={identityVerifying}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-[11px] font-bold transition",
+                    identityVerifying
+                      ? "cursor-wait bg-slate-100 text-slate-400"
+                      : isContactVerified
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "bg-[#eef2ff] text-[#3655ff]"
+                  )}
                 >
-                  연락처 인증
+                  {identityVerifying
+                    ? "인증 확인중"
+                    : isContactVerified
+                      ? "인증완료"
+                      : "본인인증"}
                 </button>
               ) : null
             }
@@ -312,10 +417,10 @@ export default function ProfileBasicTab({
                 <div className="inline-flex items-center rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-bold text-violet-600">
                   스타일 진단
                 </div>
-                <div className="mt-3 text-[20px] font-black tracking-[-0.03em] text-slate-900">
-                  {styleCard.code || "진단 전"}
+                <div className="mt-3 text-[20px] font-bold text-slate-900">
+                  {styleCard.code || "내 연애스타일을 진단해보세요"}
                 </div>
-                <div className="mt-1 text-[15px] font-semibold text-slate-700">
+                <div className="mt-1 text-[15px] font-semibold text-blue-500">
                   {styleCard.title}
                 </div>
                 <p className="mt-2 max-w-[220px] text-[13px] leading-5 text-slate-500">
@@ -328,7 +433,7 @@ export default function ProfileBasicTab({
                 onClick={() => (window.location.href = "/tests/style")}
                 className="rounded-full bg-[#6e7ee8] px-3 py-2 text-[12px] font-bold text-white shadow-sm"
               >
-                테스트
+                진단받기
               </button>
             </div>
           </div>

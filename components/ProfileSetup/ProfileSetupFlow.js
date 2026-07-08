@@ -3,8 +3,7 @@ import { useRouter } from "next/router";
 import { auth, db } from "firebaseConfig";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-import hangjungdongDefault, { hangjungdong as hangjungdongNamed } from "components/Common/Address";
-const hangjungdong = hangjungdongNamed || hangjungdongDefault;
+import hangjungdong from "components/Common/Address";
 
 import ProfileSetupCard from "./ProfileSetupCard";
 import ConfirmModal from "./ConfirmModal";
@@ -13,6 +12,7 @@ import MbtiModal from "./MbtiModal";
 import { EDUCATION_OPTIONS, JOB_OPTIONS, MARITAL_OPTIONS } from "./constants";
 
 import MarriedBlockedModal from "./MarriedBlockedModal";
+import { buildDatingReviewPatch } from "lib/reviewEligibility";
 
 export default function ProfileSetupFlow() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function ProfileSetupFlow() {
   const [saving, setSaving] = useState(false);
 
   const [firebaseUser, setFirebaseUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState({});
 
   const [form, setForm] = useState({
     maritalStatus: "",
@@ -57,6 +58,13 @@ export default function ProfileSetupFlow() {
 
         if (snap.exists()) {
           const data = snap.data() || {};
+
+          setCurrentUser({
+            userID: u.uid,
+            id: u.uid,
+            ...data,
+          });
+
           setForm((prev) => ({
             ...prev,
             maritalStatus: data.maritalStatus || prev.maritalStatus,
@@ -76,6 +84,11 @@ export default function ProfileSetupFlow() {
               sigugunCode: data?.workArea?.sigugunCode || prev.workArea.sigugunCode,
             },
           }));
+        } else {
+          setCurrentUser({
+            userID: u.uid,
+            id: u.uid,
+          });
         }
       } catch (e) {
         console.error("[ProfileSetupFlow] load error:", e);
@@ -167,8 +180,6 @@ export default function ProfileSetupFlow() {
   };
 
   const handlePickMarital = (value) => {
-    setMaritalSelectOpen(false);
-
     if (value === "married") {
       setForm((prev) => ({ ...prev, maritalStatus: "married" }));
       clearError("maritalStatus");
@@ -227,44 +238,53 @@ export default function ProfileSetupFlow() {
 
       const ref = doc(db, "users", firebaseUser.uid);
 
+      const basePatch = {
+        maritalStatus: form.maritalStatus,
+        mbti: form.mbti,
+        job: form.job,
+        education: form.education,
+
+        residence: {
+          sido: form.residence.sido,
+          sidoCode: form.residence.sidoCode,
+          sigugun: form.residence.sigugun,
+          sigugunCode: form.residence.sigugunCode,
+        },
+        workArea: {
+          sido: form.workArea.sido,
+          sidoCode: form.workArea.sidoCode,
+          sigugun: form.workArea.sigugun,
+          sigugunCode: form.workArea.sigugunCode,
+        },
+
+        address_sido: form.residence.sido,
+        address_sigugun: form.residence.sigugun,
+        company_location_sido: form.workArea.sido,
+        company_location_sigugun: form.workArea.sigugun,
+
+        profile_setup_step: 1,
+        profile_setup_required_done: true,
+        date_sleep: false,
+      };
+
+      const nextUser = {
+        ...(currentUser || {}),
+        ...basePatch,
+      };
+
+      const { patch: reviewPatch } = buildDatingReviewPatch(nextUser, currentUser || {});
+
       await setDoc(
         ref,
         {
-          maritalStatus: form.maritalStatus,
-          mbti: form.mbti,
-          job: form.job,
-          education: form.education,
-
-          // 신규 구조
-          residence: {
-            sido: form.residence.sido,
-            sidoCode: form.residence.sidoCode,
-            sigugun: form.residence.sigugun,
-            sigugunCode: form.residence.sigugunCode,
-          },
-          workArea: {
-            sido: form.workArea.sido,
-            sidoCode: form.workArea.sidoCode,
-            sigugun: form.workArea.sigugun,
-            sigugunCode: form.workArea.sigugunCode,
-          },
-
-          // 기존 필드 호환 저장 (네 프로젝트 기존 코드와 충돌 방지)
-          address_sido: form.residence.sido,
-          address_sigugun: form.residence.sigugun,
-          company_location_sido: form.workArea.sido,
-          company_location_sigugun: form.workArea.sigugun,
-
-          profile_setup_step: 1,
-          profile_setup_required_done: true,
+          ...basePatch,
+          ...reviewPatch,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
 
-      // 다음 단계 페이지 (2/2) 만들기 전까지는 pending으로
       router.push("/profile/photos");
-      // router.push("/profile/setup2");
     } catch (e) {
       console.error("[ProfileSetupFlow] save error:", e);
       alert("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -297,7 +317,7 @@ export default function ProfileSetupFlow() {
       />
 
       {/* 기혼여부 선택 (간단 리스트 모달 형태) */}
-      
+
 
       {/* 기혼 차단 안내 모달 */}
       <MarriedBlockedModal

@@ -2,7 +2,7 @@
 
 
 
-const hangjungdong = {
+export const hangjungdong = {
   sido: [
     { sido: '11', codeNm: '서울특별시' },
     { sido: '12', codeNm: '인천광역시' },

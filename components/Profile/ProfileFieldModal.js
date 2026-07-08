@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FiX } from "react-icons/fi";
-import hangjungdongDefault, { hangjungdong as hangjungdongNamed } from "components/Common/Address";
-
-const hangjungdong = hangjungdongNamed || hangjungdongDefault;
+import hangjungdong from "components/Common/Address";
 
 function cn(...arr) {
   return arr.filter(Boolean).join(" ");
@@ -27,6 +25,42 @@ const MBTI_GROUPS = [
     { key: "P", title: "인식형", desc: "유연/즉흥중심" },
   ],
 ];
+
+
+const MBTI_POSITION_KEYS = ["ei", "sn", "tf", "jp"];
+
+function normalizeMbtiSelection(value) {
+  if (value && typeof value === "object") {
+    return {
+      ei: ["E", "I"].includes(String(value.ei || "").toUpperCase())
+        ? String(value.ei).toUpperCase()
+        : "",
+      sn: ["S", "N"].includes(String(value.sn || "").toUpperCase())
+        ? String(value.sn).toUpperCase()
+        : "",
+      tf: ["T", "F"].includes(String(value.tf || "").toUpperCase())
+        ? String(value.tf).toUpperCase()
+        : "",
+      jp: ["J", "P"].includes(String(value.jp || "").toUpperCase())
+        ? String(value.jp).toUpperCase()
+        : "",
+    };
+  }
+
+  const text = String(value || "").trim().toUpperCase();
+
+  return {
+    ei: ["E", "I"].includes(text[0]) ? text[0] : "",
+    sn: ["S", "N"].includes(text[1]) ? text[1] : "",
+    tf: ["T", "F"].includes(text[2]) ? text[2] : "",
+    jp: ["J", "P"].includes(text[3]) ? text[3] : "",
+  };
+}
+
+function mbtiSelectionToText(value) {
+  const normalized = normalizeMbtiSelection(value);
+  return MBTI_POSITION_KEYS.map((key) => normalized[key] || "_").join("");
+}
 
 function FloatingInput({
   label,
@@ -152,12 +186,15 @@ function SelectGroup({ label, value, options, onChange }) {
 }
 
 function MbtiPicker({ value, onChange }) {
-  const parsed = value && value.length === 4 ? value.split("") : ["", "", "", ""];
+  const parsed = normalizeMbtiSelection(value);
 
   const pick = (groupIndex, key) => {
-    const next = [...parsed];
-    next[groupIndex] = key;
-    onChange(next.join(""));
+    const positionKey = MBTI_POSITION_KEYS[groupIndex];
+
+    onChange({
+      ...parsed,
+      [positionKey]: key,
+    });
   };
 
   return (
@@ -167,14 +204,16 @@ function MbtiPicker({ value, onChange }) {
       <div className="grid grid-cols-2 gap-2">
         {MBTI_GROUPS.map((pair, groupIndex) =>
           pair.map((item) => {
-            const active = parsed[groupIndex] === item.key;
+            const positionKey = MBTI_POSITION_KEYS[groupIndex];
+            const active = parsed[positionKey] === item.key;
+
             return (
               <button
                 key={`${groupIndex}-${item.key}`}
                 type="button"
                 onClick={() => pick(groupIndex, item.key)}
                 className={cn(
-                  "rounded-md border p-3 text-left transition",
+                  "rounded-md border border-solid p-3 text-left transition",
                   active
                     ? "border-violet-300 bg-violet-50 shadow-[0_4px_14px_rgba(139,92,246,0.10)]"
                     : "border-slate-200 bg-white hover:bg-slate-50"
@@ -202,7 +241,7 @@ function MbtiPicker({ value, onChange }) {
       <div className="mt-4 rounded-md border border-violet-100 bg-violet-50/60 px-3 py-3">
         <p className="text-[12px] font-semibold text-slate-500">선택 결과</p>
         <p className="mt-1 text-[20px] font-black tracking-widest text-slate-900">
-          {parsed.map((v) => v || "_").join("")}
+          {mbtiSelectionToText(parsed)}
         </p>
       </div>
     </div>
@@ -336,6 +375,7 @@ export default function ProfileFieldModal({
   const [educationPublic, setEducationPublic] = useState(
     extra?.educationPublic ?? true
   );
+  const [salaryPublic, setSalaryPublic] = useState(extra?.salaryPublic ?? false);
   const [schoolName, setSchoolName] = useState(extra?.schoolName || "");
 
   useEffect(() => {
@@ -345,12 +385,23 @@ export default function ProfileFieldModal({
       setDraftValue(extra?.educationValue || value || "");
       setSchoolName(extra?.schoolName || "");
       setEducationPublic(extra?.educationPublic ?? true);
+      setSalaryPublic(extra?.salaryPublic ?? false);
+      return;
+    }
+
+    if (type === "salary") {
+      setDraftValue(value || "");
+      setCompanyPublic(extra?.companyPublic ?? true);
+      setEducationPublic(extra?.educationPublic ?? true);
+      setSalaryPublic(extra?.salaryPublic ?? false);
+      setSchoolName(extra?.schoolName || "");
       return;
     }
 
     setDraftValue(value || "");
     setCompanyPublic(extra?.companyPublic ?? true);
     setEducationPublic(extra?.educationPublic ?? true);
+    setSalaryPublic(extra?.salaryPublic ?? false);
     setSchoolName(extra?.schoolName || "");
   }, [
     open,
@@ -358,6 +409,7 @@ export default function ProfileFieldModal({
     value,
     extra?.companyPublic,
     extra?.educationPublic,
+    extra?.salaryPublic,
     extra?.schoolName,
     extra?.educationValue,
   ]);
@@ -391,12 +443,19 @@ export default function ProfileFieldModal({
       };
     }
 
+    if (type === "salary") {
+      return {
+        value: String(draftValue || "").trim(),
+        salaryPublic,
+      };
+    }
+
     if (type === "address") {
       return draftValue || {};
     }
 
     return typeof draftValue === "string" ? draftValue.trim() : draftValue;
-  }, [companyPublic, draftValue, educationPublic, schoolName, type]);
+  }, [companyPublic, draftValue, educationPublic, salaryPublic, schoolName, type]);
 
   const headerTitle = title ? `${title} 수정` : "정보 수정";
 
@@ -480,6 +539,23 @@ export default function ProfileFieldModal({
                   options={options}
                   onChange={setDraftValue}
                 />
+              )}
+
+              {type === "salary" && (
+                <>
+                  <SelectGroup
+                    label={title}
+                    value={draftValue}
+                    options={options}
+                    onChange={setDraftValue}
+                  />
+
+                  <VisibilityBox
+                    title="연봉 공개 설정"
+                    visible={salaryPublic}
+                    setVisible={setSalaryPublic}
+                  />
+                </>
               )}
 
               {type === "radio" && (

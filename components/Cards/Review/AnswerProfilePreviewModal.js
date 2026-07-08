@@ -106,9 +106,8 @@ export default function AnswerProfilePreviewModal({
       nickname:
         profile?.nickname ||
         answer?.answererNickname ||
-        answer?.answererUsername ||
         "프로필",
-      username: profile?.username || answer?.answererUsername || "",
+      username: "",
       birthday: profile?.birthday || "",
       mbti: profile?.mbti || "",
       job: profile?.job || "",
@@ -181,7 +180,7 @@ export default function AnswerProfilePreviewModal({
 
                   <div className="min-w-0">
                     <div className="text-[18px] font-semibold text-slate-900">
-                      {mergedProfile?.nickname || mergedProfile?.username || "프로필"}
+                      {mergedProfile?.nickname || "프로필"}
                     </div>
                     <div className="mt-1 text-[14px] text-slate-500">
                       {topSubText || "기본 정보"}

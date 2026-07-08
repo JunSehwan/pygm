@@ -210,7 +210,7 @@ export default function StyleTestFlow() {
     }
   };
 
-  const updateTypeDistributionStats = async (prevTypeCode, nextTypeCode) => {
+  const updateTypeDistributionStats = async (nextTypeCode) => {
     if (!nextTypeCode) return;
 
     const statsRef = doc(db, "appStats", "styleTestDistribution");
@@ -224,16 +224,11 @@ export default function StyleTestFlow() {
         let totalCount =
           typeof statsData.totalCount === "number" ? statsData.totalCount : 0;
 
-        const safePrev = prevTypeCode || "";
-        const safeNext = nextTypeCode || "";
+        const safeNext = String(nextTypeCode || "").trim();
+        if (!safeNext) return;
 
-        if (!safePrev) {
-          counts[safeNext] = (Number(counts[safeNext]) || 0) + 1;
-          totalCount += 1;
-        } else if (safePrev !== safeNext) {
-          counts[safePrev] = Math.max((Number(counts[safePrev]) || 0) - 1, 0);
-          counts[safeNext] = (Number(counts[safeNext]) || 0) + 1;
-        }
+        counts[safeNext] = (Number(counts[safeNext]) || 0) + 1;
+        totalCount += 1;
 
         transaction.set(
           statsRef,
@@ -261,11 +256,6 @@ export default function StyleTestFlow() {
 
     try {
       const userRef = doc(db, "users", firebaseUser.uid);
-      const beforeSnap = await getDoc(userRef);
-      const prevTypeCode =
-        beforeSnap.exists() && beforeSnap.data()?.styleTest?.typeCode
-          ? String(beforeSnap.data().styleTest.typeCode)
-          : "";
 
       await setDoc(
         userRef,
@@ -286,8 +276,6 @@ export default function StyleTestFlow() {
         },
         { merge: true }
       );
-
-      await updateTypeDistributionStats(prevTypeCode, typePayload.code);
     } catch (error) {
       console.error("[StyleTestFlow] save result error:", error);
     }
@@ -361,6 +349,7 @@ export default function StyleTestFlow() {
     setScreen("analyzing");
 
     await increaseTotalAttempts();
+    await updateTypeDistributionStats(nextFinalType.code);
 
     if (firebaseUser?.uid) {
       await saveResultToFirestore(nextFinalType, nextAxisScores, nextAnswers);
@@ -394,7 +383,7 @@ export default function StyleTestFlow() {
       return;
     }
 
-    router.push("/arena/pending");
+    router.push("/arena");
   };
 
   const handleIntroShare = async () => {
@@ -421,9 +410,19 @@ export default function StyleTestFlow() {
   const handleResultShare = async (channel = "system") => {
     if (!finalType || !axisSummary?.length) return;
 
-    const pageUrl = `${window.location.origin}/tests/style/result/${finalType.meta.code}`;
-    const shareUrl = `${window.location.origin}/tests/style/result/${finalType.meta.code}`;
-    const shareText = `내 연애스타일 결과는 ${finalType.meta.ko} (${finalType.meta.code})!\n${finalType.meta.oneLine}\n\n나도 테스트해보기 👇\n${pageUrl}`;
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin || "";
+    const typeCode = finalType.meta.code;
+
+    const resultUrl = `${siteUrl}/tests/style/share/${typeCode}`;
+    const introUrl = `${siteUrl}/tests/style`;
+
+    const title = `내 연애스타일 결과: ${finalType.meta.ko}`;
+    const shareText =
+      `내 차밍수프 연애스타일을 테스트 해봤어요! ${finalType.meta.ko} (${typeCode}) 나왔어요.\n` +
+      `${finalType.meta.oneLine}\n\n` +
+      `📌 내 결과 보기\n${resultUrl}\n\n` +
+      `🩷 테스트 바로하기\n${introUrl}`;
 
     try {
       const { file } = await createStyleResultShareImage({
@@ -433,36 +432,43 @@ export default function StyleTestFlow() {
       });
 
       if (channel === "kakao") {
-        const kakaoShareUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/tests/style/result/${finalType.meta.code}`;
-
         shareResultToKakao({
-          title: `내 연애스타일 결과: ${finalType.meta.ko}`,
-          description: `${String(finalType.meta.oneLine).replace(/\n/g, " ")}\n버튼을 눌러 바로 테스트해보세요`,
-          imageUrl: `${process.env.NEXT_PUBLIC_SITE_URL}${finalType.meta.image}`,
-          shareUrl: kakaoShareUrl,
+          title,
+          description: `${String(finalType.meta.oneLine || "").replace(/\n/g, " ")}\n결과도 보고 테스트도 바로 해보세요.`,
+          imageUrl: `${siteUrl}${finalType.meta.image}`,
+          resultUrl,
+          introUrl,
         });
         return;
       }
 
       if (channel === "facebook") {
-        shareToFacebook({ shareUrl });
-        return;
-      }
+        try {
+          await shareToFacebook({ shareUrl: resultUrl });
+          return;
+        } catch (error) {
+          console.error("[StyleTestFlow] facebook share error:", error);
 
-      if (channel === "sms") {
-        openSmsShare({
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
+          const fallbackUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+            resultUrl
+          )}`;
+
+          window.open(fallbackUrl, "_blank", "width=640,height=720");
+          return;
+        }
       }
 
       if (channel === "instagram") {
         downloadFile(file);
         const copied = await copyText(shareText);
+
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          window.location.href = "instagram://camera";
+        }
+
         if (copied) {
           alert(
-            "결과 이미지가 저장되었고 문구가 복사되었어요. 인스타그램에 이미지 업로드 후 붙여넣어보세요."
+            "결과 이미지가 저장되었고 문구도 복사했어요.\n인스타 스토리나 피드에 바로 붙여넣어 보세요."
           );
         } else {
           alert("결과 이미지가 저장되었어요. 인스타그램에 업로드해보세요.");
@@ -470,20 +476,40 @@ export default function StyleTestFlow() {
         return;
       }
 
+      if (channel === "copy") {
+        const copied = await copyText(shareText);
+        if (copied) {
+          alert("결과 링크와 테스트 바로가기 링크를 복사했어요.");
+        } else {
+          alert("링크 복사에 실패했어요.");
+        }
+        return;
+      }
+
+      if (channel === "save") {
+        downloadFile(file);
+        alert("결과 이미지가 저장되었어요.");
+        return;
+      }
+
       const shared = await shareWithSystem({
-        title: "내 연애스타일 분석결과",
+        title,
         text: shareText,
-        url: pageUrl,
+        url: resultUrl,
         file,
       });
 
       if (!shared.ok) {
-        downloadFile(file);
-        await copyText(shareText);
-        alert("결과 이미지가 다운로드되었고 문구가 복사되었어요.");
+        const copied = await copyText(shareUrl);
+        if (copied) {
+          alert("공유 기능을 사용할 수 없어 링크를 복사했어요.");
+        } else {
+          alert("공유 기능을 사용할 수 없어요.");
+        }
       }
     } catch (error) {
       console.error("[StyleTestFlow] result share error:", error);
+      alert("공유 중 문제가 발생했어요.");
     }
   };
 
@@ -566,7 +592,7 @@ export default function StyleTestFlow() {
         {screen === "result" ? (
           <motion.div
             key="result"
-            className="h-full min-h-0 overflow-hidden"
+            className="h-full min-h-0"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}

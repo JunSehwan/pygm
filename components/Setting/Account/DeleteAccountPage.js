@@ -139,7 +139,7 @@ function getErrorMessage(error) {
   if (merged.includes("not-found")) {
     return "사용자 정보를 찾지 못했어요.";
   }
-  return "계정 삭제 중 문제가 발생했어요.";
+  return "회원 탈퇴 중 문제가 발생했어요.";
 }
 
 export default function DeleteAccountPage() {
@@ -183,7 +183,7 @@ export default function DeleteAccountPage() {
     }
 
     const ok = window.confirm(
-      "정말로 계정을 삭제할까요?\n삭제 후에는 되돌리기 어려울 수 있어요."
+      "정말로 회원 탈퇴를 진행할까요?\n탈퇴 후에는 기존 상태로 복구가 어려울 수 있어요."
     );
 
     if (!ok) return;
@@ -205,7 +205,7 @@ export default function DeleteAccountPage() {
       await signOut(auth);
       dispatch(resetUserState());
 
-      alert("계정이 삭제되었어요.");
+      alert("회원 탈퇴가 완료되었어요.");
       router.replace("/login");
     } catch (error) {
       console.error("[DeleteAccountPage] delete error:", error);
@@ -232,7 +232,7 @@ export default function DeleteAccountPage() {
                 </button>
 
                 <div className="text-[16px] font-bold text-slate-900">
-                  계정 삭제
+                  회원 탈퇴
                 </div>
               </div>
             </header>
@@ -252,9 +252,9 @@ export default function DeleteAccountPage() {
                         서비스 개선에 반영할게요
                       </div>
                       <p className="mt-2 break-keep text-[13px] leading-5 text-slate-500">
-                        계정 삭제와 함께 프로필, 차밍카드, 반응 등
+                        탈퇴 시 프로필 노출과 매칭 이용이 중단되고
                         <br />
-                        내 흔적이 함께 정리될 수 있어요.
+                        공개될 수 있는 개인정보가 정리돼요.
                       </p>
                     </div>
                   </div>
@@ -336,19 +336,19 @@ export default function DeleteAccountPage() {
                       checked={agreeProfileLoss}
                       onToggle={() => setAgreeProfileLoss((prev) => !prev)}
                     >
-                      탈퇴가 진행되면 프로필, 매칭 이력, 차밍카드 관련 정보가 유지되지 않을 수 있다는 점을 확인했어요.
+                      탈퇴가 진행되면 프로필 노출과 매칭 이용이 중단되고, 공개될 수 있는 개인정보가 정리된다는 점을 확인했어요.
                     </CheckRow>
 
                     <CheckRow
                       checked={agreeNoRecovery}
                       onToggle={() => setAgreeNoRecovery((prev) => !prev)}
                     >
-                      탈퇴 후에는 같은 상태로 복구가 어려울 수 있다는 점을 확인했어요.
+                      탈퇴 후에는 같은 상태로 복구가 어렵고, 재이용 시 다시 가입/심사가 필요할 수 있다는 점을 확인했어요.
                     </CheckRow>
                   </div>
                 </section>
               </div>
-            <div className="inset-x-0 pb-[64px] z-30 border-t border-slate-200 pt-2">
+            <div className="inset-x-0 z-30 border-t border-slate-200 pt-2">
               <button
                 type="button"
                 onClick={handleSubmit}
@@ -356,7 +356,7 @@ export default function DeleteAccountPage() {
                 style={{ cursor: canSubmit ? "pointer" : "default" }}
                 className="flex h-12 w-full items-center justify-center rounded-md bg-rose-500 text-[14px] font-semibold text-white transition hover:bg-rose-600 disabled:opacity-50"
               >
-                {saving ? "계정 삭제 중..." : "계정 삭제하기"}
+                {saving ? "회원 탈퇴 중..." : "회원 탈퇴하기"}
               </button>
             </div>
             </div>

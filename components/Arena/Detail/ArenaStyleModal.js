@@ -64,18 +64,63 @@ export default function ArenaStyleModal({ open, onClose, user }) {
   const axisLetters = getStyleAxisLetters(user || {});
   const styleLine = getStyleDisplayLine(user || {});
   const tooltip = getStyleTooltipText(user || {});
+
+  
   const oneLine =
     user?.styleTest?.oneLine ||
     user?.styleTest?.summary ||
     user?.styleTest?.subTitle ||
     user?.styleTest?.description ||
     "";
-  const styleImage = user?.styleTest?.image || user?.styleTest?.characterImage || "";
+  const STYLE_TYPE_IMAGE_MAP = {
+    DSFR: "/image/tests/style/type_1.png",
+    DSFC: "/image/tests/style/type_2.png",
+    DSTR: "/image/tests/style/type_3.png",
+    DSTC: "/image/tests/style/type_4.png",
+
+    DNFR: "/image/tests/style/type_5.png",
+    DNFC: "/image/tests/style/type_6.png",
+    DNTR: "/image/tests/style/type_7.png",
+    DNTC: "/image/tests/style/type_8.png",
+
+    ASFR: "/image/tests/style/type_9.png",
+    ASFC: "/image/tests/style/type_10.png",
+    ASTR: "/image/tests/style/type_11.png",
+    ASTC: "/image/tests/style/type_12.png",
+
+    ANFR: "/image/tests/style/type_13.png",
+    ANFC: "/image/tests/style/type_14.png",
+    ANTR: "/image/tests/style/type_15.png",
+    ANTC: "/image/tests/style/type_16.png",
+  };
+
+  const getStyleImageSrc = (user = {}) => {
+    const styleTest = user?.styleTest || {};
+
+    if (styleTest.image) return styleTest.image;
+    if (styleTest.characterImage) return styleTest.characterImage;
+
+    const typeCode =
+      String(
+        styleTest.typeCode ||
+        styleTest.code ||
+        styleTest.resultCode ||
+        getStyleAxisLetters(user || {}) ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+    return STYLE_TYPE_IMAGE_MAP[typeCode] || "";
+  };
+
+  const styleImage = getStyleImageSrc(user || {});
+
   const bars = extractStyleBars(user?.styleTest || {});
 
   return (
     <ModalFrame open={open} onClose={onClose} title="스타일 진단">
-      <div className="rounded-[16px] bg-slate-50 px-5 py-6">
+      <div className="rounded-[16px] px-5 py-6">
         <div className="text-center">
           <div className="text-[15px] font-semibold text-slate-500">
             {getDisplayName(user || {})}님의 스타일은

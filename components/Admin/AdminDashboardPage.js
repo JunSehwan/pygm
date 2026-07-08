@@ -22,20 +22,25 @@ import CardApprovalTab from "./adminTabs/CardApprovalTab";
 import ReportReviewTab from "./adminTabs/ReportReviewTab";
 import PaymentTab from "./adminTabs/PaymentTab";
 import MatchTab from "./adminTabs/MatchTab";
+import BroadcastDashboardTab from "./adminTabs/BroadcastDashboardTab";
 import {
   approveCard,
+  approveProfileReview,
   approveUser,
   bulkApproveLegacyUsers,
+  bulkApproveProfileReviews,
   confirmPayment,
   getDisplayName,
   getReasonLabelByCode,
   getUserApprovalState,
   getUserDocId,
   isPendingCard,
+  isProfileReviewTarget,
   normalizeQuestionType,
   rejectCard,
   rejectUser,
   resolveReportAction,
+  sendProfileIncompleteSms,
   saveGeneratedCards,
   toMillis,
   CARD_REJECTION_REASONS,
@@ -73,9 +78,13 @@ export default function AdminDashboardPage() {
   const [payments, setPayments] = useState([]);
   const [matches, setMatches] = useState([]);
 
+  const [interests, setInterests] = useState([]);
+  const [answers, setAnswers] = useState([]);
+
   const [selectedUser, setSelectedUser] = useState(null);
   const [busyUserId, setBusyUserId] = useState("");
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkApprovingProfileReviews, setBulkApprovingProfileReviews] = useState(false);
   const [bulkGrantingLegacySpoons, setBulkGrantingLegacySpoons] = useState(false);
   const [busyApproveCardId, setBusyApproveCardId] = useState("");
   const [busyRejectCardId, setBusyRejectCardId] = useState("");
@@ -83,6 +92,7 @@ export default function AdminDashboardPage() {
   const [savingGeneratedCards, setSavingGeneratedCards] = useState(false);
   const [busyReportKey, setBusyReportKey] = useState("");
   const [busyPaymentId, setBusyPaymentId] = useState("");
+  const [busyProfileGuideUserId, setBusyProfileGuideUserId] = useState("");
   const [memberKeyword, setMemberKeyword] = useState("");
 
   useEffect(() => {
@@ -200,6 +210,30 @@ export default function AdminDashboardPage() {
       }
     );
 
+    const unsubInterests = onSnapshot(
+      query(collection(db, "arenaInterests")),
+      (snapshot) => {
+        setInterests(
+          snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+        );
+      },
+      (error) => {
+        console.error("[admin] arenaInterests snapshot error:", error);
+      }
+    );
+
+    const unsubAnswers = onSnapshot(
+      query(collection(db, "charmingCardAnswers")),
+      (snapshot) => {
+        setAnswers(
+          snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+        );
+      },
+      (error) => {
+        console.error("[admin] charmingCardAnswers snapshot error:", error);
+      }
+    );
+
     return () => {
       unsubUsers();
       unsubCards();
@@ -207,6 +241,8 @@ export default function AdminDashboardPage() {
       unsubCardReports();
       unsubPayments();
       unsubMatches();
+      unsubInterests();
+      unsubAnswers();
     };
   }, [isAdmin]);
 
@@ -217,6 +253,16 @@ export default function AdminDashboardPage() {
       if (id) next[id] = item;
     });
     return next;
+  }, [users]);
+
+  const profileReviewUsers = useMemo(() => {
+    return [...users]
+      .filter((item) => getUserApprovalState(item) === "profileReview")
+      .sort(
+        (a, b) =>
+          toMillis(b.reviewRequestedAt || b.updatedAt || b.profilePhotoUpdatedAt) -
+          toMillis(a.reviewRequestedAt || a.updatedAt || a.profilePhotoUpdatedAt)
+      );
   }, [users]);
 
   const pendingUsers = useMemo(() => {
@@ -284,15 +330,21 @@ export default function AdminDashboardPage() {
 
   const counts = useMemo(
     () => ({
+      profileReviewUsers: profileReviewUsers.length,
       pendingUsers: pendingUsers.length,
       legacyUsers: legacyUsers.length,
+      approvalUsers:
+        profileReviewUsers.length + pendingUsers.length + legacyUsers.length,
       totalUsers: users.length,
       pendingCards: pendingCards.length,
       pendingReports: reportItems.length,
       pendingPayments: pendingPayments.length,
       successMatches: successMatches.length,
+      totalInterests: interests.length,
+      totalAnswers: answers.length,
     }),
     [
+      profileReviewUsers.length,
       pendingUsers.length,
       legacyUsers.length,
       users.length,
@@ -300,6 +352,8 @@ export default function AdminDashboardPage() {
       reportItems.length,
       pendingPayments.length,
       successMatches.length,
+      interests.length,
+      answers.length,
     ]
   );
 
@@ -327,6 +381,25 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error("[admin] approve user error:", error);
       alert("회원 승인 처리 중 문제가 발생했어요.");
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
+  const handleApproveProfileReview = async (item) => {
+    try {
+      setBusyUserId(getUserDocId(item));
+      await approveProfileReview({
+        db,
+        item,
+        adminUid: firebaseUser?.uid || "",
+      });
+
+      alert(`${getDisplayName(item)} 회원의 프로필 재심사를 승인했어요. 문자는 발송하지 않았어요.`);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error("[admin] approve profile review error:", error);
+      alert("프로필 재심사 승인 처리 중 문제가 발생했어요.");
     } finally {
       setBusyUserId("");
     }
@@ -373,6 +446,28 @@ export default function AdminDashboardPage() {
       alert("기존 가입자 일괄 승인 중 문제가 발생했어요.");
     } finally {
       setBulkApproving(false);
+    }
+  };
+
+  const handleBulkApproveProfileReviews = async () => {
+    const ok = window.confirm(
+      `기존 승인회원의 프로필 재심사 요청 ${profileReviewUsers.length}건을 문자 없이 일괄 승인할까요?`
+    );
+    if (!ok) return;
+
+    try {
+      setBulkApprovingProfileReviews(true);
+      const count = await bulkApproveProfileReviews({
+        db,
+        users: profileReviewUsers,
+        adminUid: firebaseUser?.uid || "",
+      });
+      alert(`프로필 재심사 요청 ${count}건을 문자 없이 일괄 승인했어요.`);
+    } catch (error) {
+      console.error("[admin] bulk approve profile reviews error:", error);
+      alert("프로필 재심사 일괄 승인 중 문제가 발생했어요.");
+    } finally {
+      setBulkApprovingProfileReviews(false);
     }
   };
 
@@ -644,18 +739,72 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleSendProfileIncompleteSms = async (item, reasonCode) => {
+    const userId = getUserDocId(item);
+
+    if (!userId) {
+      alert("회원 문서 ID를 찾지 못했어요.");
+      return;
+    }
+
+    if (!reasonCode) {
+      alert("보완 안내 사유를 선택해주세요.");
+      return;
+    }
+
+    const ok = window.confirm(
+      `${getDisplayName(item)} 회원에게 매칭 이용 보완 안내 문자를 보낼까요?`
+    );
+
+    if (!ok) return;
+
+    try {
+      setBusyProfileGuideUserId(userId);
+
+      await sendProfileIncompleteSms({
+        db,
+        item,
+        adminUid: firebaseUser?.uid || "",
+        sendLms,
+        reasonCode,
+      });
+
+      alert(`${getDisplayName(item)} 회원에게 보완 안내 문자를 보냈어요.`);
+    } catch (error) {
+      console.error("[admin] send profile incomplete sms error:", error);
+      alert("보완 안내 문자 발송 중 문제가 발생했어요.");
+    } finally {
+      setBusyProfileGuideUserId("");
+    }
+  };
+
   const renderTab = () => {
+    if (activeTab === "broadcast") {
+      return (
+        <BroadcastDashboardTab
+          users={users}
+          cards={cards}
+          payments={payments}
+          matches={matches}
+          interests={interests}
+          answers={answers}
+        />
+      );
+    }
     if (activeTab === "users") {
       return (
         <UserApprovalTab
-          users={[...pendingUsers, ...legacyUsers]}
+          users={[...profileReviewUsers, ...pendingUsers, ...legacyUsers]}
           onApproveUser={handleApproveUser}
+          onApproveProfileReview={handleApproveProfileReview}
           onRejectUser={handleRejectUser}
+          onBulkApproveProfileReviews={handleBulkApproveProfileReviews}
           onBulkApproveLegacyUsers={handleBulkApproveLegacy}
           onBulkGrantLegacySpoons={handleBulkGrantLegacySpoons}
           onOpenUserDetail={(item) => setSelectedUser(item)}
           approvingUserId={busyUserId}
           bulkApproving={bulkApproving}
+          bulkApprovingProfileReviews={bulkApprovingProfileReviews}
           bulkGrantingLegacySpoons={bulkGrantingLegacySpoons}
         />
       );
@@ -742,11 +891,20 @@ export default function AdminDashboardPage() {
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
         onApprove={
-          selectedUser && activeTab === "users"
+          selectedUser && activeTab === "users" && !isProfileReviewTarget(selectedUser)
             ? (bonusSpoons) => handleApproveUser(selectedUser, bonusSpoons)
             : null
         }
+        onApproveProfileReview={
+          selectedUser && isProfileReviewTarget(selectedUser)
+            ? () => handleApproveProfileReview(selectedUser)
+            : null
+        }
         approving={
+          busyUserId ===
+          ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
+        }
+        approvingProfileReview={
           busyUserId ===
           ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
         }
@@ -758,6 +916,11 @@ export default function AdminDashboardPage() {
         onGrantSpoons={handleGrantSpoons}
         grantingSpoons={
           busyUserId ===
+          ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
+        }
+        onSendProfileIncompleteSms={handleSendProfileIncompleteSms}
+        sendingProfileIncompleteSms={
+          busyProfileGuideUserId ===
           ((selectedUser && (selectedUser.id || selectedUser.uid || selectedUser.userId)) || "")
         }
       />
