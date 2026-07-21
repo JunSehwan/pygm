@@ -3,6 +3,8 @@ import { FiImage, FiMove, FiPlus, FiStar, FiTrash2 } from "react-icons/fi";
 import { FieldError, useObjectUrl } from "./FormControls";
 import { cx } from "./helpers";
 
+const MAX_PROFILE_PHOTOS = 5;
+
 function PhotoCard({ file, index, isMain, onRemove, onDragStart, onDrop }) {
   const previewUrl = useObjectUrl(file);
 
@@ -12,7 +14,7 @@ function PhotoCard({ file, index, isMain, onRemove, onDragStart, onDrop }) {
       onDragStart={() => onDragStart(index)}
       onDragOver={(event) => event.preventDefault()}
       onDrop={() => onDrop(index)}
-      className="group relative min-h-[178px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 md:min-h-[205px]"
+      className="group relative aspect-[4/5] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
     >
       {previewUrl ? (
         <img src={previewUrl} alt={`사진 ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />
@@ -55,12 +57,12 @@ export default function PhotoUploadGrid({ representativePhoto, additionalPhotos 
   const [dragIndex, setDragIndex] = useState(null);
 
   const photos = useMemo(
-    () => [representativePhoto, ...(additionalPhotos || [])].filter(Boolean).slice(0, 4),
+    () => [representativePhoto, ...(additionalPhotos || [])].filter(Boolean).slice(0, MAX_PROFILE_PHOTOS),
     [representativePhoto, additionalPhotos]
   );
 
   const commitPhotos = (nextPhotos) => {
-    const compact = nextPhotos.filter(Boolean).slice(0, 4);
+    const compact = nextPhotos.filter(Boolean).slice(0, MAX_PROFILE_PHOTOS);
     setForm((prev) => ({
       ...prev,
       representativePhoto: compact[0] || null,
@@ -71,7 +73,7 @@ export default function PhotoUploadGrid({ representativePhoto, additionalPhotos 
   const appendFiles = (files) => {
     const selected = Array.from(files || []).filter(Boolean);
     if (!selected.length) return;
-    commitPhotos([...photos, ...selected].slice(0, 4));
+    commitPhotos([...photos, ...selected].slice(0, MAX_PROFILE_PHOTOS));
   };
 
   const removePhoto = (index) => {
@@ -102,7 +104,7 @@ export default function PhotoUploadGrid({ representativePhoto, additionalPhotos 
         }}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {photos.map((file, index) => (
           <PhotoCard
             key={`${file.name}_${file.size}_${index}`}
@@ -115,12 +117,12 @@ export default function PhotoUploadGrid({ representativePhoto, additionalPhotos 
           />
         ))}
 
-        {photos.length < 4 ? (
+        {photos.length < MAX_PROFILE_PHOTOS ? (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             className={cx(
-              "flex min-h-[178px] flex-col items-center justify-center rounded-2xl border border-dashed bg-white px-3 py-4 text-center transition hover:border-black hover:bg-slate-50 md:min-h-[205px]",
+              "flex aspect-[4/5] flex-col items-center justify-center rounded-2xl border border-dashed bg-white px-3 py-4 text-center transition hover:border-black hover:bg-slate-50",
               error ? "border-red-300" : "border-slate-200"
             )}
           >
@@ -128,13 +130,13 @@ export default function PhotoUploadGrid({ representativePhoto, additionalPhotos 
               <FiPlus />
             </div>
             <div className="text-sm font-black leading-5 text-slate-950">사진 여러 장 선택</div>
-            <div className="mt-1 text-xs leading-5 text-slate-400">최대 4장까지 등록</div>
+            <div className="mt-1 text-xs leading-5 text-slate-400">최대 5장</div>
           </button>
         ) : null}
       </div>
 
       <div className="mt-3 text-xs leading-5 text-slate-500">
-        여러 장을 한 번에 선택할 수 있고, 사진을 드래그해 맨 앞으로 옮기면 대표 사진이 됩니다.
+        권장 4:5 · 1080×1350px. 첫 사진이 대표사진입니다.
       </div>
       <FieldError>{error}</FieldError>
     </div>

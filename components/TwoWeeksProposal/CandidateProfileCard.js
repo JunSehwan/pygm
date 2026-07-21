@@ -76,7 +76,7 @@ export default function CandidateProfileCard({
           <div className="mt-4 flex items-start gap-3 rounded-2xl bg-zinc-950 px-4 py-4 text-white">
             <FiLock className="mt-1 shrink-0 text-orange-400" />
             <p className="break-keep text-xs leading-6 text-zinc-300">
-              실명, 연락처, 회사명, 인증자료는 제안 단계에서 공개되지 않습니다.
+              연락처와 인증자료는 공개되지 않습니다. 회사명은 양쪽 진행 의사 확인 후 공개됩니다.
               사진은 사용자가 업로드한 이미지를 흐림 처리해 확인할 수 있습니다.
             </p>
           </div>

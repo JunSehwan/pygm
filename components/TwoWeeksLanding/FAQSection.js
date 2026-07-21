@@ -8,7 +8,7 @@ import { reveal } from "./motionConfig";
 
 function FAQItem({ item, open, onToggle }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-solid border-zinc-200 bg-white">
       <button
         type="button"
         onClick={onToggle}
@@ -26,7 +26,7 @@ function FAQItem({ item, open, onToggle }) {
 
       <div className={`grid transition-all duration-300 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
-          <div className="break-keep border-t border-zinc-100 px-5 py-5 text-sm leading-7 text-zinc-600 md:px-7 md:text-base">
+          <div className="break-keep border-solid border-t border-zinc-100 px-5 py-5 text-sm leading-7 text-zinc-600 md:px-7 md:text-base">
             {item.a}
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function FAQSection() {
           <SectionTitle
             eyebrow="faq"
             title="자주 묻는 질문"
-            desc="처음 신청하는 분들이 가장 궁금해하는 내용들을 정리했습니다."
+            desc="어떤 부분이 궁금하시나요?"
           />
         </motion.div>
 

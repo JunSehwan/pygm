@@ -2,14 +2,146 @@ import { useEffect, useState } from "react";
 import { serverTimestamp } from "firebase/firestore";
 import { ActionButton, FieldRow, Section } from "./AdminCommon";
 import {
+  formatAgeBirth,
   formatBirthYear,
   formatPhone,
   getBasic,
   getGenderLabel,
   getIdentity,
-  getProfilePhoto,
   normalizeArray,
 } from "./utils";
+
+
+function getPhotoUrl(photo) {
+  if (!photo) return "";
+  if (typeof photo === "string") return photo;
+  return photo.url || photo.downloadURL || photo.src || photo.previewUrl || "";
+}
+
+function getPhotoName(photo, fallback = "") {
+  if (!photo || typeof photo === "string") return fallback;
+  return photo.name || photo.fileName || photo.originalName || fallback;
+}
+
+function getApplicationPhotos(application = {}) {
+  const identity = getIdentity(application);
+  const photos = [];
+  const seen = new Set();
+
+  const pushPhoto = (photo, label) => {
+    const url = getPhotoUrl(photo);
+    if (!url || seen.has(url)) return;
+
+    seen.add(url);
+    photos.push({
+      url,
+      label,
+      name: getPhotoName(photo, label),
+      raw: photo,
+    });
+  };
+
+  pushPhoto(identity.representativePhoto, "대표 사진");
+
+  if (Array.isArray(identity.additionalPhotos)) {
+    identity.additionalPhotos.forEach((photo, index) => {
+      pushPhoto(photo, `추가 사진 ${index + 1}`);
+    });
+  }
+
+  if (Array.isArray(identity.photos)) {
+    identity.photos.forEach((photo, index) => {
+      pushPhoto(photo, `사진 ${index + 1}`);
+    });
+  }
+
+  if (Array.isArray(application.profilePhotos)) {
+    application.profilePhotos.forEach((photo, index) => {
+      pushPhoto(photo, `프로필 사진 ${index + 1}`);
+    });
+  }
+
+  return photos;
+}
+
+function PhotoGallery({ photos = [], selectedIndex, onSelect }) {
+  const selectedPhoto = photos[selectedIndex] || photos[0];
+
+  if (!photos.length) {
+    return (
+      <div className="flex aspect-[4/5] w-full items-center justify-center border border-zinc-200 bg-zinc-50 text-sm font-bold text-zinc-400">
+        사진 없음
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="overflow-hidden border border-zinc-200 bg-zinc-50">
+        <div className="relative aspect-[4/5]">
+          <img
+            src={selectedPhoto.url}
+            alt={selectedPhoto.label || "프로필 사진"}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute left-3 top-3 rounded bg-black/70 px-2.5 py-1 text-[11px] font-black text-white">
+            {selectedPhoto.label || "사진"}
+          </div>
+          <a
+            href={selectedPhoto.url}
+            target="_blank"
+            rel="noreferrer"
+            className="absolute bottom-3 right-3 rounded bg-white/95 px-2.5 py-1 text-[11px] font-black text-zinc-800 shadow hover:bg-white"
+          >
+            원본 보기
+          </a>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="text-xs font-black text-zinc-400">
+          등록 사진 {photos.length}장
+        </div>
+        <div className="text-xs font-bold text-zinc-500">
+          작은 사진을 누르면 위에 크게 표시됩니다.
+        </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-5 lg:grid-cols-4">
+        {photos.map((photo, index) => {
+          const active = index === selectedIndex;
+
+          return (
+            <button
+              key={`${photo.url}_${index}`}
+              type="button"
+              onClick={() => onSelect(index)}
+              className={`group overflow-hidden border bg-zinc-50 transition ${
+                active
+                  ? "border-orange-500 ring-2 ring-orange-500/25"
+                  : "border-zinc-200 hover:border-zinc-500"
+              }`}
+              title={photo.label}
+            >
+              <div className="relative aspect-square">
+                <img
+                  src={photo.url}
+                  alt={photo.label || `사진 ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <div className={`absolute inset-x-0 bottom-0 px-1 py-1 text-[10px] font-black text-white ${
+                  active ? "bg-orange-600" : "bg-black/55 group-hover:bg-black/70"
+                }`}>
+                  {index + 1}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function ApplicantModal({
   open,
@@ -21,10 +153,12 @@ export default function ApplicantModal({
   busyId,
 }) {
   const [reasonText, setReasonText] = useState("프로필 사진, 직업/회사 정보, 인증자료를 다시 확인해주세요.");
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
   useEffect(() => {
     if (open) {
       setReasonText("프로필 사진, 직업/회사 정보, 인증자료를 다시 확인해주세요.");
+      setSelectedPhotoIndex(0);
     }
   }, [open, application?.id]);
 
@@ -33,7 +167,8 @@ export default function ApplicantModal({
   const basic = getBasic(application);
   const identity = getIdentity(application);
   const busy = busyId === application.id;
-  const photo = getProfilePhoto(application);
+  const photos = getApplicationPhotos(application);
+  const safeSelectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(photos.length - 1, 0));
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/60 px-3 py-4 backdrop-blur-sm sm:px-6">
@@ -45,7 +180,7 @@ export default function ApplicantModal({
               {basic.name || "-"} · {basic.nickname || "-"}
             </h2>
             <p className="mt-1 text-sm font-semibold text-zinc-500">
-              {getGenderLabel(basic.gender)} · {formatBirthYear(basic.birthYear)} · {formatPhone(basic.phone || basic.phoneNormalized)}
+              {getGenderLabel(basic.gender)} · {formatAgeBirth(application)} · {formatPhone(basic.phone || basic.phoneNormalized)}
             </p>
           </div>
 
@@ -63,19 +198,18 @@ export default function ApplicantModal({
             <Section title="프로필 상세" desc="신청자가 제출한 프로필과 인증자료입니다.">
               <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
                 <div>
-                  {photo ? (
-                    <img src={photo} alt="" className="aspect-[4/5] w-full border border-zinc-200 object-cover" />
-                  ) : (
-                    <div className="flex aspect-[4/5] items-center justify-center border border-zinc-200 bg-zinc-50 text-sm font-bold text-zinc-400">
-                      사진 없음
-                    </div>
-                  )}
+                  <PhotoGallery
+                    photos={photos}
+                    selectedIndex={safeSelectedPhotoIndex}
+                    onSelect={setSelectedPhotoIndex}
+                  />
+
                   {identity.verificationDocument?.url ? (
                     <a
                       href={identity.verificationDocument.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-2 block border border-zinc-200 bg-white px-3 py-2 text-center text-xs font-black text-zinc-700 hover:border-zinc-950"
+                      className="mt-3 block border border-zinc-200 bg-white px-3 py-2 text-center text-xs font-black text-zinc-700 hover:border-zinc-950"
                     >
                       인증자료 보기
                     </a>
@@ -85,7 +219,7 @@ export default function ApplicantModal({
                 <div className="border border-zinc-200 bg-white px-4">
                   <FieldRow label="이름" value={basic.name} />
                   <FieldRow label="닉네임" value={basic.nickname} />
-                  <FieldRow label="출생" value={`${formatBirthYear(basic.birthYear)} / ${basic.age || "-"}세`} />
+                  <FieldRow label="출생" value={formatAgeBirth(application)} />
                   <FieldRow label="성별" value={getGenderLabel(basic.gender)} />
                   <FieldRow label="연락처" value={formatPhone(basic.phone || basic.phoneNormalized)} />
                   <FieldRow label="직업" value={`${identity.jobCategory || "-"} · ${identity.organizationName || "-"}`} />
@@ -136,8 +270,8 @@ export default function ApplicantModal({
               </div>
             </Section>
 
-            <Section title="상태 수동 변경" desc="필요할 때만 수동으로 상태를 변경합니다.">
-              <div className="grid gap-3 md:grid-cols-3">
+            <Section title="상태 수동 변경" desc="프로필 검토와 입금 상태만 수동 변경합니다. 후보 제안/확정은 매칭보드에서 처리합니다.">
+              <div className="grid gap-3 md:grid-cols-2">
                 <div className="border border-zinc-200 bg-white p-3">
                   <div className="mb-3 text-xs font-black text-zinc-400">검토 상태</div>
                   <div className="flex flex-wrap gap-2">
@@ -157,15 +291,6 @@ export default function ApplicantModal({
                   </div>
                 </div>
 
-                <div className="border border-zinc-200 bg-white p-3">
-                  <div className="mb-3 text-xs font-black text-zinc-400">매칭 상태</div>
-                  <div className="flex flex-wrap gap-2">
-                    <ActionButton disabled={busy} onClick={() => onUpdate(application.id, { matchingStatus: "not_started", updatedAt: serverTimestamp() })} tone="light">대기</ActionButton>
-                    <ActionButton disabled={busy} onClick={() => onUpdate(application.id, { matchingStatus: "proposed", updatedAt: serverTimestamp() })} tone="warn">제안</ActionButton>
-                    <ActionButton disabled={busy} onClick={() => onUpdate(application.id, { matchingStatus: "confirmed", updatedAt: serverTimestamp() })} tone="good">확정</ActionButton>
-                    <ActionButton disabled={busy} onClick={() => onUpdate(application.id, { matchingStatus: "completed", updatedAt: serverTimestamp() })} tone="dark">완료</ActionButton>
-                  </div>
-                </div>
               </div>
             </Section>
           </div>

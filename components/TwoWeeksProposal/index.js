@@ -14,10 +14,15 @@ import {
   loadApplicationByAccessToken,
   loadApplicationByVerifiedPhone,
   saveProposalResponse,
+  saveScheduleChoices,
+  saveScheduleFinalChoice,
+  savePreMeetingNote,
+  saveMeetingAttendance,
   sendDashboardLookupCode,
   updateApplicationProfile,
 } from "./proposalService";
 import { normalizePhone } from "./helpers";
+import LoadingSpinner from "../TwoWeeksShared/LoadingSpinner";
 
 class DashboardErrorBoundary extends Component {
   constructor(props) {
@@ -38,13 +43,13 @@ class DashboardErrorBoundary extends Component {
       return (
         <main className="min-h-[calc(100svh-64px)] bg-[#f6f3ef] px-5 py-8 md:min-h-[calc(100svh-80px)] md:px-8">
           <div className="mx-auto w-full max-w-3xl rounded-[32px] border border-zinc-200 bg-white p-8 text-center">
-            <h1 className="text-2xl font-black tracking-[-0.04em] text-zinc-950">
+            <h1 className="text-2xl font-bold tracking-[-0.04em] text-zinc-950">
               화면을 불러오지 못했습니다.
             </h1>
             <button
               type="button"
               onClick={this.props.onReset}
-              className="mt-6 h-12 rounded-full bg-zinc-950 px-6 text-sm font-black text-white"
+              className="mt-6 h-12 rounded-full bg-zinc-950 px-6 text-sm font-bold text-white"
             >
               다시 조회하기
             </button>
@@ -63,8 +68,8 @@ function ProcessingOverlay({ message }) {
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 px-5 backdrop-blur-sm">
       <div className="w-full max-w-[360px] rounded-[28px] bg-white p-7 text-center shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
-        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-950" />
-        <div className="mt-5 whitespace-pre-line text-lg font-black tracking-[-0.03em] text-slate-950">
+        <LoadingSpinner size="lg" tone="dark" className="mx-auto" />
+        <div className="mt-5 whitespace-pre-line text-lg font-bold tracking-[-0.03em] text-slate-950">
           {message}
         </div>
       </div>
@@ -137,11 +142,12 @@ function clearStoredSession() {
   }
 }
 
-function buildSmsCodeProfile(phone) {
+function buildSmsCodeProfile(phone, applicationId = "") {
   return {
     verified: true,
     method: PROPOSAL_SMS_SESSION_METHOD,
     phone: normalizePhone(phone),
+    applicationId,
     verifiedAtClient: new Date().toISOString(),
   };
 }
@@ -196,6 +202,9 @@ export default function TwoWeeksProposalDashboard() {
 
   const [responseStatus, setResponseStatus] = useState("");
   const [savingResponse, setSavingResponse] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [savingPreMeetingNote, setSavingPreMeetingNote] = useState(false);
+  const [savingAttendance, setSavingAttendance] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileUploadProgress, setProfileUploadProgress] = useState(0);
 
@@ -229,7 +238,9 @@ export default function TwoWeeksProposalDashboard() {
             token: profile.token,
           });
         } else if (profile.phone) {
-          result = await loadApplicationByVerifiedPhone(profile.phone);
+          result = await loadApplicationByVerifiedPhone(profile.phone, {
+            preferredApplicationId: profile.applicationId || "",
+          });
         }
 
         if (!result?.viewerApplication) {
@@ -238,8 +249,13 @@ export default function TwoWeeksProposalDashboard() {
           return;
         }
 
-        setVerifiedProfile(profile);
-        writeStoredSession(profile);
+        const nextProfile = {
+          ...profile,
+          applicationId: profile.applicationId || result?.viewerApplication?.id || "",
+        };
+
+        setVerifiedProfile(nextProfile);
+        writeStoredSession(nextProfile);
         applyDashboardResult(result);
       } catch (error) {
         console.error("[TwoWeeksProposal] load dashboard error:", error);
@@ -273,8 +289,13 @@ export default function TwoWeeksProposalDashboard() {
           application: result.viewerApplication,
         });
 
-        setVerifiedProfile(profile);
-        writeStoredSession(profile);
+        const nextProfile = {
+          ...profile,
+          applicationId: profile.applicationId || result?.viewerApplication?.id || "",
+        };
+
+        setVerifiedProfile(nextProfile);
+        writeStoredSession(nextProfile);
         applyDashboardResult(result);
         router.replace(TWOWEEKS_DASHBOARD_PATH, undefined, { shallow: true });
         return true;
@@ -383,7 +404,7 @@ export default function TwoWeeksProposalDashboard() {
       setIdentityError("");
       setLookupNotice("");
 
-      const profile = buildSmsCodeProfile(phoneNormalized);
+      const profile = buildSmsCodeProfile(phoneNormalized, lookupChallenge.applicationId || "");
       await loadDashboard(profile);
       setLookupChallenge(null);
       setLookupCode("");
@@ -456,11 +477,108 @@ export default function TwoWeeksProposalDashboard() {
       });
 
       setResponseStatus(response);
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
     } catch (error) {
       console.error("[TwoWeeksProposal] response save error:", error);
       alert(error?.message || "응답 저장 중 오류가 발생했습니다.");
     } finally {
       setSavingResponse(false);
+    }
+  };
+
+
+  const handleSaveScheduleChoices = async (choices) => {
+    if (!application || !bestMatch?.candidate) return;
+
+    setSavingSchedule(true);
+
+    try {
+      await saveScheduleChoices({
+        viewerApplication: application,
+        candidateApplication: bestMatch.candidate,
+        choices,
+      });
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
+    } catch (error) {
+      console.error("[TwoWeeksProposal] schedule choices save error:", error);
+      alert(error?.message || "일정 후보 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const handleSaveFinalScheduleChoice = async (choice) => {
+    if (!application || !bestMatch?.candidate) return;
+
+    setSavingSchedule(true);
+
+    try {
+      await saveScheduleFinalChoice({
+        viewerApplication: application,
+        candidateApplication: bestMatch.candidate,
+        choice,
+      });
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
+    } catch (error) {
+      console.error("[TwoWeeksProposal] final schedule save error:", error);
+      alert(error?.message || "일정 선택 중 오류가 발생했습니다.");
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const handleSavePreMeetingNote = async (note) => {
+    if (!application || !bestMatch?.candidate) return;
+
+    setSavingPreMeetingNote(true);
+
+    try {
+      await savePreMeetingNote({
+        viewerApplication: application,
+        candidateApplication: bestMatch.candidate,
+        note,
+      });
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
+    } catch (error) {
+      console.error("[TwoWeeksProposal] pre meeting note save error:", error);
+      alert(error?.message || "만남 전 한마디 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingPreMeetingNote(false);
+    }
+  };
+
+  const handleSaveMeetingAttendance = async () => {
+    if (!application || !bestMatch?.candidate) return;
+
+    setSavingAttendance(true);
+
+    try {
+      await saveMeetingAttendance({
+        viewerApplication: application,
+        candidateApplication: bestMatch.candidate,
+        status: "attending",
+      });
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
+    } catch (error) {
+      console.error("[TwoWeeksProposal] attendance save error:", error);
+      alert(error?.message || "참석 확인 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingAttendance(false);
     }
   };
 
@@ -473,8 +591,7 @@ export default function TwoWeeksProposalDashboard() {
       {!bootstrapped ? (
         <div className="flex min-h-[calc(100svh-80px)] items-center justify-center px-5 text-white">
           <div className="text-center">
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
-            <div className="mt-5 text-sm font-bold text-white/70">불러오는 중입니다.</div>
+<LoadingSpinner size="lg" tone="light" className="mx-auto" />
           </div>
         </div>
       ) : !verifiedProfile ? (
@@ -509,9 +626,16 @@ export default function TwoWeeksProposalDashboard() {
             loading={loadingData}
             responseStatus={responseStatus}
             savingResponse={savingResponse}
+            savingSchedule={savingSchedule}
+            savingPreMeetingNote={savingPreMeetingNote}
+            savingAttendance={savingAttendance}
             savingProfile={savingProfile}
             profileUploadProgress={profileUploadProgress}
             onRespond={handleRespond}
+            onSaveScheduleChoices={handleSaveScheduleChoices}
+            onSaveFinalScheduleChoice={handleSaveFinalScheduleChoice}
+            onSavePreMeetingNote={handleSavePreMeetingNote}
+            onSaveMeetingAttendance={handleSaveMeetingAttendance}
             onSaveProfile={handleSaveProfile}
             onResetIdentity={handleResetIdentity}
             onReload={handleReload}
@@ -520,13 +644,13 @@ export default function TwoWeeksProposalDashboard() {
       ) : (
         <main className="min-h-[calc(100svh-64px)] bg-[#f6f3ef] px-5 py-8 md:min-h-[calc(100svh-80px)] md:px-8">
           <div className="mx-auto w-full max-w-3xl rounded-[32px] border border-zinc-200 bg-white p-8 text-center">
-            <h1 className="text-2xl font-black tracking-[-0.04em] text-zinc-950">
+            <h1 className="text-2xl font-bold tracking-[-0.04em] text-zinc-950">
               화면을 불러오지 못했습니다.
             </h1>
             <button
               type="button"
               onClick={handleResetIdentity}
-              className="mt-6 h-12 rounded-full bg-zinc-950 px-6 text-sm font-black text-white"
+              className="mt-6 h-12 rounded-full bg-zinc-950 px-6 text-sm font-bold text-white"
             >
               다시 조회하기
             </button>

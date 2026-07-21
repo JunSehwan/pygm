@@ -24,7 +24,7 @@ export function makeDummyApplication(seed, adminUid = "") {
   const name = DUMMY_NAMES[seed % DUMMY_NAMES.length];
   const nickname = DUMMY_NICKNAMES[(seed * 3) % DUMMY_NICKNAMES.length];
   const birthYear = gender === "male" ? 1985 + (seed % 9) : 1988 + (seed % 9);
-  const age = new Date().getFullYear() - birthYear + 1;
+  const age = new Date().getFullYear() - birthYear;
   const activityAreas = pickItems(DUMMY_AREAS, seed, 2, 4);
   const availableTimeSlots = pickItems(DUMMY_TIMES, seed + 1, 2, 4);
   const preferredArea = activityAreas[0] || "강남구";
@@ -55,7 +55,9 @@ export function makeDummyApplication(seed, adminUid = "") {
       name,
       nickname,
       birthYear,
+      birthDate: `${birthYear}0101`,
       age,
+      ageType: "full_age",
       phone: TEST_PHONE_FORMATTED,
       phoneNormalized: TEST_PHONE_NORMALIZED,
       phoneVerified: true,

@@ -113,8 +113,13 @@ export default function Step1BasicForm({
           <div className="relative z-10 text-sm font-semibold text-slate-400">
             100% 신원 인증된 회원만 참여합니다.
           </div>
-          <div className="pointer-events-none absolute -bottom-16 -left-10 text-[220px] font-black tracking-[-0.1em] text-slate-50">
-            2W
+          <div className="pointer-events-none absolute -bottom-10 -left-10 opacity-[0.04]">
+            <img
+              src="/logo/2weeks_logo.png"
+              alt=""
+              className="w-[360px] object-contain"
+              draggable={false}
+            />
           </div>
         </aside>
 

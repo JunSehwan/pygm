@@ -11,14 +11,14 @@ import { EASE, reveal, staggerCard, staggerContainer } from "./motionConfig";
 function HeroProcessCard() {
   return (
     <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.06] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl md:p-8">
-      <LogoMark
-        variant="dark"
-        className="absolute -right-7 -top-7 h-28 w-28 opacity-25 md:h-36 md:w-36"
-        imgClassName="scale-125"
-      />
+      {/* <LogoMark
+        variant="white"
+        className="absolute -right-7 -top-7 h-12 w-12 opacity-25 md:h-14 md:w-14"
+        imgClassName="scale-100"
+      /> */}
 
       <div className="relative">
-        <h3 className="text-lg font-bold text-white md:text-xl">투윅스 진행 핵심</h3>
+        <h3 className="text-lg font-bold text-white md:text-xl">투윅스는 안전합니다.</h3>
 
         <div className="mt-5 space-y-3.5 md:mt-6 md:space-y-4">
           {HERO_PROCESS_ITEMS.map((item, idx) => (
@@ -66,21 +66,25 @@ export default function HeroSection() {
 
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,102,0,0.20),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(255,102,0,0.10),transparent_28%)]" />
       <div className="absolute bottom-[-20%] left-[-10%] h-[460px] w-[460px] rounded-full border border-orange-500/10 blur-[1px]" />
-      <LogoMark
-        variant="dark"
+      {/* <LogoMark
+        variant="white"
         className="pointer-events-none absolute bottom-[-120px] right-[-110px] hidden h-[360px] w-[360px] opacity-[0.08] md:block"
         imgClassName="scale-125"
-      />
+      /> */}
 
       <MobileFrame className="relative flex min-h-[100svh] flex-col justify-center pb-12 pt-28 md:min-h-screen md:pt-32">
         <div className="grid items-center gap-8 md:gap-10 lg:grid-cols-[1.08fr_0.92fr]">
           <motion.div style={{ y: heroTextY }} className="max-w-3xl">
-            <motion.div
+            {/* <motion.div
               {...reveal("down", 0)}
-              className="mb-4 inline-flex items-center rounded-full border border-orange-500/25 bg-orange-500/10 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-orange-300 md:text-xs"
+              className="mb-4 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-2"
             >
-              2WEEKS
-            </motion.div>
+              <LogoMark
+                variant="white"
+                decorative={false}
+                className="h-5 w-[92px] md:h-6 md:w-[112px]"
+              />
+            </motion.div> */}
 
             <motion.h1
               {...reveal("left", 0.06)}

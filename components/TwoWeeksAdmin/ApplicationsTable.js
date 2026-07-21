@@ -5,7 +5,10 @@ import {
   formatPhone,
   getBasic,
   getGenderLabel,
+  formatAgeBirth,
   getIdentity,
+  getMatchingDisplayStatus,
+  getMatchingDisplayTone,
   getProfilePhoto,
   normalizeArray,
 } from "./utils";
@@ -72,7 +75,7 @@ function MobileApplicationCard({
             </div>
             <div>
               <div className="text-[11px] font-black text-zinc-400">성별/나이</div>
-              <div className="mt-0.5 leading-5">{getGenderLabel(basic.gender)} / {basic.age || "-"}세</div>
+              <div className="mt-0.5 leading-5">{getGenderLabel(basic.gender)} / {formatAgeBirth(item)}</div>
             </div>
             <div>
               <div className="text-[11px] font-black text-zinc-400">직업</div>
@@ -85,7 +88,7 @@ function MobileApplicationCard({
               <div className="text-[11px] font-black text-zinc-400">상태</div>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 <StatusBadge value={item.deposit?.status || "pending"} tone={item.deposit?.status === "confirmed" ? "good" : "warn"} />
-                <StatusBadge value={item.matchingStatus || "not_started"} />
+                <StatusBadge value={getMatchingDisplayStatus(item)} tone={getMatchingDisplayTone(item)} />
               </div>
             </div>
           </div>
@@ -210,7 +213,7 @@ export default function ApplicationsTable({
                   </td>
                   <td className="px-3 py-3 text-sm font-bold text-zinc-700">{formatPhone(basic.phone || basic.phoneNormalized)}</td>
                   <td className="px-3 py-3 text-sm font-bold text-zinc-700">
-                    {getGenderLabel(basic.gender)} / {basic.age || "-"}세
+                    {getGenderLabel(basic.gender)} / {formatAgeBirth(item)}
                   </td>
                   <td className="px-3 py-3 text-sm font-bold text-zinc-700">
                     {identity.jobCategory || "-"}
@@ -220,7 +223,7 @@ export default function ApplicationsTable({
                   <td className="px-3 py-3 text-sm font-bold text-zinc-700">{normalizeArray(basic.availableTimeSlots).join(" · ") || "-"}</td>
                   <td className="px-3 py-3"><StatusBadge value={item.reviewStatus || "pending"} tone={item.reviewStatus === "approved" ? "good" : "warn"} /></td>
                   <td className="px-3 py-3"><StatusBadge value={item.deposit?.status || "pending"} tone={item.deposit?.status === "confirmed" ? "good" : "warn"} /></td>
-                  <td className="px-3 py-3"><StatusBadge value={item.matchingStatus || "not_started"} /></td>
+                  <td className="px-3 py-3"><StatusBadge value={getMatchingDisplayStatus(item)} tone={getMatchingDisplayTone(item)} /></td>
                   <td className="px-3 py-3 text-sm font-bold text-zinc-700">{formatDate(item.submittedAt || item.createdAt || item.completedAtClient)}</td>
                 </tr>
               );

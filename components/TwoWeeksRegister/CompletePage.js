@@ -41,8 +41,13 @@ export default function TwoWeeksCompletePage() {
     <RegisterLayout dark>
       <main className="relative min-h-[calc(100svh-68px)] overflow-hidden bg-black text-white md:min-h-[calc(100vh-78px)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_70%,rgba(255,255,255,0.08),transparent_22%),radial-gradient(circle_at_80%_20%,rgba(255,115,22,0.12),transparent_20%)]" />
-        <div className="pointer-events-none absolute bottom-[-120px] left-[6%] text-[220px] font-black tracking-[-0.12em] text-white/[0.035] md:text-[300px]">
-          2W
+        <div className="pointer-events-none absolute bottom-[-80px] left-[4%] hidden opacity-[0.035] md:block">
+          <img
+            src="/logo/2weeks_logo_white.png"
+            alt=""
+            className="w-[420px] object-contain"
+            draggable={false}
+          />
         </div>
 
         <div className="relative mx-auto grid min-h-[calc(100svh-68px)] w-full max-w-[1320px] gap-10 px-5 py-10 md:min-h-[calc(100vh-78px)] md:grid-cols-[1fr_0.95fr] md:px-8 md:py-16 lg:items-center">

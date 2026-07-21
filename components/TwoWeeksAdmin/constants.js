@@ -3,6 +3,7 @@ export const TABS = [
   { id: "applications", label: "신청자" },
   { id: "review", label: "입금확인" },
   { id: "matching", label: "매칭보드" },
+  { id: "schedule", label: "일정관리" },
   { id: "results", label: "결과관리" },
 ];
 
@@ -13,6 +14,7 @@ export const STATUS_LABELS = {
   approved: "승인",
   rejected: "반려",
   waitlisted: "대기풀",
+  not_ready: "매칭 전",
   not_started: "매칭 대기",
   proposed: "제안 발송",
   accepted: "수락",
@@ -23,6 +25,13 @@ export const STATUS_LABELS = {
   failed: "매칭 실패",
   refunded: "환불",
   incomplete: "정보부족",
+  mutualAccepted: "양쪽 수락",
+  schedule_ready: "일정 선택 대기",
+  first_selected: "1차 선택 완료",
+  waiting_counterpart: "상대 선택 대기",
+  needs_final_choice: "일정 선택 필요",
+  place_pending: "장소 확정 대기",
+  schedule_confirmed: "일정 확정",
 };
 
 export const DEFAULT_ROUND_ID = "twoweeks_beta_1";
@@ -67,4 +76,16 @@ export const DUMMY_INTROS = [
   "일은 진지하게, 쉬는 날은 가볍게 보내는 편입니다.",
   "맛집과 전시를 같이 즐길 수 있는 만남을 기대해요.",
   "바쁜 일상 속에서도 좋은 인연은 놓치고 싶지 않아요.",
+];
+
+
+export const RESPONSE_DUE_DAYS = 2;
+export const SCHEDULE_DUE_DAYS = 2;
+
+export const MANAGED_TIME_SLOTS = [
+  { key: "friday_evening", label: "금요일 저녁", hour: 19, minute: 30 },
+  { key: "saturday_afternoon", label: "토요일 낮", hour: 14, minute: 0 },
+  { key: "saturday_evening", label: "토요일 저녁", hour: 19, minute: 0 },
+  { key: "sunday_afternoon", label: "일요일 낮", hour: 14, minute: 0 },
+  { key: "sunday_evening", label: "일요일 저녁", hour: 19, minute: 0 },
 ];

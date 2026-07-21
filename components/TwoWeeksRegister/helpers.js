@@ -16,10 +16,45 @@ export function formatPhone(value = "") {
   return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7)}`;
 }
 
+function parseBirthDate(value = "") {
+  const digits = String(value || "").replace(/[^0-9]/g, "");
+  if (digits.length < 8) return null;
+
+  const year = Number(digits.slice(0, 4));
+  const month = Number(digits.slice(4, 6));
+  const day = Number(digits.slice(6, 8));
+
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  return { year, month, day };
+}
+
 export function getAgeFromBirthYear(birthYear) {
   const year = Number(birthYear);
   if (!year) return null;
-  return new Date().getFullYear() - year + 1;
+  return new Date().getFullYear() - year;
+}
+
+export function getFullAgeFromBirth(birth, fallbackBirthYear = "") {
+  const parsed = parseBirthDate(birth);
+  const now = new Date();
+
+  if (!parsed) return getAgeFromBirthYear(fallbackBirthYear);
+
+  let age = now.getFullYear() - parsed.year;
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+
+  if (currentMonth < parsed.month || (currentMonth === parsed.month && currentDay < parsed.day)) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+export function formatFullAgeLabel({ birth = "", birthYear = "", age = "" } = {}) {
+  const fullAge = getFullAgeFromBirth(birth, birthYear) ?? Number(age || 0);
+  return fullAge ? `만 ${fullAge}세` : "-";
 }
 
 export function isImageFile(file) {

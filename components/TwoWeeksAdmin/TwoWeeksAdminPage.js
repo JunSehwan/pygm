@@ -10,16 +10,20 @@ import MatchingTab from "./MatchingTab";
 import OverviewTab from "./OverviewTab";
 import ResultsTab from "./ResultsTab";
 import ReviewTab from "./ReviewTab";
+import ScheduleTab from "./ScheduleTab";
+import LoadingSpinner from "../TwoWeeksShared/LoadingSpinner";
 import {
   approveApplicationWithSms,
   approveApplicationsWithSms,
   approveApplicationsWithoutSms,
   confirmDepositApplications,
+  confirmMeetingSchedule,
   createBulkTwoWeeksMatches,
   createDummyApplications,
   createTwoWeeksMatch,
   deleteDummyApplications,
   sendIncompleteApplicationSms,
+  sendScheduleReminderSms,
   subscribeTwoWeeksAdminData,
   updateTwoWeeksApplication,
 } from "./adminService";
@@ -32,8 +36,8 @@ import {
 function AdminLoading() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f4f1eb] px-5">
-      <div className="border border-zinc-200 bg-white px-6 py-5 text-sm font-black text-zinc-950">
-        관리자 정보를 확인하고 있습니다.
+      <div className="border border-zinc-200 bg-white px-7 py-6">
+        <LoadingSpinner size="lg" tone="dark" className="mx-auto" />
       </div>
     </div>
   );
@@ -53,6 +57,23 @@ function AdminAccessDenied({ firebaseUser }) {
       </div>
     </div>
   );
+}
+
+
+function summarizeMatchSmsResults(results = []) {
+  const list = Array.isArray(results) ? results : [results];
+  const flat = [];
+
+  list.forEach((item) => {
+    if (item?.smsResults?.male) flat.push(item.smsResults.male);
+    if (item?.smsResults?.female) flat.push(item.smsResults.female);
+  });
+
+  return {
+    sent: flat.filter((item) => item?.status === "sent").length,
+    failed: flat.filter((item) => item?.status === "failed").length,
+    skipped: flat.filter((item) => item?.status === "skipped").length,
+  };
 }
 
 export default function TwoWeeksAdminPage() {
@@ -115,6 +136,68 @@ export default function TwoWeeksAdminPage() {
   const rounds = useMemo(() => {
     return Array.from(new Set(applications.map((item) => getRoundId(item)).filter(Boolean))).sort();
   }, [applications]);
+
+
+
+  const handleSendScheduleReminder = async (match) => {
+    if (!match?.id) return;
+
+    if (!confirm("일정 선택 리마인드 문자를 발송할까요?")) return;
+
+    setBusyId(`scheduleReminder:${match.id}`);
+
+    try {
+      const results = await sendScheduleReminderSms({
+        match,
+        adminUid: firebaseUser?.uid || "",
+      });
+
+      const sent = results.filter((item) => item.status === "sent").length;
+      const failed = results.filter((item) => item.status === "failed").length;
+      const skipped = results.filter((item) => item.status === "skipped").length;
+
+      alert(`리마인드 문자 발송 ${sent}건 / 실패 ${failed}건 / 제외 ${skipped}건`);
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] schedule reminder error:", error);
+      alert(error?.message || "리마인드 문자 발송 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleConfirmSchedule = async (match, place) => {
+    if (!match?.id) return;
+
+    const placeName = String(place?.placeName || "").trim();
+    if (!placeName) {
+      alert("장소명을 입력해주세요.");
+      return;
+    }
+
+    if (!confirm("일정·장소를 확정하고 사진 공개 및 안내문자를 발송할까요?")) return;
+
+    setBusyId(`confirmSchedule:${match.id}`);
+
+    try {
+      const result = await confirmMeetingSchedule({
+        match,
+        place,
+        adminUid: firebaseUser?.uid || "",
+      });
+
+      const smsList = [result?.smsResults?.male, result?.smsResults?.female].filter(Boolean);
+      const sent = smsList.filter((item) => item.status === "sent").length;
+      const failed = smsList.filter((item) => item.status === "failed").length;
+      const skipped = smsList.filter((item) => item.status === "skipped").length;
+
+      alert(`일정·장소를 확정했습니다. 문자 발송 ${sent}건 / 실패 ${failed}건 / 제외 ${skipped}건`);
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] confirm schedule error:", error);
+      alert(error?.message || "일정·장소 확정 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
 
   const filteredApplications = useMemo(() => {
     const lowered = keyword.trim().toLowerCase();
@@ -234,14 +317,15 @@ export default function TwoWeeksAdminPage() {
     setBusyId("match");
 
     try {
-      await createTwoWeeksMatch({
+      const result = await createTwoWeeksMatch({
         male,
         female,
         score,
         adminUid: firebaseUser?.uid || "",
       });
 
-      alert("후보 제안을 저장했습니다.");
+      const sms = summarizeMatchSmsResults(result);
+      alert(`후보 제안을 저장했습니다. 문자 발송 ${sms.sent}건${sms.failed ? ` / 실패 ${sms.failed}건` : ""}${sms.skipped ? ` / 건너뜀 ${sms.skipped}건` : ""}`);
     } catch (error) {
       console.error("[TwoWeeksAdmin] create match error:", error);
       alert(error?.message || "매칭 저장 중 오류가 발생했습니다.");
@@ -262,7 +346,8 @@ export default function TwoWeeksAdminPage() {
         adminUid: firebaseUser?.uid || "",
       });
 
-      alert(`${result.length}쌍 매칭을 저장했습니다.`);
+      const sms = summarizeMatchSmsResults(result);
+      alert(`${result.length}쌍 매칭을 저장했습니다. 문자 발송 ${sms.sent}건${sms.failed ? ` / 실패 ${sms.failed}건` : ""}${sms.skipped ? ` / 건너뜀 ${sms.skipped}건` : ""}`);
     } catch (error) {
       console.error("[TwoWeeksAdmin] bulk match error:", error);
       alert(error?.message || "일괄 매칭 중 오류가 발생했습니다.");
@@ -371,6 +456,15 @@ export default function TwoWeeksAdminPage() {
             applications={filteredApplications}
             onCreateMatch={handleCreateMatch}
             onBulkCreateMatches={handleBulkCreateMatches}
+            busyId={busyId}
+          />
+        ) : null}
+
+        {activeTab === "schedule" ? (
+          <ScheduleTab
+            matches={matches}
+            onConfirmSchedule={handleConfirmSchedule}
+            onSendReminder={handleSendScheduleReminder}
             busyId={busyId}
           />
         ) : null}

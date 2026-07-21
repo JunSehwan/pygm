@@ -13,7 +13,7 @@ export default function FooterSection() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(255,102,0,0.12),transparent_20%),radial-gradient(circle_at_right_bottom,rgba(255,102,0,0.18),transparent_22%)]" />
       <div className="absolute bottom-0 right-0 h-[48%] w-[70%] bg-[radial-gradient(circle_at_bottom_right,rgba(255,150,80,0.16),transparent_36%)]" />
       <LogoMark
-        variant="dark"
+        variant="white"
         className="pointer-events-none absolute bottom-8 right-8 hidden h-72 w-72 opacity-[0.08] md:block"
         imgClassName="scale-125"
       />
@@ -21,8 +21,15 @@ export default function FooterSection() {
       <MobileFrame className="relative flex min-h-[100svh] flex-col justify-between py-16 md:min-h-screen md:py-20">
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <motion.div {...reveal("scale")}>
-            <div className="mb-3 inline-flex rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-300 md:text-xs">
-              2WEEKS BETA
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-transparent px-3 py-2">
+              <LogoMark
+                variant="white"
+                decorative={false}
+                className="h-5 w-[92px] md:h-6 md:w-[112px]"
+              />
+              {/* <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-300 md:text-xs">
+                BETA
+              </span> */}
             </div>
 
             <h2 className="text-[36px] font-black leading-tight tracking-[-0.055em] text-white md:text-6xl">
@@ -30,7 +37,7 @@ export default function FooterSection() {
             </h2>
 
             <p className="mx-auto mt-5 max-w-2xl break-keep text-[15px] leading-7 text-zinc-300 md:text-lg md:leading-8">
-              85년생부터 00년생까지, 2주에 한 번 이어지는 새로운 오프라인 만남.
+              2주에 한 번 이어지는 새로운 오프라인 만남.
             </p>
 
             <div className="mt-8">
@@ -51,7 +58,13 @@ export default function FooterSection() {
         >
           <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-start">
             <div>
-              <div className="text-lg font-bold text-white md:text-xl">{LEGAL_META.serviceName}</div>
+              <div className="flex items-center">
+                <LogoMark
+                  variant="white"
+                  decorative={false}
+                  className="h-7 w-[112px] md:h-8 md:w-[132px]"
+                />
+              </div>
 
               <div className="mt-3 space-y-1 text-xs leading-6 text-zinc-300 md:text-sm md:leading-7">
                 <div>상호: {LEGAL_META.companyName}</div>
@@ -68,7 +81,7 @@ export default function FooterSection() {
               <div className="mt-1">All rights reserved.</div>
               <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 md:justify-end">
                 {LEGAL_LINKS.map((link) => (
-                  <Link key={link.href} href={link.href} className="underline underline-offset-4">
+                  <Link key={link.href} href={link.href} className="underline text-slate-200 underline-offset-4">
                     {link.label}
                   </Link>
                 ))}

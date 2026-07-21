@@ -89,6 +89,54 @@ export function formatBirthYear(value) {
   return `${String(year).slice(-2)}년생`;
 }
 
+function parseBirthDate(value = "") {
+  const digits = String(value || "").replace(/[^0-9]/g, "");
+  if (digits.length < 8) return null;
+
+  const year = Number(digits.slice(0, 4));
+  const month = Number(digits.slice(4, 6));
+  const day = Number(digits.slice(6, 8));
+
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  return { year, month, day };
+}
+
+export function getFullAgeFromBasic(basic = {}) {
+  const parsed = parseBirthDate(basic.birthDate || basic.birth || "");
+  const birthYear = Number(basic.birthYear || 0);
+  const now = new Date();
+
+  if (parsed) {
+    let age = now.getFullYear() - parsed.year;
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+
+    if (currentMonth < parsed.month || (currentMonth === parsed.month && currentDay < parsed.day)) {
+      age -= 1;
+    }
+
+    return age;
+  }
+
+  if (birthYear) return now.getFullYear() - birthYear;
+
+  return Number(basic.age || 0) || null;
+}
+
+export function formatFullAge(application = {}) {
+  const basic = getBasic(application);
+  const age = getFullAgeFromBasic(basic);
+  return age ? `만 ${age}세` : "-";
+}
+
+export function formatAgeBirth(application = {}) {
+  const basic = getBasic(application);
+  const age = formatFullAge(application);
+  const birth = formatBirthYear(basic.birthYear);
+  return birth === "-" ? age : `${age}(${birth})`;
+}
+
 export function formatMoney(value) {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount) || amount <= 0) return "-";
@@ -133,21 +181,44 @@ export function isApprovedApplication(application = {}) {
   return application?.reviewStatus === "approved" || application?.status === "approved";
 }
 
+export function isFullyApprovedApplication(application = {}) {
+  return application?.reviewStatus === "approved" && application?.status === "approved";
+}
+
 export function isDepositConfirmed(application = {}) {
   return application?.deposit?.status === "confirmed";
 }
 
 export function isMatchAvailableApplication(application = {}) {
-  const matchingStatus = String(application?.matchingStatus || "not_started");
+  const matchingStatus = String(application?.matchingStatus || "not_ready");
   const hasCurrentProposal = Boolean(application?.currentProposal?.candidateApplicationId);
 
   return (
     isActiveApplication(application) &&
-    isApprovedApplication(application) &&
+    isFullyApprovedApplication(application) &&
     isDepositConfirmed(application) &&
     !hasCurrentProposal &&
-    !["proposed", "accepted", "confirmed", "completed"].includes(matchingStatus)
+    matchingStatus === "not_started"
   );
+}
+
+export function getMatchingDisplayStatus(application = {}) {
+  if (!isActiveApplication(application)) return application?.matchingStatus || "cancelled";
+  if (!isFullyApprovedApplication(application)) return "not_ready";
+  if (!isDepositConfirmed(application)) return "not_ready";
+  return application?.matchingStatus || "not_started";
+}
+
+export function getMatchingDisplayTone(application = {}) {
+  const displayStatus = getMatchingDisplayStatus(application);
+
+  if (displayStatus === "not_ready") return "default";
+  if (displayStatus === "not_started") return "warn";
+  if (["confirmed", "completed", "mutualAccepted"].includes(displayStatus)) return "good";
+  if (["declined", "cancelled", "failed"].includes(displayStatus)) return "bad";
+  if (["proposed", "accepted"].includes(displayStatus)) return "orange";
+
+  return "default";
 }
 
 export function getAreaOverlap(a = {}, b = {}) {
@@ -163,10 +234,10 @@ export function getTimeOverlap(a = {}, b = {}) {
 }
 
 export function getAgeDiff(male = {}, female = {}) {
-  const maleYear = Number(getBasic(male).birthYear || 0);
-  const femaleYear = Number(getBasic(female).birthYear || 0);
-  if (!maleYear || !femaleYear) return null;
-  return femaleYear - maleYear;
+  const maleAge = getFullAgeFromBasic(getBasic(male));
+  const femaleAge = getFullAgeFromBasic(getBasic(female));
+  if (!maleAge || !femaleAge) return null;
+  return maleAge - femaleAge;
 }
 
 export function getPairScore(male = {}, female = {}) {

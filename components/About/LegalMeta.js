@@ -1,5 +1,5 @@
 export const LEGAL_META = {
-  serviceName: "차밍수프",
+  serviceName: "투윅스(2weeks)",
   siteName: "CharmingSoup",
   domain: "charmingsoup.com",
   companyName: "넥스트퍼스(Nextpus)",

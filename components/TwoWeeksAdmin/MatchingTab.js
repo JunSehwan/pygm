@@ -3,6 +3,7 @@ import { ActionButton, FieldRow, InfoBox, Section } from "./AdminCommon";
 import {
   buildHighScorePairs,
   cx,
+  formatAgeBirth,
   formatBirthYear,
   getApplicationName,
   getBasic,
@@ -37,7 +38,7 @@ function CandidateMiniCard({ application, selected, onClick }) {
         <div className="min-w-0">
           <div className="truncate text-sm font-black">{basic.name || basic.nickname || "-"}</div>
           <div className={cx("mt-1 text-xs font-semibold", selected ? "text-white/70" : "text-zinc-500")}>
-            {formatBirthYear(basic.birthYear)} · {identity.jobCategory || "-"}
+            {formatAgeBirth(application)} · {identity.jobCategory || "-"}
           </div>
           <div className={cx("mt-1 truncate text-xs font-semibold", selected ? "text-white/70" : "text-zinc-400")}>
             {normalizeArray(basic.activityAreas).join(" · ") || "-"}
@@ -52,7 +53,7 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
   const eligibleApplications = applications.filter(isMatchAvailableApplication);
   const males = eligibleApplications.filter(isMale);
   const females = eligibleApplications.filter(isFemale);
-  const highScorePairs = useMemo(() => buildHighScorePairs(applications), [applications]);
+  const highScorePairs = useMemo(() => buildHighScorePairs(eligibleApplications), [eligibleApplications]);
 
   const [selectedMale, setSelectedMale] = useState(null);
   const [selectedFemale, setSelectedFemale] = useState(null);
@@ -73,7 +74,7 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
             onClick={() => onBulkCreateMatches(highScorePairs)}
             tone="dark"
           >
-            고득점 일괄 매칭
+            고득점 일괄 매칭+문자
           </ActionButton>
         }
       >
@@ -133,7 +134,7 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
               onClick={() => onCreateMatch(male, female, score)}
               tone="dark"
             >
-              후보 제안 저장
+              후보 제안 저장+문자
             </ActionButton>
           }
         >
@@ -146,8 +147,8 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
               </div>
 
               <div className="border border-zinc-200 px-4">
-                <FieldRow label="남성" value={`${getApplicationName(male)} · ${formatBirthYear(getBasic(male).birthYear)} · ${getIdentity(male).jobCategory || "-"}`} />
-                <FieldRow label="여성" value={`${getApplicationName(female)} · ${formatBirthYear(getBasic(female).birthYear)} · ${getIdentity(female).jobCategory || "-"}`} />
+                <FieldRow label="남성" value={`${getApplicationName(male)} · ${formatAgeBirth(male)} · ${getIdentity(male).jobCategory || "-"}`} />
+                <FieldRow label="여성" value={`${getApplicationName(female)} · ${formatAgeBirth(female)} · ${getIdentity(female).jobCategory || "-"}`} />
                 <FieldRow label="시간" value={score?.timeOverlap?.join(" · ") || "-"} />
                 <FieldRow label="지역" value={score?.areaOverlap?.join(" · ") || "-"} />
               </div>

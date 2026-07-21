@@ -9,7 +9,8 @@ import {
   TWOWEEKS_ROUND_ID,
   TWOWEEKS_ROUND_LABEL,
 } from "./constants";
-import { getAgeFromBirthYear, normalizePhone } from "./helpers";
+import { getFullAgeFromBirth, normalizePhone } from "./helpers";
+import { isTwoWeeksTestPhone } from "../TwoWeeksShared/testAuth";
 
 async function ensureApplicantAuth() {
   if (auth.currentUser) return auth.currentUser;
@@ -141,7 +142,14 @@ async function sendApplicationNotifications({ form, applicationId, applicationRe
   };
 
   try {
-    if (applicantPhone) {
+    if (isTwoWeeksTestPhone(applicantPhone)) {
+      results.applicant = {
+        status: "skipped",
+        reason: "TEST_PHONE",
+        dashboardUrlIncluded: true,
+        skippedAtClient: new Date().toISOString(),
+      };
+    } else if (applicantPhone) {
       await sendLms(applicantPhone, buildApplicantSms(dashboardUrl), "투윅스 신청 완료", { forceLms: true });
       results.applicant = { status: "sent", sentAtClient: new Date().toISOString(), dashboardUrlIncluded: true };
     }
@@ -212,12 +220,14 @@ export async function createTwoWeeksApplication(form, options = {}) {
   onStatusChange?.("신청 정보를 저장 중입니다.");
 
   const birthYear = Number(form.birthYear);
-  const age = getAgeFromBirthYear(birthYear);
+  const birthDate = form.identityVerifiedData?.birth || "";
+  const age = getFullAgeFromBirth(birthDate, birthYear);
   const phoneNormalized = normalizePhone(form.phone);
 
   const applicationData = {
     schemaVersion: 3,
     source: "twoweeks_mvp_web",
+    testMode: isTwoWeeksTestPhone(phoneNormalized),
     roundId: TWOWEEKS_ROUND_ID,
     roundLabel: TWOWEEKS_ROUND_LABEL,
 
@@ -226,7 +236,7 @@ export async function createTwoWeeksApplication(form, options = {}) {
 
     status: "applied",
     reviewStatus: "pending",
-    matchingStatus: "not_started",
+    matchingStatus: "not_ready",
     proposalCount: 0,
     rematchingPriority: false,
 
@@ -249,7 +259,9 @@ export async function createTwoWeeksApplication(form, options = {}) {
       name: form.name.trim(),
       nickname: form.nickname.trim(),
       birthYear,
+      birthDate,
       age,
+      ageType: "full_age",
       phone: form.phone,
       phoneNormalized,
       phoneVerified: form.phoneVerified === true,
@@ -304,7 +316,7 @@ export async function createTwoWeeksApplication(form, options = {}) {
       proposalStage: "대표 사진 1장과 기본 정보 일부 공개",
       contactDisclosure: "바이트미팅 후 상호 연결 희망 시 공개",
       identityDocumentDisclosure: "상대방에게 공개하지 않음",
-      organizationDisclosure: "운영자 인증용, 상대방에게 공개하지 않음",
+      organizationDisclosure: "후보 제안 단계 비공개, 양쪽 만남 진행 의사 확인 후 공개",
     },
 
     consents: {

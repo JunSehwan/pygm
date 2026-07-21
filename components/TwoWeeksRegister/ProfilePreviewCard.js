@@ -15,7 +15,7 @@ export default function ProfilePreviewCard({ form }) {
       </div>
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-        <div className="relative h-40 bg-slate-100">
+        <div className="relative aspect-[4/5] bg-slate-100">
           {photoUrl ? (
             <img src={photoUrl} alt="대표 사진 미리보기" className="h-full w-full object-cover blur-[5px] scale-105" />
           ) : (
@@ -26,7 +26,7 @@ export default function ProfilePreviewCard({ form }) {
           )}
           <div className="absolute inset-0 bg-black/10" />
           <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-700 backdrop-blur">
-            매칭 제안 시 흐림/일부 공개 예시
+            4:5 카드 예시
           </div>
         </div>
 

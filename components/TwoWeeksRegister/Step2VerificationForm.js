@@ -46,14 +46,13 @@ export default function Step2VerificationForm({ form, setForm, errors, onNext })
               사진과 인증 정보를 등록해주세요
             </h1>
             <p className="mt-4 break-keep text-sm leading-7 text-slate-500 md:text-base">
-              제출한 사진은 본인 확인 및 매칭 검토용으로 사용되며,
-              매칭 제안 시 대표 사진 1장과 기본 정보 일부가 공개될 수 있습니다.
+              사진은 4:5 비율로 맞춰 보여집니다.
             </p>
           </div>
 
           <div className="mt-10 divide-y divide-slate-100 border-y border-slate-100">
             <div className="grid gap-5 py-8 md:grid-cols-[190px_1fr]">
-              <Label title="사진 업로드" sub={"대표 사진 1장 필수\n추가 사진 1~3장 선택"} />
+              <Label title="사진 업로드" sub={"대표 1장 필수\n권장 4:5 · 1080×1350px\n최대 5장"} />
               <PhotoUploadGrid
                 representativePhoto={form.representativePhoto}
                 additionalPhotos={form.additionalPhotos}
@@ -122,7 +121,7 @@ export default function Step2VerificationForm({ form, setForm, errors, onNext })
             <GuideCard
               title="사진 검토 기준"
               icon={<FiCheckCircle />}
-              items={["최근 6개월 이내 사진", "얼굴이 잘 보이는 단독 사진", "과도한 필터/단체 사진/가림 사진 지양", "선명한 화질 권장"]}
+              items={["4:5 세로형 권장", "얼굴이 잘 보이는 단독 사진", "선명한 화질"]}
             />
             <GuideCard
               title="인증 자료 안내"

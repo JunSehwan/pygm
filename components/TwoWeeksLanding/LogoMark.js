@@ -1,15 +1,24 @@
-export default function LogoMark({ variant = "dark", className = "", imgClassName = "" }) {
-  const src =
-    variant === "light"
-      ? "/image/twoweeks/logo_mark_light.png"
-      : "/image/twoweeks/logo_mark_dark.png";
+const LOGO_PATHS = {
+  dark: "/logo/2weeks_logo.png",
+  light: "/logo/2weeks_logo_white.png",
+  white: "/logo/2weeks_logo_white.png",
+};
+
+export default function LogoMark({
+  variant = "dark",
+  className = "",
+  imgClassName = "",
+  alt = "2WEEKS",
+  decorative = true,
+}) {
+  const src = LOGO_PATHS[variant] || LOGO_PATHS.dark;
 
   return (
-    <div className={`overflow-hidden rounded-3xl ${className}`} aria-hidden="true">
+    <div className={`relative overflow-hidden ${className}`} aria-hidden={decorative ? "true" : undefined}>
       <img
         src={src}
-        alt=""
-        className={`h-full w-full object-cover ${imgClassName}`}
+        alt={decorative ? "" : alt}
+        className={`h-full w-full object-contain ${imgClassName}`}
         draggable={false}
       />
     </div>

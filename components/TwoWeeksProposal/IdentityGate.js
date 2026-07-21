@@ -32,8 +32,8 @@ export default function IdentityGate({
   return (
     <section className="mx-auto grid min-h-[calc(100svh-64px)] w-full max-w-6xl items-center gap-8 px-5 py-10 md:min-h-[calc(100svh-80px)] md:grid-cols-[0.95fr_1.05fr] md:px-8">
       <div>
-        <div className="inline-flex rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-orange-300">
-          2weeks
+        <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/70">
+          신청 현황 조회
         </div>
 
         <h1 className="mt-5 text-[38px] font-black leading-tight tracking-[-0.06em] text-white md:text-[60px]">
@@ -48,11 +48,7 @@ export default function IdentityGate({
       </div>
 
       <div className="rounded-[34px] border border-white/10 bg-white/[0.055] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.36)] backdrop-blur-xl md:p-8">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-black text-white">
-          #
-        </div>
-
-        <h2 className="mt-6 text-2xl font-black tracking-[-0.04em] text-white">
+        <h2 className="text-2xl font-black tracking-[-0.04em] text-white">
           휴대폰 번호로 조회
         </h2>
 

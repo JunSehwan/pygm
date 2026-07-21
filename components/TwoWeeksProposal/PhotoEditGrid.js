@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FiImage, FiMove, FiPlus, FiStar, FiTrash2 } from "react-icons/fi";
 
+const MAX_PROFILE_PHOTOS = 5;
+
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
 }
@@ -41,7 +43,7 @@ function PhotoCard({ item, index, isMain, onRemove, onDragStart, onDrop }) {
       onDragStart={() => onDragStart(index)}
       onDragOver={(event) => event.preventDefault()}
       onDrop={() => onDrop(index)}
-      className="group relative min-h-[154px] overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100"
+      className="group relative aspect-[4/5] overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100"
     >
       {previewUrl ? (
         <img src={previewUrl} alt={`프로필 사진 ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />
@@ -85,10 +87,10 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
   const inputRef = useRef(null);
   const [dragIndex, setDragIndex] = useState(null);
 
-  const safePhotos = useMemo(() => (Array.isArray(photos) ? photos.filter(Boolean).slice(0, 4) : []), [photos]);
+  const safePhotos = useMemo(() => (Array.isArray(photos) ? photos.filter(Boolean).slice(0, MAX_PROFILE_PHOTOS) : []), [photos]);
 
   const commitPhotos = (nextPhotos) => {
-    onChange?.(nextPhotos.filter(Boolean).slice(0, 4));
+    onChange?.(nextPhotos.filter(Boolean).slice(0, MAX_PROFILE_PHOTOS));
   };
 
   const appendFiles = (files) => {
@@ -103,7 +105,7 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
       }));
 
     if (!selected.length) return;
-    commitPhotos([...safePhotos, ...selected].slice(0, 4));
+    commitPhotos([...safePhotos, ...selected].slice(0, MAX_PROFILE_PHOTOS));
   };
 
   const removePhoto = (index) => {
@@ -133,7 +135,7 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
         }}
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {safePhotos.map((item, index) => (
           <PhotoCard
             key={item.id || item.url || `${item?.file?.name}_${index}`}
@@ -146,12 +148,12 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
           />
         ))}
 
-        {safePhotos.length < 4 ? (
+        {safePhotos.length < MAX_PROFILE_PHOTOS ? (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             className={cx(
-              "flex min-h-[154px] flex-col items-center justify-center rounded-2xl border border-dashed bg-white px-3 py-4 text-center transition hover:border-zinc-950 hover:bg-zinc-50",
+              "flex aspect-[4/5] flex-col items-center justify-center rounded-2xl border border-dashed bg-white px-3 py-4 text-center transition hover:border-zinc-950 hover:bg-zinc-50",
               error ? "border-red-300" : "border-zinc-200"
             )}
           >
@@ -159,13 +161,13 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
               <FiPlus />
             </div>
             <div className="text-sm font-black leading-5 text-zinc-950">사진 추가</div>
-            <div className="mt-1 text-xs leading-5 text-zinc-400">최대 4장</div>
+            <div className="mt-1 text-xs leading-5 text-zinc-400">최대 5장</div>
           </button>
         ) : null}
       </div>
 
       <div className="mt-3 text-xs leading-5 text-zinc-500">
-        사진을 드래그해 맨 앞으로 옮기면 대표 사진으로 반영됩니다. 상대에게는 매칭 제안 단계에서 흐림 처리되어 보입니다.
+        권장 4:5 · 1080×1350px. 첫 사진이 대표사진입니다.
       </div>
 
       {error ? <div className="mt-2 text-xs font-medium text-red-500">{error}</div> : null}

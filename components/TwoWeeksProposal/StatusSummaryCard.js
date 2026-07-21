@@ -32,7 +32,7 @@ export default function StatusSummaryCard({ application }) {
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        <StatBox icon={FiUser} label="신청자" value={`${getGenderLabel(basic.gender)} / ${basic.age || "-"}세`} />
+        <StatBox icon={FiUser} label="신청자" value={`${getGenderLabel(basic.gender)} / ${formatFullAgeBasic(basic)}`} />
         <StatBox icon={FiCreditCard} label="예치금" value={application?.deposit?.status === "confirmed" ? "입금 확인" : "확인 대기"} />
         <StatBox icon={FiHeart} label="매칭 상태" value={STATUS_LABELS[application?.matchingStatus] || "매칭 대기"} />
         <StatBox icon={FiClock} label="응답 기준" value="제안 후 24시간" />

@@ -56,6 +56,46 @@ export function formatBirthYearTwoDigits(birthYear) {
   return `${String(year).slice(-2)}년생`;
 }
 
+function parseBirthDate(value = "") {
+  const digits = String(value || "").replace(/[^0-9]/g, "");
+  if (digits.length < 8) return null;
+
+  const year = Number(digits.slice(0, 4));
+  const month = Number(digits.slice(4, 6));
+  const day = Number(digits.slice(6, 8));
+
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  return { year, month, day };
+}
+
+export function getFullAgeFromBasic(basic = {}) {
+  const parsed = parseBirthDate(basic.birthDate || basic.birth || "");
+  const birthYear = Number(basic.birthYear || 0);
+  const now = new Date();
+
+  if (parsed) {
+    let age = now.getFullYear() - parsed.year;
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+
+    if (currentMonth < parsed.month || (currentMonth === parsed.month && currentDay < parsed.day)) {
+      age -= 1;
+    }
+
+    return age;
+  }
+
+  if (birthYear) return now.getFullYear() - birthYear;
+
+  return Number(basic.age || 0) || null;
+}
+
+export function formatFullAgeBasic(basic = {}) {
+  const age = getFullAgeFromBasic(basic);
+  return age ? `만 ${age}세` : "-";
+}
+
 export function getApplicationTimeValue(application = {}) {
   const candidates = [
     application?.submittedAt,
@@ -123,8 +163,8 @@ export function getAgePriority(viewer = {}, candidate = {}) {
   const viewerBasic = getSafeBasic(viewer);
   const candidateBasic = getSafeBasic(candidate);
 
-  const viewerAge = Number(viewerBasic.age || 0);
-  const candidateAge = Number(candidateBasic.age || 0);
+  const viewerAge = getFullAgeFromBasic(viewerBasic);
+  const candidateAge = getFullAgeFromBasic(candidateBasic);
 
   if (!viewerAge || !candidateAge) {
     return {
@@ -337,7 +377,7 @@ export function buildMyProfileRows(application = {}) {
 
   return [
     ["닉네임", basic.nickname || "-"],
-    ["출생연도", formatBirthYearTwoDigits(basic.birthYear)],
+    ["나이", `${formatFullAgeBasic(basic)}(${formatBirthYearTwoDigits(basic.birthYear)})`],
     ["직업군", identity.jobCategory || "-"],
     ["회사/학교", identity.organizationName || "운영자 인증용"],
     ["활동 지역", (basic.activityAreas || []).join(" · ") || "-"],
@@ -415,12 +455,12 @@ export function buildPublicProfile(application = {}) {
   const identity = application?.identity || {};
 
   return {
-    title: `${getGenderLabel(basic.gender)} / ${basic.age || "-"}세 / ${identity.jobCategory || "직장인"}`,
+    title: `${getGenderLabel(basic.gender)} / ${formatFullAgeBasic(basic)} / ${identity.jobCategory || "직장인"}`,
     subtitle: `${(basic.activityAreas || []).slice(0, 2).join(" · ") || "활동지역 확인중"} 가능 / ${
       (basic.availableTimeSlots || []).slice(0, 2).join(" · ") || "시간대 확인중"
     }`,
     rows: [
-      ["출생연도", formatBirthYearTwoDigits(basic.birthYear)],
+      ["나이", `${formatFullAgeBasic(basic)}(${formatBirthYearTwoDigits(basic.birthYear)})`],
       ["직업군", identity.jobCategory || "-"],
       ["활동 지역", (basic.activityAreas || []).join(" · ") || "-"],
       ["가능 시간", (basic.availableTimeSlots || []).join(" · ") || "-"],

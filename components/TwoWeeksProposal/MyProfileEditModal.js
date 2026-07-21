@@ -206,7 +206,7 @@ export default function MyProfileEditModal({
               <section className="rounded-3xl border border-zinc-200 bg-white p-5 md:p-6">
                 <Label
                   title="프로필 사진"
-                  sub="대표 사진과 추가 사진을 최대 4장까지 관리할 수 있습니다."
+                  sub="권장 4:5 · 1080×1350px · 최대 5장"
                 />
                 <PhotoEditGrid
                   photos={form.photos}

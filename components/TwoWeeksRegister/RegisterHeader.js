@@ -6,8 +6,13 @@ export default function RegisterHeader({ dark = false }) {
   return (
     <header className="fixed left-0 top-0 z-40 w-full bg-black text-white">
       <div className="mx-auto flex h-[68px] w-full max-w-[1440px] items-center justify-between px-5 md:h-[78px] md:px-9">
-        <Link href="/2weeks" className="text-[22px] font-black tracking-[0.02em] md:text-[26px]">
-          2WEEKS
+        <Link href="/2weeks" className="flex items-center" aria-label="2WEEKS 홈">
+          <img
+            src="/logo/2weeks_logo_white.png"
+            alt="2WEEKS"
+            className="h-8 w-[118px] object-contain md:h-10 md:w-[150px]"
+            draggable={false}
+          />
         </Link>
 
         <Link

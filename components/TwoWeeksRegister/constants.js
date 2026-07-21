@@ -103,7 +103,7 @@ export const INITIAL_FORM = {
 };
 
 export const PROFILE_EXAMPLE = {
-  title: "여성 / 34세 / 직장인",
+  title: "여성 / 만 34세 / 직장인",
   subtitle: "강남·서초 가능 / 주말 오후 가능",
   rows: [
     ["직업", "직장인"],

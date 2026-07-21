@@ -7,6 +7,8 @@ import Step3ConsentForm from "./Step3ConsentForm";
 import { INITIAL_FORM, TWOWEEKS_COMPLETE_PATH } from "./constants";
 import { focusFirstError, formatPhone, normalizePhone, validateStep1, validateStep2, validateStep3 } from "./helpers";
 import { createTwoWeeksApplication } from "./twoweeksApplicationService";
+import LoadingSpinner from "../TwoWeeksShared/LoadingSpinner";
+import { buildTwoWeeksTestIdentityData, isTwoWeeksTestPhone } from "../TwoWeeksShared/testAuth";
 import { requestPortoneIdentityVerification } from "lib/portoneIdentity";
 import {
   clearPendingIdentityVerification,
@@ -38,7 +40,7 @@ function SubmitOverlay({ visible, progress, message, tone = "loading" }) {
             isError ? "bg-red-50 text-red-500" : isSuccess ? "bg-emerald-50 text-emerald-500" : "bg-black text-white"
           }`}
         >
-          {isError ? "!" : isSuccess ? "✓" : "↑"}
+          {isError ? "!" : isSuccess ? "✓" : <LoadingSpinner size="sm" tone="light" />}
         </div>
 
         <div className="mt-5 whitespace-pre-line text-lg font-black tracking-[-0.03em] text-slate-950">{message || "업로드 중입니다."}</div>
@@ -66,8 +68,8 @@ function IdentityProcessingOverlay({ message }) {
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/55 px-5 backdrop-blur-sm">
       <div className="w-full max-w-[360px] rounded-[28px] bg-white p-7 text-center shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-black text-2xl font-black text-white">
-          ✓
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-black text-white">
+          <LoadingSpinner size="sm" tone="light" />
         </div>
         <div className="mt-5 whitespace-pre-line text-lg font-black tracking-[-0.03em] text-slate-950">
           {message}
@@ -172,6 +174,44 @@ export default function TwoWeeksRegister() {
 
     if (!enteredPhone) {
       handleErrors({ phone: "본인인증을 위해 연락처를 먼저 입력해주세요." });
+      return;
+    }
+
+    if (isTwoWeeksTestPhone(enteredPhone)) {
+      try {
+        setIdentityLoading(true);
+        setIdentityError("");
+        setIdentityMessage("인증 정보를 적용하고 있어요.");
+
+        const testIdentity = buildTwoWeeksTestIdentityData({
+          phone: enteredPhone,
+          name: form.name,
+          gender: form.gender,
+          birthYear: form.birthYear,
+        });
+
+        const ok = applyVerifiedIdentity(testIdentity, enteredPhone);
+
+        if (ok) {
+          clearPendingIdentityVerification();
+          writeTwoWeeksDraft({
+            form: {
+              ...form,
+              phoneVerified: true,
+              phoneVerificationSkipped: false,
+            },
+            identityVerifiedData: testIdentity,
+          });
+        }
+      } catch (error) {
+        const message = error?.message || "인증 처리 중 오류가 발생했습니다.";
+        setIdentityError(message);
+        setErrors((prev) => ({ ...prev, phoneVerify: message }));
+      } finally {
+        setIdentityLoading(false);
+        setIdentityMessage("");
+      }
+
       return;
     }
 
