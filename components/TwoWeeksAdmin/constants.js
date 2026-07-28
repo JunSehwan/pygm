@@ -5,6 +5,8 @@ export const TABS = [
   { id: "matching", label: "매칭보드" },
   { id: "schedule", label: "일정관리" },
   { id: "results", label: "결과관리" },
+  { id: "rounds", label: "회차관리" },
+  { id: "cafes", label: "카페관리" },
 ];
 
 export const STATUS_LABELS = {
@@ -32,6 +34,16 @@ export const STATUS_LABELS = {
   needs_final_choice: "일정 선택 필요",
   place_pending: "장소 확정 대기",
   schedule_confirmed: "일정 확정",
+  draft: "준비중",
+  open: "모집중",
+  matching: "매칭중",
+  meeting: "만남진행",
+  closed: "마감",
+  paused: "보류",
+  no_show_confirmed: "노쇼 확정",
+  no_show_dismissed: "노쇼 아님",
+  evidence_requested: "추가 확인",
+  no_penalty_rematch: "불이익 없이 재매칭",
 };
 
 export const DEFAULT_ROUND_ID = "twoweeks_beta_1";

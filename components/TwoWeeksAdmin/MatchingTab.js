@@ -49,11 +49,30 @@ function CandidateMiniCard({ application, selected, onClick }) {
   );
 }
 
-export default function MatchingTab({ applications, onCreateMatch, onBulkCreateMatches, busyId }) {
+function getPairKey(maleId = "", femaleId = "") {
+  return `${maleId}__${femaleId}`;
+}
+
+function buildExistingPairSet(matches = []) {
+  return new Set(
+    matches
+      .filter((match) => match?.maleApplicationId && match?.femaleApplicationId)
+      .map((match) => getPairKey(match.maleApplicationId, match.femaleApplicationId))
+  );
+}
+
+export default function MatchingTab({ applications, matches = [], onCreateMatch, onBulkCreateMatches, busyId }) {
   const eligibleApplications = applications.filter(isMatchAvailableApplication);
   const males = eligibleApplications.filter(isMale);
   const females = eligibleApplications.filter(isFemale);
-  const highScorePairs = useMemo(() => buildHighScorePairs(eligibleApplications), [eligibleApplications]);
+  const existingPairSet = useMemo(() => buildExistingPairSet(matches), [matches]);
+  const highScorePairs = useMemo(
+    () =>
+      buildHighScorePairs(eligibleApplications).filter(
+        (pair) => !existingPairSet.has(getPairKey(pair.male.id, pair.female.id))
+      ),
+    [eligibleApplications, existingPairSet]
+  );
 
   const [selectedMale, setSelectedMale] = useState(null);
   const [selectedFemale, setSelectedFemale] = useState(null);
@@ -61,13 +80,14 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
   const male = selectedMale && males.some((item) => item.id === selectedMale.id) ? selectedMale : males[0] || null;
   const female = selectedFemale && females.some((item) => item.id === selectedFemale.id) ? selectedFemale : females[0] || null;
   const score = male && female ? getPairScore(male, female) : null;
+  const duplicatePair = Boolean(male?.id && female?.id && existingPairSet.has(getPairKey(male.id, female.id)));
   const busy = busyId === "match" || busyId === "bulkMatch";
 
   return (
     <div className="grid gap-4">
       <Section
         title="자동 매칭"
-        desc={`승인 + 입금확인 완료자 중 아직 제안되지 않은 후보 기준 · 구성 가능 ${highScorePairs.length}쌍`}
+        desc={`승인 + 입금확인 완료자 중 아직 제안되지 않은 후보 기준 · 기존 매칭 이력 제외 · 구성 가능 ${highScorePairs.length}쌍`}
         action={
           <ActionButton
             disabled={!highScorePairs.length || busy}
@@ -130,7 +150,7 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
           desc="선택한 남녀 후보 제안을 저장합니다."
           action={
             <ActionButton
-              disabled={!male || !female || busy}
+              disabled={!male || !female || duplicatePair || busy}
               onClick={() => onCreateMatch(male, female, score)}
               tone="dark"
             >
@@ -145,6 +165,12 @@ export default function MatchingTab({ applications, onCreateMatch, onBulkCreateM
                 <InfoBox label="나이차" value={score?.ageDiff === null ? "-" : `남성 +${score?.ageDiff || 0}세 기준`} />
                 <InfoBox label="공통지역" value={score?.areaOverlap?.join(" · ") || "-"} />
               </div>
+
+              {duplicatePair ? (
+                <div className="border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700">
+                  이미 같은 상대와 매칭 이력이 있습니다. 중복 매칭은 생성할 수 없습니다.
+                </div>
+              ) : null}
 
               <div className="border border-zinc-200 px-4">
                 <FieldRow label="남성" value={`${getApplicationName(male)} · ${formatAgeBirth(male)} · ${getIdentity(male).jobCategory || "-"}`} />

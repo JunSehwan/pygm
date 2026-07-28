@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MyProfileEditModal from "./MyProfileEditModal";
 import LoadingSpinner from "../TwoWeeksShared/LoadingSpinner";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
 }
+
+const SUPPORT_CHANNEL_URL =
+  process.env.NEXT_PUBLIC_TWOWEEKS_KAKAO_CHANNEL_URL || "https://open.kakao.com/o/sAJwMNCe";
 
 function getBasic(application = {}) {
   return application?.basic || {};
@@ -278,13 +281,13 @@ function MapLinkButton({ href }) {
 
 function StatusBox({ label, value, tone = "neutral" }) {
   const toneClass = {
-    neutral: "border-[#dfe3e8] bg-white text-[#1c1e21]",
-    blue: "border-blue-100 bg-blue-50 text-blue-800",
-    good: "border-emerald-100 bg-emerald-50 text-emerald-800",
-    warn: "border-amber-100 bg-amber-50 text-amber-800",
-    orange: "border-orange-100 bg-orange-50 text-orange-800",
-    bad: "border-rose-100 bg-rose-50 text-rose-800",
-  }[tone] || "border-[#dfe3e8] bg-white text-[#1c1e21]";
+    neutral: "border-solid border-[#dfe3e8] bg-white text-[#1c1e21]",
+    blue: "border-solid border-blue-100 bg-blue-50 text-blue-800",
+    good: "border-solid border-emerald-100 bg-emerald-50 text-emerald-800",
+    warn: "border-solid border-amber-100 bg-amber-50 text-amber-800",
+    orange: "border-solid border-orange-100 bg-orange-50 text-orange-800",
+    bad: "border-solid border-rose-100 bg-rose-50 text-rose-800",
+  }[tone] || "border-solid border-[#dfe3e8] bg-white text-[#1c1e21]";
 
   return (
     <div className={cx("rounded-xl border p-4", toneClass)}>
@@ -654,14 +657,46 @@ const SCHEDULE_OPEN_STATUSES = [
 ];
 
 function isScheduleOpen(bestMatch = {}) {
+  const schedule = getScheduleFromMatch(bestMatch);
   const status = getScheduleStatus(bestMatch);
-  const matchStatus = String(bestMatch?.match?.status || "");
+  const matchStatus = String(bestMatch?.match?.status || bestMatch?.status || "");
+  const proposal = bestMatch?.viewerApplication?.currentProposal || bestMatch?.currentProposal || {};
+  const proposalResponse = String(proposal?.response || "");
+  const candidateResponse = String(bestMatch?.candidateApplication?.currentProposal?.response || "");
+  const finalMeeting = bestMatch?.finalMeeting || bestMatch?.match?.finalMeeting || schedule?.finalMeeting || null;
+  const photoRevealStatus =
+    bestMatch?.match?.photoRevealStatus ||
+    bestMatch?.viewerApplication?.photoRevealStatus ||
+    bestMatch?.viewerApplication?.currentProposal?.photoRevealStatus ||
+    "";
 
-  return (
-    SCHEDULE_OPEN_STATUSES.includes(status) &&
-    (bestMatch?.bothAccepted === true || ["mutualAccepted", "confirmed"].includes(matchStatus))
-  );
+  const hasScheduleData =
+    Boolean(schedule?.firstSelectorApplicationId) ||
+    Boolean(schedule?.counterpartApplicationId) ||
+    normalizeArray(schedule?.timeChoices).length > 0 ||
+    normalizeArray(schedule?.placeChoices).length > 0 ||
+    Boolean(schedule?.finalChoice) ||
+    Boolean(schedule?.finalMeeting) ||
+    Boolean(finalMeeting);
+
+  const confirmedLike =
+    status === "confirmed" ||
+    matchStatus === "confirmed" ||
+    Boolean(finalMeeting) ||
+    photoRevealStatus === "revealed";
+
+  const mutualAcceptedLike =
+    bestMatch?.bothAccepted === true ||
+    matchStatus === "mutualAccepted" ||
+    matchStatus === "confirmed" ||
+    proposalResponse === "accepted" ||
+    candidateResponse === "accepted" ||
+    hasScheduleData ||
+    confirmedLike;
+
+  return SCHEDULE_OPEN_STATUSES.includes(status) && (mutualAcceptedLike || confirmedLike);
 }
+
 
 function isScheduleActionRequiredForMe(application = {}, bestMatch = {}) {
   if (!isScheduleOpen(bestMatch)) return false;
@@ -710,16 +745,41 @@ function getAvailableAreas(application = {}, candidate = {}) {
   ).slice(0, 8);
 }
 
-function getCafeOptions(area = "") {
+function normalizeManagedCafe(cafe = {}) {
+  const cafeId = cafe.id || cafe.cafeId || cafe.placeId || "";
+  const name = cafe.name || cafe.cafeName || "";
+
+  return {
+    id: cafeId,
+    cafeId,
+    name,
+    station: cafe.station || cafe.cafeStation || "",
+    ratingLabel: cafe.ratingLabel || cafe.cafeRatingLabel || cafe.verificationStatusLabel || "운영자 확인 후보",
+    reason: cafe.reason || cafe.cafeReason || "",
+    mapQuery: cafe.mapQuery || cafe.cafeMapQuery || name,
+    mapUrl: cafe.mapUrl || cafe.cafeMapUrl || "",
+    status: cafe.status || "active",
+  };
+}
+
+function getCafeOptions(area = "", cafeCandidates = []) {
+  const managed = normalizeArray(cafeCandidates)
+    .filter((cafe) => cafe?.status === "active" && cafe?.area === area)
+    .map(normalizeManagedCafe)
+    .filter((cafe) => cafe.id && cafe.name);
+
+  if (managed.length) return managed;
+
   return CAFE_POOLS[area] || CAFE_POOLS[MANAGED_AREAS[0]] || [];
 }
 
-function getCafeById(area = "", cafeId = "") {
-  const cafes = getCafeOptions(area);
+function getCafeById(area = "", cafeId = "", cafeCandidates = []) {
+  const cafes = getCafeOptions(area, cafeCandidates);
   return cafes.find((cafe) => cafe.id === cafeId) || cafes[0] || null;
 }
 
 function getCafeMapUrl(cafe = {}) {
+  if (cafe?.mapUrl) return cafe.mapUrl;
   if (!cafe?.mapQuery) return "";
   return `https://map.naver.com/p/search/${encodeURIComponent(cafe.mapQuery)}`;
 }
@@ -790,8 +850,8 @@ function formatScheduleChoice(choice = {}) {
   return [choice.dateLabel, choice.timeLabel, choice.area, choice.cafeName].filter(Boolean).join(" · ") || "-";
 }
 
-function CafeSelectGrid({ area, selectedCafeIds = [], onToggle, maxCount = 3 }) {
-  const cafes = getCafeOptions(area);
+function CafeSelectGrid({ area, selectedCafeIds = [], onToggle, maxCount = 3, cafeCandidates = [] }) {
+  const cafes = getCafeOptions(area, cafeCandidates);
   const selectedIds = Array.isArray(selectedCafeIds) ? selectedCafeIds : [];
 
   if (!cafes.length) return null;
@@ -988,6 +1048,61 @@ function getScheduleDueAtByStatus(schedule = {}, status = "") {
   if (status === "confirmed") return "";
 
   return schedule.dueAtClient || schedule.counterpartDueAtClient || "";
+}
+
+const TAB_LOADING_MESSAGES = {
+  candidate: {
+    title: "대상 후보를 불러오는 중입니다",
+    desc: "후보 프로필과 응답 상태를 확인하고 있습니다.",
+  },
+  schedule: {
+    title: "일정조율 정보를 불러오는 중입니다",
+    desc: "확정된 일정, 장소 후보, 참석 상태를 확인하고 있습니다.",
+  },
+  status: {
+    title: "신청현황을 불러오는 중입니다",
+    desc: "승인, 입금, 매칭 진행 상태를 확인하고 있습니다.",
+  },
+  profile: {
+    title: "프로필 정보를 불러오는 중입니다",
+    desc: "등록한 사진과 기본 정보를 준비하고 있습니다.",
+  },
+  result: {
+    title: "결과 정보를 불러오는 중입니다",
+    desc: "만남 후 피드백과 다음 회차 상태를 확인하고 있습니다.",
+  },
+};
+
+function DashboardLoadingPanel({
+  title = "신청현황을 불러오는 중입니다",
+  desc = "잠시만 기다려주세요.",
+}) {
+  return (
+    <div
+      className="mt-4 rounded-2xl border-solid border border-[#dfe3e8] bg-white p-6 text-center shadow-sm sm:mt-5 sm:p-8"
+      role="status"
+      aria-live="polite"
+    >
+      <LoadingSpinner size="lg" tone="blue" className="mx-auto" />
+      <div className="mt-5 text-[20px] font-bold tracking-[-0.04em] text-[#1c1e21]">
+        {title}
+      </div>
+      <p className="mt-2 break-keep text-[14px] font-semibold leading-6 text-[#65676b]">
+        {desc}
+      </p>
+
+      <div className="mx-auto mt-6 grid max-w-xl gap-3 text-left">
+        <div className="h-4 w-2/3 animate-pulse rounded-full bg-[#f0f2f5]" />
+        <div className="h-4 w-full animate-pulse rounded-full bg-[#f0f2f5]" />
+        <div className="h-4 w-5/6 animate-pulse rounded-full bg-[#f0f2f5]" />
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="h-14 animate-pulse rounded-xl bg-[#f0f2f5]" />
+          <div className="h-14 animate-pulse rounded-xl bg-[#f0f2f5]" />
+          <div className="h-14 animate-pulse rounded-xl bg-[#f0f2f5]" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const TABS = [
@@ -1321,13 +1436,19 @@ function CandidateTab({
 function ScheduleTab({
   application,
   bestMatch,
+  cafeCandidates = [],
   savingSchedule,
   savingPreMeetingNote,
   savingAttendance,
+  savingArrival,
+  savingProofPhoto,
+  proofUploadProgress,
   onSaveScheduleChoices,
   onSaveFinalScheduleChoice,
   onSavePreMeetingNote,
   onSaveMeetingAttendance,
+  onSaveMeetingArrival,
+  onSaveMeetingProofPhoto,
 }) {
   const candidate = bestMatch?.candidate;
   const schedule = getScheduleFromMatch(bestMatch);
@@ -1348,10 +1469,16 @@ function ScheduleTab({
   const scheduleExpired = isDueExpired(scheduleDueAt);
 
   const options = useMemo(() => buildAutoScheduleOptions(), []);
-  const availableAreas = useMemo(
-    () => getAvailableAreas(application, candidate),
-    [application, candidate]
-  );
+  const safeCafeCandidates = Array.isArray(cafeCandidates) ? cafeCandidates : [];
+
+  const availableAreas = useMemo(() => {
+    const baseAreas = getAvailableAreas(application, candidate);
+    const cafeAreas = normalizeArray(safeCafeCandidates)
+      .filter((cafe) => cafe?.status === "active" && cafe?.area)
+      .map((cafe) => cafe.area);
+
+    return Array.from(new Set([...baseAreas, ...cafeAreas]));
+  }, [application, candidate, cafeCandidates]);
 
   const [selectedTimeIds, setSelectedTimeIds] = useState([]);
   const [selectedArea, setSelectedArea] = useState("");
@@ -1359,13 +1486,23 @@ function ScheduleTab({
   const [finalTimeId, setFinalTimeId] = useState("");
   const [finalPlaceId, setFinalPlaceId] = useState("");
   const [preMeetingNoteText, setPreMeetingNoteText] = useState("");
+  const [proofFile, setProofFile] = useState(null);
+  const [proofMemo, setProofMemo] = useState("");
+  const [proofPreviewUrl, setProofPreviewUrl] = useState("");
 
   const preMeetingNotes = bestMatch?.match?.preMeetingNotes || {};
   const myPreMeetingNote = application?.id ? preMeetingNotes[application.id] : null;
   const counterpartPreMeetingNote = candidate?.id ? preMeetingNotes[candidate.id] : null;
+
+  const meetingArrival = bestMatch?.match?.meetingArrival || {};
+  const myArrival = application?.id ? meetingArrival[application.id] : null;
+  const counterpartArrival = candidate?.id ? meetingArrival[candidate.id] : null;
   const meetingAttendance = bestMatch?.match?.meetingAttendance || {};
   const myAttendance = application?.id ? meetingAttendance[application.id] : null;
   const counterpartAttendance = candidate?.id ? meetingAttendance[candidate.id] : null;
+  const meetingProofs = bestMatch?.match?.meetingProofs || {};
+  const myMeetingProof = application?.id ? meetingProofs[application.id] || application?.schedule?.meetingProof : null;
+  const counterpartMeetingProof = candidate?.id ? meetingProofs[candidate.id] : null;
 
   useEffect(() => {
     setSelectedTimeIds([]);
@@ -1379,6 +1516,18 @@ function ScheduleTab({
     setPreMeetingNoteText(myPreMeetingNote?.note || "");
   }, [myPreMeetingNote?.note, bestMatch?.matchId]);
 
+  useEffect(() => {
+    if (!proofFile) {
+      setProofPreviewUrl("");
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(proofFile);
+    setProofPreviewUrl(nextUrl);
+
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [proofFile]);
+
   if (!candidate) {
     return (
       <SectionCard eyebrow="schedule" title="일정조율">
@@ -1389,7 +1538,17 @@ function ScheduleTab({
     );
   }
 
-  if (!scheduleOpen) {
+  const hasAnyScheduleProgress =
+    normalizeArray(timeChoices).length > 0 ||
+    normalizeArray(placeChoices).length > 0 ||
+    Boolean(finalChoice) ||
+    Boolean(finalMeeting) ||
+    status === "confirmed" ||
+    status === "waiting_counterpart" ||
+    status === "needs_final_choice" ||
+    status === "place_pending";
+
+  if (!scheduleOpen && !hasAnyScheduleProgress) {
     return (
       <SectionCard eyebrow="schedule" title="일정조율">
         <div className="rounded-xl bg-[#f0f2f5] p-6">
@@ -1433,6 +1592,8 @@ function ScheduleTab({
     "";
   const attendanceConfirmed = myAttendance?.status === "attending";
   const counterpartAttendanceConfirmed = counterpartAttendance?.status === "attending";
+  const arrivalConfirmed = myArrival?.status === "arrived";
+  const counterpartArrivalConfirmed = counterpartArrival?.status === "arrived";
 
   const toggleTimeOption = (optionId) => {
     setSelectedTimeIds((prev) => {
@@ -1475,6 +1636,15 @@ function ScheduleTab({
   };
 
   const selectedPlaceIds = selectedPlaces.map((item) => item.placeId || item.cafeId || item.id).filter(Boolean);
+
+  const submitMeetingProofPhoto = () => {
+    if (!proofFile || savingProofPhoto) return;
+
+    onSaveMeetingProofPhoto?.({
+      file: proofFile,
+      note: proofMemo,
+    });
+  };
 
   return (
     <SectionCard eyebrow="schedule" title={isMeetingConfirmed ? "만남 확정 안내" : "일정조율"}>
@@ -1596,6 +1766,7 @@ function ScheduleTab({
             selectedCafeIds={selectedPlaceIds}
             onToggle={togglePlace}
             maxCount={3}
+            cafeCandidates={safeCafeCandidates}
           />
 
           {selectedPlaces.length ? (
@@ -1827,7 +1998,7 @@ function ScheduleTab({
                     {attendanceConfirmed ? "참석 확인이 완료되었습니다" : "참석 확인을 눌러주세요"}
                   </div>
                   <p className="mt-1 break-keep text-[12px] font-semibold leading-5 text-[#65676b]">
-                    상대 프로필은 참석 확인 전에도 바로 확인할 수 있습니다. 참석 확인은 노쇼 방지와 만남 준비 확인용입니다.
+                    상대 프로필은 참석 확인 전에도 바로 확인할 수 있습니다. 참석 확인은 최종 만남 안내와 노쇼 방지를 위한 필수 확인 단계입니다.
                   </p>
                 </div>
 
@@ -1865,7 +2036,7 @@ function ScheduleTab({
                   만남 전 한마디
                 </div>
                 <p className="mt-1 break-keep text-[13px] font-semibold leading-5 text-[#65676b]">
-                  자유채팅은 열지 않고, 서로를 찾기 위한 짧은 안내만 남깁니다.
+                  자유채팅은 열지 않고, 이 영역에서 서로를 찾기 위한 짧은 안내만 주고받습니다.
                 </p>
               </div>
               {myPreMeetingNote?.note ? (
@@ -1878,7 +2049,7 @@ function ScheduleTab({
             <div className="mt-4 rounded-xl bg-blue-50 px-4 py-3 text-[13px] font-bold leading-6 text-blue-800">
               {/* 예시: “남색 셔츠에 검정 가방을 들고 갈게요. 카페 입구 오른쪽 자리에서 기다리겠습니다.”
               <br /> */}
-              복장, 가방/소지품, 카페 안에서 기다릴 위치를 1~2문장으로 적어주세요.
+              복장, 가방/소지품, 카페 안에서 기다릴 위치를 1~2문장으로 적어주세요. 이 한마디가 만남 전 소통 역할을 합니다.
             </div>
 
             {counterpartPreMeetingNote?.note ? (
@@ -1916,6 +2087,157 @@ function ScheduleTab({
                 {savingPreMeetingNote ? "저장 중..." : myPreMeetingNote?.note ? "한마디 수정하기" : "한마디 남기기"}
               </button>
             </div>
+          </div>
+
+          <div className="rounded-2xl border-solid border border-[#dfe3e8] bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-[18px] font-bold tracking-[-0.04em] text-[#1c1e21]">
+                  도착 확인
+                </div>
+                <p className="mt-1 break-keep text-[13px] font-semibold leading-5 text-[#65676b]">
+                  카페에 도착하면 버튼만 눌러주세요. 상대에게 도착 신호와 현재 만남 전 한마디가 문자로 전달됩니다.
+                </p>
+              </div>
+              {arrivalConfirmed ? (
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
+                  도착 확인 완료
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 rounded-xl bg-blue-50 px-4 py-3 text-[13px] font-bold leading-6 text-blue-800">
+              복장, 가방, 기다리는 위치가 바뀌면 위의 만남 전 한마디를 수정해주세요. 수정하면 상대에게 다시 문자가 전달됩니다.
+            </div>
+
+            {counterpartArrivalConfirmed ? (
+              <div className="mt-4 rounded-xl border-solid border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <div className="text-[12px] font-bold tracking-[0.16em] text-emerald-700">상대 도착</div>
+                <div className="mt-2 text-[14px] font-bold leading-6 text-emerald-900">
+                  상대도 도착 확인을 완료했습니다. 상대 한마디를 확인하고 만남을 진행해주세요.
+                </div>
+                {counterpartArrival?.preMeetingNoteSnapshot ? (
+                  <div className="mt-2 whitespace-pre-line text-[13px] font-semibold leading-5 text-emerald-800">
+                    {counterpartArrival.preMeetingNoteSnapshot}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl bg-[#f0f2f5] px-4 py-3 text-[13px] font-bold text-[#65676b]">
+                상대 도착 신호는 아직 없습니다.
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={savingArrival || arrivalConfirmed}
+                onClick={() => onSaveMeetingArrival?.()}
+                className={cx(
+                  "h-11 rounded-xl px-5 text-[13px] font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50",
+                  arrivalConfirmed ? "bg-emerald-600" : "bg-[#1c1e21] hover:bg-black"
+                )}
+              >
+                {arrivalConfirmed ? "도착 확인 완료" : savingArrival ? "저장 중..." : "도착했어요"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border-solid border border-[#dfe3e8] bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-[18px] font-bold tracking-[-0.04em] text-[#1c1e21]">
+                  현장 인증 사진
+                </div>
+                <p className="mt-1 break-keep text-[13px] font-semibold leading-5 text-[#65676b]">
+                  노쇼/불참 분쟁이 생겼을 때 운영자가 참고할 수 있는 보조 증빙입니다. 상대방 얼굴은 촬영하지 말고, 내 자리·음료·테이블·매장 일부만 올려주세요.
+                </p>
+              </div>
+              {myMeetingProof?.photo?.url ? (
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
+                  인증 사진 등록됨
+                </span>
+              ) : null}
+            </div>
+
+            {myMeetingProof?.photo?.url ? (
+              <div className="mt-4 rounded-xl border-solid border border-emerald-100 bg-emerald-50 p-3">
+                <div className="grid gap-3 sm:grid-cols-[120px_1fr] sm:items-center">
+                  <img
+                    src={myMeetingProof.photo.url}
+                    alt="현장 인증 사진"
+                    className="aspect-[4/3] w-full rounded-lg object-cover sm:w-[120px]"
+                  />
+                  <div>
+                    <div className="text-[13px] font-bold text-emerald-900">등록된 현장 인증 사진이 있습니다.</div>
+                    <div className="mt-1 break-keep text-[12px] font-semibold leading-5 text-emerald-800">
+                      {myMeetingProof.note || "운영자 검토용으로만 사용됩니다."}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {counterpartMeetingProof?.photo?.url ? (
+              <div className="mt-3 rounded-xl bg-[#f0f2f5] px-4 py-3 text-[12px] font-bold leading-5 text-[#65676b]">
+                상대도 현장 인증 사진을 등록했습니다. 사진은 운영자 검토용이며, 상대에게 공개되지 않습니다.
+              </div>
+            ) : null}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <label className="block">
+                <span className="mb-2 block text-[12px] font-bold text-[#65676b]">사진 선택</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setProofFile(event.target.files?.[0] || null)}
+                  disabled={savingProofPhoto}
+                  className="block w-full rounded-xl border-solid border border-[#dfe3e8] bg-white px-3 py-3 text-[13px] font-semibold text-[#1c1e21] file:mr-3 file:rounded-lg file:border-0 file:bg-[#1877f2] file:px-3 file:py-2 file:text-[12px] file:font-bold file:text-white disabled:opacity-50"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!proofFile || savingProofPhoto}
+                onClick={submitMeetingProofPhoto}
+                className="min-h-[44px] rounded-xl bg-[#1877f2] px-5 text-[13px] font-bold text-white transition hover:bg-[#166fe5] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingProofPhoto ? `업로드 중 ${proofUploadProgress || 0}%` : myMeetingProof?.photo?.url ? "사진 다시 올리기" : "사진 올리기"}
+              </button>
+            </div>
+
+            {proofPreviewUrl ? (
+              <div className="mt-3 overflow-hidden rounded-xl border-solid border border-[#dfe3e8] bg-[#f8f9fa] p-3">
+                <img src={proofPreviewUrl} alt="선택한 현장 인증 사진 미리보기" className="max-h-[260px] w-full rounded-lg object-contain" />
+              </div>
+            ) : null}
+
+            <textarea
+              value={proofMemo}
+              maxLength={300}
+              onChange={(event) => setProofMemo(event.target.value)}
+              rows={3}
+              placeholder="예시) 약속시간 10분 전 도착했고, 창가 쪽 두 번째 테이블에 앉아 있습니다."
+              className="mt-3 w-full rounded-xl border-solid border border-[#dfe3e8] bg-white px-4 py-3 text-[13px] font-semibold leading-6 text-[#1c1e21] outline-none transition focus:border-[#1877f2] focus:ring-2 focus:ring-[#1877f2]/10"
+            />
+          </div>
+
+          <div className="rounded-2xl border-solid border border-[#dfe3e8] bg-[#f8f9fa] p-5">
+            <div className="text-[16px] font-bold tracking-[-0.04em] text-[#1c1e21]">
+              현장 문의 안내
+            </div>
+            <p className="mt-2 break-keep text-[13px] font-semibold leading-6 text-[#65676b]">
+              장소에서 상대를 찾기 어렵거나 안전상 불편한 상황이 있으면 먼저 도착 확인과 상대 한마디를 확인해주세요. 그래도 해결이 어렵다면 운영자에게 문의해주세요.
+            </p>
+            {SUPPORT_CHANNEL_URL ? (
+              <a
+                href={SUPPORT_CHANNEL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border-solid border border-[#dfe3e8] bg-white px-4 text-[13px] font-bold text-[#1c1e21]"
+              >
+                운영자에게 문의하기
+              </a>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -1958,12 +2280,16 @@ export default function ProposalDashboard({
   verifiedProfile,
   application,
   bestMatch,
+  cafeCandidates = [],
   loading,
   responseStatus,
   savingResponse,
   savingSchedule,
   savingPreMeetingNote,
   savingAttendance,
+  savingArrival,
+  savingProofPhoto,
+  proofUploadProgress,
   savingProfile,
   profileUploadProgress,
   onRespond,
@@ -1971,10 +2297,14 @@ export default function ProposalDashboard({
   onSaveFinalScheduleChoice,
   onSavePreMeetingNote,
   onSaveMeetingAttendance,
+  onSaveMeetingArrival,
+  onSaveMeetingProofPhoto,
   onSaveProfile,
   onResetIdentity,
 }) {
   const [activeTab, setActiveTab] = useState("candidate");
+  const [tabLoading, setTabLoading] = useState(false);
+  const tabLoadingTimerRef = useRef(null);
   const [confirmType, setConfirmType] = useState("");
 
   const proposalDueAt = getProposalDueAt(application, bestMatch);
@@ -2012,13 +2342,50 @@ export default function ProposalDashboard({
         : null,
   };
 
+  const currentLoadingMessage = TAB_LOADING_MESSAGES[activeTab] || TAB_LOADING_MESSAGES.status;
+
   useEffect(() => {
-    if (scheduleOpen && scheduleActionRequired) {
+    return () => {
+      if (tabLoadingTimerRef.current) {
+        clearTimeout(tabLoadingTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleTabChange = (nextTab) => {
+    if (!nextTab || nextTab === activeTab) return;
+
+    if (tabLoadingTimerRef.current) {
+      clearTimeout(tabLoadingTimerRef.current);
+    }
+
+    setActiveTab(nextTab);
+    setTabLoading(true);
+
+    tabLoadingTimerRef.current = setTimeout(() => {
+      setTabLoading(false);
+      tabLoadingTimerRef.current = null;
+    }, 220);
+  };
+
+  useEffect(() => {
+    if (scheduleOpen && scheduleActionRequired && activeTab !== "schedule") {
       setActiveTab("schedule");
+      setTabLoading(true);
+
+      if (tabLoadingTimerRef.current) {
+        clearTimeout(tabLoadingTimerRef.current);
+      }
+
+      tabLoadingTimerRef.current = setTimeout(() => {
+        setTabLoading(false);
+        tabLoadingTimerRef.current = null;
+      }, 220);
     }
   }, [
     scheduleOpen,
     scheduleActionRequired,
+    activeTab,
     bestMatch?.matchId,
     bestMatch?.match?.scheduleStatus,
     bestMatch?.match?.schedule?.status,
@@ -2052,12 +2419,18 @@ export default function ProposalDashboard({
           </button>
         </div>
 
-        <TabNav activeTab={activeTab} onChange={setActiveTab} tabMeta={tabMeta} />
+        <TabNav activeTab={activeTab} onChange={handleTabChange} tabMeta={tabMeta} />
 
         {loading ? (
-          <div className="mt-4 rounded-xl border-solid border border-[#dfe3e8] bg-white p-8 text-center sm:mt-5">
-            <LoadingSpinner size="lg" tone="blue" className="mx-auto" />
-          </div>
+          <DashboardLoadingPanel
+            title="신청현황을 다시 불러오는 중입니다"
+            desc="최신 매칭, 일정, 문자 발송 상태를 확인하고 있습니다."
+          />
+        ) : tabLoading ? (
+          <DashboardLoadingPanel
+            title={currentLoadingMessage.title}
+            desc={currentLoadingMessage.desc}
+          />
         ) : application ? (
           <div className="mt-4 sm:mt-5">
             {activeTab === "candidate" ? (
@@ -2073,13 +2446,19 @@ export default function ProposalDashboard({
               <ScheduleTab
                 application={application}
                 bestMatch={bestMatch}
+                cafeCandidates={cafeCandidates}
                 savingSchedule={savingSchedule}
                 savingPreMeetingNote={savingPreMeetingNote}
                 savingAttendance={savingAttendance}
+                savingArrival={savingArrival}
+                savingProofPhoto={savingProofPhoto}
+                proofUploadProgress={proofUploadProgress}
                 onSaveScheduleChoices={onSaveScheduleChoices}
                 onSaveFinalScheduleChoice={onSaveFinalScheduleChoice}
                 onSavePreMeetingNote={onSavePreMeetingNote}
                 onSaveMeetingAttendance={onSaveMeetingAttendance}
+                onSaveMeetingArrival={onSaveMeetingArrival}
+                onSaveMeetingProofPhoto={onSaveMeetingProofPhoto}
               />
             ) : null}
             {activeTab === "status" ? <StatusTab application={application} /> : null}

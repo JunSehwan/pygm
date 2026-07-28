@@ -1119,3 +1119,9 @@ exports.deleteCurrentUserAccount = deleteCurrentUserAccount;
 
 // 3일마다 문자말송(만약에 남성 소개가 도착한다면..)
 exports.scheduleArenaOffers = require("./arenaOfferScheduler").scheduleArenaOffers;
+
+// 투윅스 만남 전날/당일 리마인드 문자
+exports.sendTwoWeeksMeetingReminders = require("./twoWeeksMeetingReminders").sendTwoWeeksMeetingReminders;
+
+// 투윅스 제안/일정 기한 만료 자동 처리
+exports.processTwoWeeksDeadlineExpirations = require("./twoWeeksDeadlineExpirations").processTwoWeeksDeadlineExpirations;

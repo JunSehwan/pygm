@@ -1,5 +1,7 @@
 import { Component, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "firebaseConfig";
 import ProposalHeader from "./ProposalHeader";
 import IdentityGate from "./IdentityGate";
 import ProposalDashboard from "./ProposalDashboard";
@@ -18,6 +20,8 @@ import {
   saveScheduleFinalChoice,
   savePreMeetingNote,
   saveMeetingAttendance,
+  saveMeetingArrival,
+  saveMeetingProofPhoto,
   sendDashboardLookupCode,
   updateApplicationProfile,
 } from "./proposalService";
@@ -75,6 +79,51 @@ function ProcessingOverlay({ message }) {
       </div>
     </div>
   );
+}
+
+function DashboardBootLoading({ message = "신청 현황을 불러오는 중입니다." }) {
+  return (
+    <section className="flex min-h-[calc(100svh-64px)] items-center justify-center px-5 py-10 text-white md:min-h-[calc(100svh-80px)]">
+      <div className="w-full max-w-[420px] rounded-[32px] border border-white/10 bg-white/[0.07] p-7 text-center shadow-[0_30px_90px_rgba(0,0,0,0.36)] backdrop-blur-xl">
+                    <LoadingSpinner size="lg" tone="light" className="mx-auto" />
+        <h1 className="mt-5 text-2xl font-bold tracking-[-0.04em]">
+          {message}
+        </h1>
+        <p className="mt-2 break-keep text-sm font-semibold leading-6 text-zinc-300">
+          후보, 일정, 신청 상태를 최신 정보로 확인하고 있습니다.
+        </p>
+        <div className="mx-auto mt-6 grid max-w-xs gap-3">
+          <div className="h-3 animate-pulse rounded-full bg-white/15" />
+          <div className="h-3 animate-pulse rounded-full bg-white/10" />
+          <div className="h-3 animate-pulse rounded-full bg-white/10" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function loadActiveCafeCandidatesSafe() {
+  try {
+    const snap = await getDocs(
+      query(collection(db, "twoweeksCafeCandidates"), where("status", "==", "active"))
+    );
+
+    return snap.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .filter((item) => item?.name && item?.area)
+      .sort((a, b) => {
+        const areaCompare = String(a.area || "").localeCompare(String(b.area || ""), "ko");
+        if (areaCompare) return areaCompare;
+
+        const sortCompare = Number(a.sortOrder || 999) - Number(b.sortOrder || 999);
+        if (sortCompare) return sortCompare;
+
+        return String(a.name || "").localeCompare(String(b.name || ""), "ko");
+      });
+  } catch (error) {
+    console.warn("[TwoWeeksProposal] cafe candidates fallback:", error?.code || error?.message || error);
+    return [];
+  }
 }
 
 function getFirstQueryValue(value) {
@@ -198,6 +247,7 @@ export default function TwoWeeksProposalDashboard() {
   const [verifiedProfile, setVerifiedProfile] = useState(null);
   const [application, setApplication] = useState(null);
   const [bestMatch, setBestMatch] = useState(null);
+  const [cafeCandidates, setCafeCandidates] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const [responseStatus, setResponseStatus] = useState("");
@@ -205,6 +255,9 @@ export default function TwoWeeksProposalDashboard() {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [savingPreMeetingNote, setSavingPreMeetingNote] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
+  const [savingArrival, setSavingArrival] = useState(false);
+  const [savingProofPhoto, setSavingProofPhoto] = useState(false);
+  const [proofUploadProgress, setProofUploadProgress] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileUploadProgress, setProfileUploadProgress] = useState(0);
 
@@ -218,6 +271,7 @@ export default function TwoWeeksProposalDashboard() {
     setVerifiedProfile(null);
     setApplication(null);
     setBestMatch(null);
+    setCafeCandidates([]);
     setResponseStatus("");
     clearStoredSession();
   }, []);
@@ -257,6 +311,9 @@ export default function TwoWeeksProposalDashboard() {
         setVerifiedProfile(nextProfile);
         writeStoredSession(nextProfile);
         applyDashboardResult(result);
+
+        const cafes = await loadActiveCafeCandidatesSafe();
+        setCafeCandidates(Array.isArray(cafes) ? cafes : []);
       } catch (error) {
         console.error("[TwoWeeksProposal] load dashboard error:", error);
         resetDashboardState();
@@ -297,6 +354,9 @@ export default function TwoWeeksProposalDashboard() {
         setVerifiedProfile(nextProfile);
         writeStoredSession(nextProfile);
         applyDashboardResult(result);
+
+        const cafes = await loadActiveCafeCandidatesSafe();
+        setCafeCandidates(Array.isArray(cafes) ? cafes : []);
         router.replace(TWOWEEKS_DASHBOARD_PATH, undefined, { shallow: true });
         return true;
       } catch (error) {
@@ -421,6 +481,7 @@ export default function TwoWeeksProposalDashboard() {
     setVerifiedProfile(null);
     setApplication(null);
     setBestMatch(null);
+    setCafeCandidates([]);
     setResponseStatus("");
     setLookupPhone("");
     setLookupCode("");
@@ -582,6 +643,56 @@ export default function TwoWeeksProposalDashboard() {
     }
   };
 
+  const handleSaveMeetingArrival = async () => {
+    if (!application || !bestMatch?.candidate) return;
+
+    setSavingArrival(true);
+
+    try {
+      await saveMeetingArrival({
+        viewerApplication: application,
+        candidateApplication: bestMatch.candidate,
+      });
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
+    } catch (error) {
+      console.error("[TwoWeeksProposal] arrival save error:", error);
+      alert(error?.message || "도착 확인 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingArrival(false);
+    }
+  };
+
+
+  const handleSaveMeetingProofPhoto = async ({ file, note }) => {
+    if (!application || !bestMatch?.candidate) return;
+
+    setSavingProofPhoto(true);
+    setProofUploadProgress(0);
+
+    try {
+      await saveMeetingProofPhoto({
+        viewerApplication: application,
+        candidateApplication: bestMatch.candidate,
+        file,
+        note,
+        onProgress: setProofUploadProgress,
+      });
+
+      if (verifiedProfile) {
+        await loadDashboard(verifiedProfile);
+      }
+    } catch (error) {
+      console.error("[TwoWeeksProposal] proof photo save error:", error);
+      alert(error?.message || "현장 인증 사진 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingProofPhoto(false);
+      setProofUploadProgress(0);
+    }
+  };
+
   const DashboardComponent = ProposalDashboard;
 
   return (
@@ -594,6 +705,8 @@ export default function TwoWeeksProposalDashboard() {
 <LoadingSpinner size="lg" tone="light" className="mx-auto" />
           </div>
         </div>
+      ) : loadingData && !verifiedProfile ? (
+        <DashboardBootLoading />
       ) : !verifiedProfile ? (
         <IdentityGate
           loading={loadingData}
@@ -623,12 +736,16 @@ export default function TwoWeeksProposalDashboard() {
             verifiedProfile={verifiedProfile}
             application={application}
             bestMatch={bestMatch}
+            cafeCandidates={cafeCandidates}
             loading={loadingData}
             responseStatus={responseStatus}
             savingResponse={savingResponse}
             savingSchedule={savingSchedule}
             savingPreMeetingNote={savingPreMeetingNote}
             savingAttendance={savingAttendance}
+            savingArrival={savingArrival}
+            savingProofPhoto={savingProofPhoto}
+            proofUploadProgress={proofUploadProgress}
             savingProfile={savingProfile}
             profileUploadProgress={profileUploadProgress}
             onRespond={handleRespond}
@@ -636,6 +753,8 @@ export default function TwoWeeksProposalDashboard() {
             onSaveFinalScheduleChoice={handleSaveFinalScheduleChoice}
             onSavePreMeetingNote={handleSavePreMeetingNote}
             onSaveMeetingAttendance={handleSaveMeetingAttendance}
+            onSaveMeetingArrival={handleSaveMeetingArrival}
+            onSaveMeetingProofPhoto={handleSaveMeetingProofPhoto}
             onSaveProfile={handleSaveProfile}
             onResetIdentity={handleResetIdentity}
             onReload={handleReload}

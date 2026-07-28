@@ -143,6 +143,55 @@ export function formatMoney(value) {
   return `${amount.toLocaleString()}원`;
 }
 
+export function getPenaltyStats(application = {}) {
+  const stats = application?.penaltyStats || {};
+  const proposalNoResponseCount = Number(stats.proposalNoResponseCount || 0);
+  const scheduleNoResponseCount = Number(stats.scheduleNoResponseCount || 0);
+  const totalNoResponseCount =
+    Number(stats.totalNoResponseCount || 0) || proposalNoResponseCount + scheduleNoResponseCount;
+
+  return {
+    proposalNoResponseCount,
+    scheduleNoResponseCount,
+    totalNoResponseCount,
+    lastPenaltyReason: stats.lastPenaltyReason || "",
+    lastPenaltyAtClient: stats.lastPenaltyAtClient || stats.lastPenaltyAt || "",
+    reviewStatus: stats.reviewStatus || application?.nextRoundStatus || "",
+  };
+}
+
+export function getPenaltyReasonLabel(value = "") {
+  const labels = {
+    proposal_no_response: "제안 무응답",
+    proposal_expired: "제안 기한초과",
+    schedule_no_response: "일정 무응답",
+    schedule_expired: "일정 기한초과",
+    counterpart_schedule_no_response: "상대 일정 미선택",
+    counterpart_expired: "후선택자 기한초과",
+    both_schedule_no_response: "양쪽 일정 미선택",
+  };
+
+  return labels[value] || value || "-";
+}
+
+export function hasPenaltyRecord(application = {}) {
+  return getPenaltyStats(application).totalNoResponseCount > 0;
+}
+
+export function getPenaltyTone(application = {}) {
+  const total = getPenaltyStats(application).totalNoResponseCount;
+  if (total >= 3) return "bad";
+  if (total >= 1) return "warn";
+  return "good";
+}
+
+export function getPenaltySummaryText(application = {}) {
+  const stats = getPenaltyStats(application);
+  if (!stats.totalNoResponseCount) return "기록 없음";
+
+  return `총 ${stats.totalNoResponseCount}회 · 제안 ${stats.proposalNoResponseCount}회 · 일정 ${stats.scheduleNoResponseCount}회`;
+}
+
 export function getApplicationSortValue(application = {}) {
   return (
     getTimestampMs(application?.submittedAt) ||

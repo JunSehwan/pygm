@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { serverTimestamp } from "firebase/firestore";
+import { deleteField, serverTimestamp } from "firebase/firestore";
 import { ActionButton, FieldRow, Section } from "./AdminCommon";
 import {
   formatAgeBirth,
@@ -8,8 +8,26 @@ import {
   getBasic,
   getGenderLabel,
   getIdentity,
+  getPenaltyReasonLabel,
+  getPenaltyStats,
+  getPenaltySummaryText,
+  getPenaltyTone,
+  hasPenaltyRecord,
   normalizeArray,
 } from "./utils";
+
+const NEXT_ROUND_READY_PATCH = {
+  matchingStatus: "not_started",
+  nextRoundStatus: "ready",
+  scheduleStatus: "not_started",
+  meetingStatus: "not_started",
+  photoRevealStatus: "hidden",
+  currentProposal: deleteField(),
+  schedule: deleteField(),
+  "penaltyStats.reviewStatus": "cleared",
+  "penaltyStats.clearedAt": serverTimestamp(),
+  updatedAt: serverTimestamp(),
+};
 
 
 function getPhotoUrl(photo) {
@@ -169,6 +187,8 @@ export default function ApplicantModal({
   const busy = busyId === application.id;
   const photos = getApplicationPhotos(application);
   const safeSelectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(photos.length - 1, 0));
+  const penaltyStats = getPenaltyStats(application);
+  const hasPenalty = hasPenaltyRecord(application);
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/60 px-3 py-4 backdrop-blur-sm sm:px-6">
@@ -230,6 +250,65 @@ export default function ApplicantModal({
                   <FieldRow label="소개" value={basic.introduction} />
                   <FieldRow label="더미" value={application.isDummy ? "더미 신청자" : "-"} />
                 </div>
+              </div>
+            </Section>
+
+            <Section
+              title="무응답/기한초과 기록"
+              desc="제안 응답 또는 일정조율 기한을 넘긴 기록입니다. 운영자가 검토 후 매칭풀 복귀 여부를 결정합니다."
+            >
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="border border-zinc-200 bg-white p-3">
+                  <div className="text-xs font-bold text-zinc-400">총 무응답</div>
+                  <div className={`mt-1 text-2xl font-bold ${getPenaltyTone(application) === "bad" ? "text-rose-600" : hasPenalty ? "text-orange-600" : "text-emerald-600"}`}>
+                    {penaltyStats.totalNoResponseCount}
+                  </div>
+                </div>
+                <div className="border border-zinc-200 bg-white p-3">
+                  <div className="text-xs font-bold text-zinc-400">제안 무응답</div>
+                  <div className="mt-1 text-2xl font-bold text-zinc-950">{penaltyStats.proposalNoResponseCount}</div>
+                </div>
+                <div className="border border-zinc-200 bg-white p-3">
+                  <div className="text-xs font-bold text-zinc-400">일정 무응답</div>
+                  <div className="mt-1 text-2xl font-bold text-zinc-950">{penaltyStats.scheduleNoResponseCount}</div>
+                </div>
+                <div className="border border-zinc-200 bg-white p-3">
+                  <div className="text-xs font-bold text-zinc-400">검토 상태</div>
+                  <div className="mt-1 break-keep text-sm font-bold leading-6 text-zinc-800">
+                    {application.nextRoundStatus === "admin_review" ? "관리자 검토 필요" : penaltyStats.reviewStatus || "-"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 border border-zinc-200 bg-zinc-50 px-4">
+                <FieldRow label="요약" value={getPenaltySummaryText(application)} />
+                <FieldRow label="마지막 사유" value={getPenaltyReasonLabel(penaltyStats.lastPenaltyReason)} />
+                <FieldRow label="마지막 기록" value={penaltyStats.lastPenaltyAtClient ? formatDate(penaltyStats.lastPenaltyAtClient) : "-"} />
+                <FieldRow label="현재 상태" value={`${application.matchingStatus || "-"} / ${application.nextRoundStatus || "-"}`} />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <ActionButton
+                  disabled={busy}
+                  onClick={() => onUpdate(application.id, NEXT_ROUND_READY_PATCH)}
+                  tone="good"
+                >
+                  검토 후 매칭풀 복귀
+                </ActionButton>
+                <ActionButton
+                  disabled={busy}
+                  onClick={() =>
+                    onUpdate(application.id, {
+                      matchingStatus: "paused",
+                      nextRoundStatus: "admin_review",
+                      "penaltyStats.reviewStatus": "admin_review",
+                      updatedAt: serverTimestamp(),
+                    })
+                  }
+                  tone="warn"
+                >
+                  검토 유지
+                </ActionButton>
               </div>
             </Section>
 

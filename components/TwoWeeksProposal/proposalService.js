@@ -56,6 +56,30 @@ function mapDoc(snap) {
   };
 }
 
+export async function loadActiveCafeCandidates() {
+  try {
+    const snap = await getDocs(
+      query(collection(db, "twoweeksCafeCandidates"), where("status", "==", "active"))
+    );
+
+    return snap.docs
+      .map(mapDoc)
+      .filter((item) => item?.name && item?.area)
+      .sort((a, b) => {
+        const areaCompare = String(a.area || "").localeCompare(String(b.area || ""), "ko");
+        if (areaCompare) return areaCompare;
+
+        const sortCompare = Number(a.sortOrder || 999) - Number(b.sortOrder || 999);
+        if (sortCompare) return sortCompare;
+
+        return String(a.name || "").localeCompare(String(b.name || ""), "ko");
+      });
+  } catch (error) {
+    console.warn("[TwoWeeksProposal] cafe candidates load skipped:", error?.code || error?.message || error);
+    return [];
+  }
+}
+
 const RESPONSE_DUE_DAYS = 2;
 const SCHEDULE_DUE_DAYS = 2;
 
@@ -105,7 +129,6 @@ function buildEventMessage(application = {}, title = "", lines = []) {
 
   return [
     `[투윅스] ${title}`,
-    `${name}님, ${title}`,
     "",
     ...lines,
     "",
@@ -180,6 +203,157 @@ async function getMatchDoc(matchId) {
   }
 }
 
+function getMatchActivityTime(match = {}) {
+  return Math.max(
+    getTimeValue(match.updatedAt),
+    getTimeValue(match.updatedAtClient),
+    getTimeValue(match.finalSelectedAt),
+    getTimeValue(match.finalSelectedAtClient),
+    getTimeValue(match.mutualAcceptedAt),
+    getTimeValue(match.mutualAcceptedAtClient),
+    getTimeValue(match.createdAt),
+    getTimeValue(match.createdAtClient)
+  );
+}
+
+function getMatchStatusRank(match = {}) {
+  const status = String(match?.status || "");
+  const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
+  const photoRevealStatus = String(match?.photoRevealStatus || "");
+
+  if (status === "confirmed" || scheduleStatus === "confirmed" || match?.finalMeeting || photoRevealStatus === "revealed") {
+    return 7000;
+  }
+
+  if (status === "mutualAccepted" || ["waiting_counterpart", "needs_final_choice", "place_pending", "ready"].includes(scheduleStatus)) {
+    return 6000;
+  }
+
+  if (status === "proposed" || match?.proposalStatus === "proposed") {
+    return 5000;
+  }
+
+  if (["declined", "failed", "expired", "cancelled", "canceled"].includes(status)) {
+    return 0;
+  }
+
+  return 1000;
+}
+
+function pickBestDashboardMatch(matches = []) {
+  const rows = Array.isArray(matches) ? matches : [];
+
+  return rows
+    .filter((match) => match?.id && getMatchStatusRank(match) > 0)
+    .sort((a, b) => {
+      const rankDiff = getMatchStatusRank(b) - getMatchStatusRank(a);
+      if (rankDiff) return rankDiff;
+      return getMatchActivityTime(b) - getMatchActivityTime(a);
+    })[0] || null;
+}
+
+function getCounterpartApplicationIdFromMatch(match = {}, viewerApplicationId = "") {
+  if (!match || !viewerApplicationId) return "";
+
+  if (match.maleApplicationId === viewerApplicationId) return match.femaleApplicationId || "";
+  if (match.femaleApplicationId === viewerApplicationId) return match.maleApplicationId || "";
+
+  return "";
+}
+
+function isSamePairMatch(match = {}, viewerApplicationId = "", candidateApplicationId = "") {
+  if (!match?.id || !viewerApplicationId || !candidateApplicationId) return false;
+
+  return (
+    (match.maleApplicationId === viewerApplicationId && match.femaleApplicationId === candidateApplicationId) ||
+    (match.femaleApplicationId === viewerApplicationId && match.maleApplicationId === candidateApplicationId)
+  );
+}
+
+async function getMatchesForApplication(applicationId = "") {
+  if (!applicationId) return [];
+
+  const results = new Map();
+
+  const run = async (fieldPath) => {
+    try {
+      const snap = await getDocs(
+        query(collection(db, "twoweeksMatches"), where(fieldPath, "==", applicationId))
+      );
+
+      snap.docs.forEach((item) => results.set(item.id, mapDoc(item)));
+    } catch (error) {
+      console.warn(`[TwoWeeksProposal] match lookup skipped: ${fieldPath}`, error?.code || error?.message || error);
+    }
+  };
+
+  await run("maleApplicationId");
+  await run("femaleApplicationId");
+
+  return Array.from(results.values());
+}
+
+async function findBestMatchByPair(viewerApplicationId = "", candidateApplicationId = "") {
+  const matches = await getMatchesForApplication(viewerApplicationId);
+  return pickBestDashboardMatch(
+    matches.filter((match) => isSamePairMatch(match, viewerApplicationId, candidateApplicationId))
+  );
+}
+
+async function loadMatchCandidateFromMatch(viewerApplication = {}, match = {}, allApplications = []) {
+  if (!viewerApplication?.id || !match?.id) return null;
+
+  const candidateApplicationId = getCounterpartApplicationIdFromMatch(match, viewerApplication.id);
+  if (!candidateApplicationId) return null;
+
+  let candidate = allApplications.find((item) => item.id === candidateApplicationId) || null;
+
+  if (!candidate) {
+    try {
+      const candidateSnap = await getDoc(doc(db, "twoweeksApplications", candidateApplicationId));
+      if (candidateSnap.exists()) candidate = mapDoc(candidateSnap);
+    } catch (error) {
+      console.warn("[TwoWeeksProposal] matched candidate load failed:", error?.code || error?.message || error);
+    }
+  }
+
+  if (!candidate) return null;
+
+  const viewerResponse = await getResponseDoc(viewerApplication.id, candidate.id);
+  const counterpartResponse = await getResponseDoc(candidate.id, viewerApplication.id);
+  const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
+  const bothAccepted =
+    viewerResponse?.response === "accepted" ||
+    counterpartResponse?.response === "accepted" ||
+    match?.status === "mutualAccepted" ||
+    match?.status === "confirmed" ||
+    scheduleStatus === "confirmed" ||
+    Boolean(match?.finalMeeting);
+
+  return {
+    candidate,
+    score: scoreCandidate(viewerApplication, candidate),
+    source: "match_lookup",
+    matchId: match.id,
+    match,
+    schedule: match?.schedule || {},
+    finalMeeting: match?.finalMeeting || match?.schedule?.finalMeeting || null,
+    photoRevealStatus: match?.photoRevealStatus || "",
+    viewerResponse,
+    counterpartResponse,
+    bothAccepted,
+  };
+}
+
+async function loadLatestMatchForApplication(viewerApplication = {}, allApplications = []) {
+  if (!viewerApplication?.id) return null;
+
+  const matches = await getMatchesForApplication(viewerApplication.id);
+  const match = pickBestDashboardMatch(matches);
+
+  return loadMatchCandidateFromMatch(viewerApplication, match, allApplications);
+}
+
 function getStoredDashboardToken(application = {}) {
   return (
     application?.dashboardAccess?.token ||
@@ -228,20 +402,40 @@ function getDashboardApplicationRank(application = {}) {
   const status = String(application?.matchingStatus || "");
   const response = String(application?.currentProposal?.response || "");
   const proposalStatus = String(application?.currentProposal?.status || "");
+  const scheduleStatus = String(application?.scheduleStatus || application?.schedule?.status || "");
+  const photoRevealStatus = String(application?.photoRevealStatus || application?.currentProposal?.photoRevealStatus || "");
 
-  if (hasCurrentProposal(application) && ["proposed", "pending"].includes(response)) {
+  const hasProposal = hasCurrentProposal(application);
+
+  if (
+    hasProposal &&
+    (
+      status === "confirmed" ||
+      scheduleStatus === "confirmed" ||
+      photoRevealStatus === "revealed" ||
+      Boolean(application?.schedule?.finalMeeting)
+    )
+  ) {
+    return 7000;
+  }
+
+  if (hasProposal && ["accepted", "mutualAccepted"].includes(status)) {
+    return 6000;
+  }
+
+  if (hasProposal && ["waiting_counterpart", "needs_final_choice", "place_pending", "ready"].includes(scheduleStatus)) {
+    return 5500;
+  }
+
+  if (hasProposal && ["proposed", "pending"].includes(response)) {
     return 5000;
   }
 
-  if (hasCurrentProposal(application) && status === "proposed") {
+  if (hasProposal && status === "proposed") {
     return 4500;
   }
 
-  if (hasCurrentProposal(application) && ["accepted", "mutualAccepted"].includes(status)) {
-    return 4000;
-  }
-
-  if (hasCurrentProposal(application) && proposalStatus === "proposed") {
+  if (hasProposal && proposalStatus === "proposed") {
     return 3500;
   }
 
@@ -255,6 +449,7 @@ function getDashboardApplicationRank(application = {}) {
 
   return 0;
 }
+
 
 function pickDashboardApplication(applications = [], preferredApplicationId = "") {
   const rows = Array.isArray(applications) ? applications.filter((item) => item?.id) : [];
@@ -303,17 +498,32 @@ async function loadCurrentProposalCandidate(viewerApplication = {}, allApplicati
 
   if (!candidate) return null;
 
-  const matchId = viewerApplication?.currentProposal?.matchId || "";
-  const match = await getMatchDoc(matchId);
+  const currentProposalMatchId = viewerApplication?.currentProposal?.matchId || "";
+  let match = await getMatchDoc(currentProposalMatchId);
+
+  // 신청자 문서의 currentProposal.matchId가 비어 있거나 오래된 경우,
+  // 실제 twoweeksMatches 이력에서 같은 남녀 조합의 최신 매칭을 다시 찾는다.
+  if (!match || (!match?.schedule && !match?.finalMeeting && !match?.status)) {
+    const pairMatch = await findBestMatchByPair(viewerApplication.id, candidate.id);
+    if (pairMatch) match = pairMatch;
+  }
+
   const viewerResponse = await getResponseDoc(viewerApplication.id, candidate.id);
   const counterpartResponse = await getResponseDoc(candidate.id, viewerApplication.id);
-  const bothAccepted = viewerResponse?.response === "accepted" && counterpartResponse?.response === "accepted";
+  const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
+  const bothAccepted =
+    viewerResponse?.response === "accepted" ||
+    counterpartResponse?.response === "accepted" ||
+    match?.status === "mutualAccepted" ||
+    match?.status === "confirmed" ||
+    scheduleStatus === "confirmed" ||
+    Boolean(match?.finalMeeting);
 
   return {
     candidate,
     score: scoreCandidate(viewerApplication, candidate),
     source: "admin_current_proposal",
-    matchId,
+    matchId: match?.id || currentProposalMatchId,
     match,
     schedule: match?.schedule || {},
     finalMeeting: match?.finalMeeting || match?.schedule?.finalMeeting || null,
@@ -323,6 +533,7 @@ async function loadCurrentProposalCandidate(viewerApplication = {}, allApplicati
     bothAccepted,
   };
 }
+
 
 async function loadRoundAndBestMatch(viewerApplication) {
   if (!viewerApplication?.id) {
@@ -355,12 +566,14 @@ async function loadRoundAndBestMatch(viewerApplication) {
   const allApplications = roundSnap.docs.map(mapDoc);
 
   // 고객 화면에는 운영자가 실제로 제안한 후보만 보여준다.
+  // 단, 신청자 currentProposal가 일부 누락/초기화된 경우에는 match 문서 이력에서 최신 진행 매칭을 복구한다.
   const currentProposalMatch = await loadCurrentProposalCandidate(freshViewerApplication, allApplications);
+  const latestMatch = currentProposalMatch || (await loadLatestMatchForApplication(freshViewerApplication, allApplications));
 
   return {
     viewerApplication: freshViewerApplication,
     allApplications,
-    bestMatch: currentProposalMatch,
+    bestMatch: latestMatch,
   };
 }
 
@@ -719,16 +932,16 @@ export async function saveProposalResponse({
       }).catch(() => {});
 
       if (!alreadyOpenedSchedule) {
-        await sendEventSms(viewerApplication, "만남 진행이 확인되었습니다.", [
+        await sendEventSms(viewerApplication, "일정조율 시작", [
           "상대도 만남 진행 의사를 선택했습니다.",
-          "신청현황의 일정조율 탭에서 2일 내 일시/장소를 선택해주세요.",
-          "먼저 선택한 사람이 일시 3개와 장소 3개를 제안하고, 상대가 그중 일시 1개와 장소 1개를 선택합니다.",
+          "2일 내 일시와 장소를 선택해주세요.",
+          "먼저 선택한 사람은 일시 3개와 장소 3개를 제안합니다.",
         ]);
 
-        await sendEventSms(candidateApplication, "만남 진행이 확인되었습니다.", [
+        await sendEventSms(candidateApplication, "일정조율 시작", [
           "상대도 만남 진행 의사를 선택했습니다.",
-          "신청현황의 일정조율 탭에서 2일 내 일시/장소를 선택해주세요.",
-          "먼저 선택한 사람이 일시 3개와 장소 3개를 제안하고, 상대가 그중 일시 1개와 장소 1개를 선택합니다.",
+          "2일 내 일시와 장소를 선택해주세요.",
+          "먼저 선택한 사람은 일시 3개와 장소 3개를 제안합니다.",
         ]);
       }
     }
@@ -774,19 +987,41 @@ function buildAutoFinalMeeting({ finalChoice = {}, timeChoice = {}, placeChoice 
   };
 }
 
-function buildFinalMeetingSmsLines(finalMeeting = {}) {
+function truncateText(value = "", max = 80) {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  return clean.length > max ? `${clean.slice(0, max)}...` : clean;
+}
+
+function buildCounterpartNoteLine(note = "") {
+  const preview = truncateText(note, 80);
+  return preview ? `상대 한마디: ${preview}` : "상대 한마디는 아직 없습니다.";
+}
+
+function buildFinalMeetingSmsLines(finalMeeting = {}, options = {}) {
   const timeText = formatMeetingTimeText(finalMeeting.finalTimeChoice || finalMeeting.timeChoice || finalMeeting);
   const placeText = formatMeetingPlaceText(finalMeeting.finalPlaceChoice || finalMeeting.placeChoice || finalMeeting);
 
   return [
-    "일시와 장소가 확정되었습니다.",
     `일시: ${timeText}`,
     `장소: ${placeText}`,
     finalMeeting.mapUrl ? `지도: ${finalMeeting.mapUrl}` : "",
-    "신청현황에서 상대 사진과 만남 안내를 확인해주세요.",
-    "참석 확인 버튼을 눌러 만남 의사를 한 번 더 확인해주세요.",
-    "만남 전 한마디에 복장이나 기다리는 위치를 남기면 서로를 찾기 쉽습니다.",
-    "음료 등 개인 주문 비용은 각자 부담입니다.",
+    buildCounterpartNoteLine(options.counterpartNote),
+    "상대 사진과 자세한 안내는 신청현황에서 확인해주세요.",
+    "개인 주문 비용은 각자 부담입니다.",
+  ].filter(Boolean);
+}
+
+function buildMeetingReadySmsLines(finalMeeting = {}) {
+  const timeText = formatMeetingTimeText(finalMeeting.finalTimeChoice || finalMeeting.timeChoice || finalMeeting);
+  const placeText = formatMeetingPlaceText(finalMeeting.finalPlaceChoice || finalMeeting.placeChoice || finalMeeting);
+
+  return [
+    `일시: ${timeText}`,
+    `장소: ${placeText}`,
+    finalMeeting.mapUrl ? `지도: ${finalMeeting.mapUrl}` : "",
+    "신청현황에서 상대 프로필을 확인하고 참석 확인을 눌러주세요.",
+    "복장이나 기다리는 위치는 만남 전 한마디에 남겨주세요.",
   ].filter(Boolean);
 }
 
@@ -911,9 +1146,9 @@ export async function saveScheduleChoices({
     { merge: true }
   );
 
-  await sendEventSms(candidateApplication, "상대가 일시/장소 후보를 선택했습니다.", [
-    "상대가 가능한 일시 후보 3개와 장소 후보 3개를 선택했습니다.",
-    "신청현황의 일정조율 탭에서 2일 내 일시 1개와 장소 1개를 선택해주세요.",
+  await sendEventSms(candidateApplication, "일정 후보 도착", [
+    "상대가 일시 3개와 장소 3개를 선택했습니다.",
+    "2일 내 일시 1개와 장소 1개를 선택해주세요.",
   ]);
 
   return {
@@ -959,6 +1194,9 @@ export async function saveScheduleFinalChoice({
   });
 
   const matchRef = doc(db, "twoweeksMatches", matchId);
+  const matchSnap = await getDoc(matchRef);
+  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+  const hadPreviousNote = Boolean(matchData?.preMeetingNotes?.[viewerApplication.id]?.note);
 
   await setDoc(
     matchRef,
@@ -1000,15 +1238,15 @@ export async function saveScheduleFinalChoice({
   await updateDoc(doc(db, "twoweeksApplications", candidateApplication.id), applicationPatch).catch(() => {});
 
   const smsResults = {
-    viewer: await sendEventSms(viewerApplication, "만남이 확정되었습니다.", buildFinalMeetingSmsLines(finalMeeting)),
-    candidate: await sendEventSms(candidateApplication, "만남이 확정되었습니다.", buildFinalMeetingSmsLines(finalMeeting)),
+    viewer: await sendEventSms(viewerApplication, "일시와 장소 안내", buildMeetingReadySmsLines(finalMeeting)),
+    candidate: await sendEventSms(candidateApplication, "일시와 장소 안내", buildMeetingReadySmsLines(finalMeeting)),
   };
 
   await setDoc(
     matchRef,
     {
-      finalMeetingSms: smsResults,
-      finalMeetingSmsUpdatedAt: serverTimestamp(),
+      meetingReadySms: smsResults,
+      meetingReadySmsUpdatedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -1047,6 +1285,18 @@ export async function saveMeetingAttendance({
   };
 
   const matchRef = doc(db, "twoweeksMatches", matchId);
+  const matchSnap = await getDoc(matchRef);
+  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+  const existingAttendance = matchData?.meetingAttendance || {};
+  const nextAttendance = {
+    ...existingAttendance,
+    [viewerApplication.id]: payload,
+  };
+
+  const viewerConfirmed = nextAttendance?.[viewerApplication.id]?.status === "attending";
+  const counterpartConfirmed = nextAttendance?.[candidateApplication.id]?.status === "attending";
+  const bothConfirmed = viewerConfirmed && counterpartConfirmed;
+  const finalMeeting = matchData?.finalMeeting || matchData?.schedule?.finalMeeting || viewerApplication?.schedule?.finalMeeting || {};
 
   await setDoc(
     matchRef,
@@ -1054,6 +1304,7 @@ export async function saveMeetingAttendance({
       meetingAttendance: {
         [viewerApplication.id]: payload,
       },
+      attendanceStatus: bothConfirmed ? "both_confirmed" : "waiting_counterpart",
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -1066,17 +1317,59 @@ export async function saveMeetingAttendance({
     updatedAt: serverTimestamp(),
   }).catch(() => {});
 
-  const counterpartResult = await sendEventSms(candidateApplication, "상대가 참석을 확인했습니다.", [
-    `${payload.displayName}님이 약속 참석을 확인했습니다.`,
-    "신청현황에서 만남 전 한마디를 확인하거나 남겨주세요.",
+  const selfResult = await sendEventSms(viewerApplication, "만남 확정 완료", [
+    bothConfirmed
+      ? "상대방도 확정했습니다. 최종 만남 안내를 보내드립니다."
+      : "상대방도 확정하면 최종 만남 안내가 발송됩니다.",
+    "복장이나 기다리는 위치는 만남 전 한마디에 남겨주세요.",
   ]);
+
+  const counterpartResult = await sendEventSms(candidateApplication, "상대방 만남 확정", [
+    `${payload.displayName}님이 만남을 확정했습니다.`,
+    bothConfirmed
+      ? "양쪽 모두 확정했습니다. 최종 만남 안내를 보내드립니다."
+      : "신청현황에서 참석 확인을 눌러주세요.",
+  ]);
+
+  let finalGuideSms = null;
+
+  if (bothConfirmed && !matchData?.finalAttendanceGuideSms?.sentAtClient) {
+    const preMeetingNotes = matchData?.preMeetingNotes || {};
+
+    finalGuideSms = {
+      viewer: await sendEventSms(
+        viewerApplication,
+        "최종 만남 안내",
+        buildFinalMeetingSmsLines(finalMeeting, {
+          counterpartNote: preMeetingNotes?.[candidateApplication.id]?.note || "",
+        })
+      ),
+      candidate: await sendEventSms(
+        candidateApplication,
+        "최종 만남 안내",
+        buildFinalMeetingSmsLines(finalMeeting, {
+          counterpartNote: preMeetingNotes?.[viewerApplication.id]?.note || "",
+        })
+      ),
+      sentAtClient: new Date().toISOString(),
+    };
+  }
 
   await setDoc(
     matchRef,
     {
       meetingAttendanceSms: {
-        [viewerApplication.id]: counterpartResult,
+        [viewerApplication.id]: {
+          self: selfResult,
+          counterpart: counterpartResult,
+          sentAtClient: new Date().toISOString(),
+        },
       },
+      ...(finalGuideSms
+        ? {
+            finalAttendanceGuideSms: finalGuideSms,
+          }
+        : {}),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -1085,9 +1378,186 @@ export async function saveMeetingAttendance({
   return {
     matchId,
     attendance: payload,
+    bothConfirmed,
     smsResult: counterpartResult,
+    selfSmsResult: selfResult,
+    finalGuideSms,
   };
 }
+
+export async function saveMeetingArrival({
+  viewerApplication,
+  candidateApplication,
+  status = "arrived",
+}) {
+  await ensureAuth();
+
+  if (!viewerApplication?.id || !candidateApplication?.id) {
+    throw new Error("도착 확인을 저장할 매칭 정보를 확인할 수 없습니다.");
+  }
+
+  const matchId = viewerApplication?.currentProposal?.matchId || "";
+  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
+
+  const arrivedAtClient = new Date().toISOString();
+  const matchRef = doc(db, "twoweeksMatches", matchId);
+  const matchSnap = await getDoc(matchRef);
+  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+  const preMeetingNotes = matchData?.preMeetingNotes || {};
+  const myPreMeetingNote = preMeetingNotes?.[viewerApplication.id]?.note || "";
+
+  const payload = {
+    applicationId: viewerApplication.id,
+    displayName: getApplicationDisplayName(viewerApplication),
+    status: status === "arrived" ? "arrived" : "arrived",
+    preMeetingNoteSnapshot: truncateText(myPreMeetingNote, 120),
+    arrivedAtClient,
+    updatedAtClient: arrivedAtClient,
+  };
+
+  const existingArrival = matchData?.meetingArrival || {};
+  const nextArrival = {
+    ...existingArrival,
+    [viewerApplication.id]: payload,
+  };
+
+  const viewerArrived = nextArrival?.[viewerApplication.id]?.status === "arrived";
+  const counterpartArrived = nextArrival?.[candidateApplication.id]?.status === "arrived";
+  const bothArrived = viewerArrived && counterpartArrived;
+
+  await setDoc(
+    matchRef,
+    {
+      meetingArrival: {
+        [viewerApplication.id]: payload,
+      },
+      arrivalStatus: bothArrived ? "both_arrived" : "waiting_counterpart",
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
+    "schedule.arrivalStatus": "arrived",
+    "schedule.arrivedAt": serverTimestamp(),
+    "schedule.arrivedAtClient": arrivedAtClient,
+    updatedAt: serverTimestamp(),
+  }).catch(() => {});
+
+  const dashboardUrl = getDashboardUrl(candidateApplication);
+  const noteLine = myPreMeetingNote
+    ? `상대 한마디: ${truncateText(myPreMeetingNote, 80)}`
+    : "상대 한마디는 아직 없습니다.";
+
+  const counterpartResult = await sendEventSms(candidateApplication, "상대방 도착 안내", [
+    "상대방이 미팅 장소에 도착하였음을 전달드립니다.",
+    noteLine,
+  ]);
+
+  const selfResult = await sendEventSms(viewerApplication, "도착 안내 완료", [
+    "상대방에게 도착 안내를 보냈습니다.",
+    "복장이나 위치가 바뀌면 만남 전 한마디를 수정해주세요.",
+  ]);
+
+  await setDoc(
+    matchRef,
+    {
+      meetingArrivalSms: {
+        [viewerApplication.id]: {
+          self: selfResult,
+          counterpart: counterpartResult,
+          sentAtClient: new Date().toISOString(),
+        },
+      },
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  ).catch(() => {});
+
+  return {
+    matchId,
+    arrival: payload,
+    bothArrived,
+    smsResult: counterpartResult,
+    selfSmsResult: selfResult,
+  };
+}
+
+export async function saveMeetingProofPhoto({
+  viewerApplication,
+  candidateApplication,
+  file,
+  note = "",
+  onProgress,
+}) {
+  await ensureAuth();
+
+  if (!viewerApplication?.id || !candidateApplication?.id) {
+    throw new Error("현장 인증을 저장할 매칭 정보를 확인할 수 없습니다.");
+  }
+
+  if (!file) {
+    throw new Error("업로드할 현장 사진을 선택해주세요.");
+  }
+
+  if (!String(file.type || "").startsWith("image/")) {
+    throw new Error("이미지 파일만 업로드할 수 있습니다.");
+  }
+
+  if (Number(file.size || 0) > 10 * 1024 * 1024) {
+    throw new Error("현장 사진은 10MB 이하로 업로드해주세요.");
+  }
+
+  const matchId = viewerApplication?.currentProposal?.matchId || "";
+  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
+
+  const uploadedFile = await uploadMeetingProofFile({
+    viewerApplication,
+    matchId,
+    file,
+    onProgress,
+  });
+
+  const uploadedAtClient = new Date().toISOString();
+  const proofPayload = {
+    applicationId: viewerApplication.id,
+    displayName: getApplicationDisplayName(viewerApplication),
+    type: "seat_photo",
+    purpose: "arrival_or_no_show_evidence",
+    photo: uploadedFile,
+    note: String(note || "").trim().slice(0, 300),
+    privacyNotice: "상대방 얼굴 촬영 없이 본인 자리/음료/매장 일부만 촬영하도록 안내됨",
+    uploadedAt: serverTimestamp(),
+    uploadedAtClient,
+  };
+
+  const matchRef = doc(db, "twoweeksMatches", matchId);
+
+  await setDoc(
+    matchRef,
+    {
+      meetingProofs: {
+        [viewerApplication.id]: proofPayload,
+      },
+      noShowEvidenceStatus: "proof_uploaded",
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
+    "schedule.meetingProof": proofPayload,
+    "schedule.meetingProofUploadedAt": serverTimestamp(),
+    "schedule.meetingProofUploadedAtClient": uploadedAtClient,
+    updatedAt: serverTimestamp(),
+  }).catch(() => {});
+
+  return {
+    matchId,
+    proof: proofPayload,
+  };
+}
+
 
 export async function savePreMeetingNote({
   viewerApplication,
@@ -1117,6 +1587,9 @@ export async function savePreMeetingNote({
   };
 
   const matchRef = doc(db, "twoweeksMatches", matchId);
+  const matchSnap = await getDoc(matchRef);
+  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+  const hadPreviousNote = Boolean(matchData?.preMeetingNotes?.[viewerApplication.id]?.note);
 
   await setDoc(
     matchRef,
@@ -1136,11 +1609,14 @@ export async function savePreMeetingNote({
     updatedAt: serverTimestamp(),
   }).catch(() => {});
 
-  const counterpartResult = await sendEventSms(candidateApplication, "만남 전 한마디가 도착했습니다.", [
-    `${notePayload.displayName}님이 만남 전 한마디를 남겼습니다.`,
-    cleanNote,
-    "복장이나 기다리는 위치를 참고해 약속 시간에 맞춰 방문해주세요.",
-  ]);
+  const counterpartResult = await sendEventSms(
+    candidateApplication,
+    hadPreviousNote ? "만남 전 한마디 수정" : "만남 전 한마디 안내",
+    [
+      `${notePayload.displayName}님: ${truncateText(cleanNote, 100)}`,
+      "복장이나 대기 위치가 바뀐 경우일 수 있습니다.",
+    ]
+  );
 
   await setDoc(
     matchRef,
@@ -1174,6 +1650,36 @@ function buildFileMeta(downloadURL, storagePath, file) {
     size: file.size || 0,
     uploadedAtClient: new Date().toISOString(),
   };
+}
+
+function uploadMeetingProofFile({ viewerApplication, matchId, file, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const currentUser = auth.currentUser;
+    const ownerUid = viewerApplication?.uid || currentUser?.uid || "anonymous";
+    const storagePath = `twoweeksMatches/${matchId}/proofs/${viewerApplication.id}/${ownerUid}/proof_${Date.now()}_${safeFileName(file.name)}`;
+    const storageRef = ref(storage, storagePath);
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      contentType: file.type || "application/octet-stream",
+    });
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = snapshot.totalBytes ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) : 0;
+        onProgress?.(progress);
+      },
+      reject,
+      async () => {
+        try {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          onProgress?.(100);
+          resolve(buildFileMeta(downloadURL, storagePath, file));
+        } catch (error) {
+          reject(error);
+        }
+      }
+    );
+  });
 }
 
 function uploadPhotoFile({ application, file, index, onProgress }) {

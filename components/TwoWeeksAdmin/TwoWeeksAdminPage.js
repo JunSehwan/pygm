@@ -10,7 +10,9 @@ import MatchingTab from "./MatchingTab";
 import OverviewTab from "./OverviewTab";
 import ResultsTab from "./ResultsTab";
 import ReviewTab from "./ReviewTab";
+import RoundManagementTab from "./RoundManagementTab";
 import ScheduleTab from "./ScheduleTab";
+import CafeManagementTab from "./CafeManagementTab";
 import LoadingSpinner from "../TwoWeeksShared/LoadingSpinner";
 import {
   approveApplicationWithSms,
@@ -19,12 +21,24 @@ import {
   confirmDepositApplications,
   confirmMeetingSchedule,
   createBulkTwoWeeksMatches,
+  prepareNextRoundApplication,
+  resolveNoShowReview,
   createDummyApplications,
   createTwoWeeksMatch,
   deleteDummyApplications,
   sendIncompleteApplicationSms,
   sendScheduleReminderSms,
   subscribeTwoWeeksAdminData,
+  subscribeCafeCandidates,
+  seedDefaultCafeCandidates,
+  createCafeCandidate,
+  updateCafeCandidate,
+  deleteCafeCandidate,
+  markAllCafeCandidatesNeedCheck,
+  subscribeTwoWeeksRounds,
+  seedDefaultTwoWeeksRound,
+  createTwoWeeksRound,
+  updateTwoWeeksRound,
   updateTwoWeeksApplication,
 } from "./adminService";
 import {
@@ -84,6 +98,8 @@ export default function TwoWeeksAdminPage() {
   const [applications, setApplications] = useState([]);
   const [responses, setResponses] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [cafes, setCafes] = useState([]);
+  const [managedRounds, setManagedRounds] = useState([]);
 
   const [keyword, setKeyword] = useState("");
   const [roundFilter, setRoundFilter] = useState("all");
@@ -133,9 +149,21 @@ export default function TwoWeeksAdminPage() {
     });
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    return subscribeCafeCandidates(setCafes);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    return subscribeTwoWeeksRounds(setManagedRounds);
+  }, [isAdmin]);
+
   const rounds = useMemo(() => {
-    return Array.from(new Set(applications.map((item) => getRoundId(item)).filter(Boolean))).sort();
-  }, [applications]);
+    const applicationRoundIds = applications.map((item) => getRoundId(item)).filter(Boolean);
+    const managedRoundIds = managedRounds.map((item) => item.id).filter(Boolean);
+    return Array.from(new Set([...managedRoundIds, ...applicationRoundIds])).sort();
+  }, [applications, managedRounds]);
 
 
 
@@ -194,6 +222,115 @@ export default function TwoWeeksAdminPage() {
     } catch (error) {
       console.error("[TwoWeeksAdmin] confirm schedule error:", error);
       alert(error?.message || "일정·장소 확정 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handlePrepareNextRound = async ({ match, applicationId, mode = "ready" }) => {
+    if (!match?.id || !applicationId) return;
+
+    const message =
+      mode === "ready"
+        ? "해당 회원을 다음 회차 매칭풀에 다시 넣을까요? 기존 제안/일정 정보는 초기화됩니다."
+        : "해당 회원을 한 회차 쉬기 상태로 처리할까요? 매칭풀에서는 제외됩니다.";
+
+    if (!confirm(message)) return;
+
+    setBusyId(`nextRound:${match.id}:${applicationId}:${mode}`);
+
+    try {
+      await prepareNextRoundApplication({
+        applicationId,
+        match,
+        mode,
+        adminUid: firebaseUser?.uid || "",
+      });
+
+      alert(mode === "ready" ? "다음 회차 매칭풀로 전환했습니다." : "한 회차 쉬기 상태로 처리했습니다.");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] next round action error:", error);
+      alert(error?.message || "다음 회차 처리 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleResolveNoShow = async ({ match, reporterApplicationId, accusedApplicationId, status }) => {
+    if (!match?.id || !reporterApplicationId) return;
+
+    const memo = prompt("관리자 처리 메모를 남겨주세요. 고객에게 직접 공개되지는 않습니다.", "");
+    if (memo === null) return;
+
+    const messageMap = {
+      no_show_confirmed: "노쇼로 확정하고 대상 회원을 관리자 검토/제재 대상으로 처리할까요?",
+      self_no_show_confirmed: "본인 불참으로 확정하고 관리자 검토/제재 대상으로 처리할까요?",
+      evidence_requested: "추가 확인 필요 상태로 표시할까요?",
+      no_show_dismissed: "노쇼 아님으로 기각 처리할까요?",
+      no_penalty_rematch: "신고자를 불이익 없이 재매칭 가능 상태로 전환할까요?",
+    };
+
+    if (!confirm(messageMap[status] || "노쇼/불참 검토 상태를 저장할까요?")) return;
+
+    setBusyId(`noShow:${match.id}:${reporterApplicationId}:${status}`);
+
+    try {
+      await resolveNoShowReview({
+        match,
+        reporterApplicationId,
+        accusedApplicationId,
+        status,
+        memo,
+        adminUid: firebaseUser?.uid || "",
+      });
+
+      alert("노쇼/불참 검토 상태를 저장했습니다.");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] no-show review error:", error);
+      alert(error?.message || "노쇼/불참 처리 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleSeedDefaultRound = async () => {
+    if (!confirm("기본 회차 문서를 생성/갱신할까요?")) return;
+    setBusyId("seedRound");
+
+    try {
+      await seedDefaultTwoWeeksRound(firebaseUser?.uid || "");
+      alert("기본 회차를 생성/갱신했습니다.");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] seed round error:", error);
+      alert(error?.message || "기본 회차 생성 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleCreateRound = async (payload) => {
+    setBusyId("createRound");
+
+    try {
+      await createTwoWeeksRound({ payload, adminUid: firebaseUser?.uid || "" });
+      alert("회차를 생성했습니다.");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] create round error:", error);
+      alert(error?.message || "회차 생성 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleUpdateRound = async (roundId, patch) => {
+    if (!roundId || !patch) return;
+    setBusyId(`round:${roundId}:${patch.status || "update"}`);
+
+    try {
+      await updateTwoWeeksRound(roundId, patch, firebaseUser?.uid || "");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] update round error:", error);
+      alert(error?.message || "회차 수정 중 오류가 발생했습니다.");
     } finally {
       setBusyId("");
     }
@@ -373,6 +510,81 @@ export default function TwoWeeksAdminPage() {
     }
   };
 
+  const handleSeedDefaultCafes = async () => {
+    if (!confirm("기본 카페 후보를 불러올까요? 이미 등록된 동일 지역/카페명은 건너뜁니다.")) return;
+
+    setBusyId("cafe:seed");
+
+    try {
+      const result = await seedDefaultCafeCandidates(firebaseUser?.uid || "");
+      alert(`기본 카페 후보 ${result?.created || 0}개를 추가했습니다.`);
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] seed cafes error:", error);
+      alert(error?.message || "기본 카페 후보 추가 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleCreateCafe = async (payload) => {
+    setBusyId("cafe:create");
+
+    try {
+      await createCafeCandidate(payload, firebaseUser?.uid || "");
+      alert("카페 후보를 추가했습니다.");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] create cafe error:", error);
+      alert(error?.message || "카페 후보 추가 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleUpdateCafe = async (cafeId, payload) => {
+    setBusyId(`cafe:update:${cafeId}`);
+
+    try {
+      await updateCafeCandidate(cafeId, payload, firebaseUser?.uid || "");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] update cafe error:", error);
+      alert(error?.message || "카페 후보 수정 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleDeleteCafe = async (cafeId) => {
+    if (!confirm("이 카페 후보를 삭제할까요? 고객 화면에서 바로 제외됩니다.")) return;
+
+    setBusyId(`cafe:delete:${cafeId}`);
+
+    try {
+      await deleteCafeCandidate(cafeId);
+      alert("카페 후보를 삭제했습니다.");
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] delete cafe error:", error);
+      alert(error?.message || "카페 후보 삭제 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleMarkAllCafeNeedCheck = async () => {
+    if (!confirm("전체 카페 후보를 확인 필요 상태로 바꿀까요?")) return;
+
+    setBusyId("cafe:needCheck");
+
+    try {
+      const result = await markAllCafeCandidatesNeedCheck(firebaseUser?.uid || "");
+      alert(`${result?.count || 0}개 카페 후보를 확인 필요 상태로 변경했습니다.`);
+    } catch (error) {
+      console.error("[TwoWeeksAdmin] mark cafe need check error:", error);
+      alert(error?.message || "전체 확인 필요 처리 중 오류가 발생했습니다.");
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const handleDeleteDummy = async () => {
     const dummyCount = applications.filter((item) => item.isDummy || item.source === "twoweeks_admin_dummy").length;
 
@@ -454,6 +666,7 @@ export default function TwoWeeksAdminPage() {
         {activeTab === "matching" ? (
           <MatchingTab
             applications={filteredApplications}
+            matches={matches}
             onCreateMatch={handleCreateMatch}
             onBulkCreateMatches={handleBulkCreateMatches}
             busyId={busyId}
@@ -470,7 +683,38 @@ export default function TwoWeeksAdminPage() {
         ) : null}
 
         {activeTab === "results" ? (
-          <ResultsTab applications={filteredApplications} responses={responses} matches={matches} />
+          <ResultsTab
+            applications={applications}
+            responses={responses}
+            matches={matches}
+            onPrepareNextRound={handlePrepareNextRound}
+            onResolveNoShow={handleResolveNoShow}
+            busyId={busyId}
+          />
+        ) : null}
+
+        {activeTab === "rounds" ? (
+          <RoundManagementTab
+            rounds={managedRounds}
+            applications={applications}
+            matches={matches}
+            onSeedDefaultRound={handleSeedDefaultRound}
+            onCreateRound={handleCreateRound}
+            onUpdateRound={handleUpdateRound}
+            busyId={busyId}
+          />
+        ) : null}
+
+        {activeTab === "cafes" ? (
+          <CafeManagementTab
+            cafes={cafes}
+            onSeedDefaultCafes={handleSeedDefaultCafes}
+            onCreateCafe={handleCreateCafe}
+            onUpdateCafe={handleUpdateCafe}
+            onDeleteCafe={handleDeleteCafe}
+            onMarkAllNeedCheck={handleMarkAllCafeNeedCheck}
+            busyId={busyId}
+          />
         ) : null}
       </main>
     </div>

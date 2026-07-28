@@ -9,7 +9,9 @@ import {
   getIdentity,
   getMatchingDisplayStatus,
   getMatchingDisplayTone,
+  getPenaltyStats,
   getProfilePhoto,
+  hasPenaltyRecord,
   normalizeArray,
 } from "./utils";
 
@@ -89,6 +91,9 @@ function MobileApplicationCard({
               <div className="mt-1 flex flex-wrap gap-1.5">
                 <StatusBadge value={item.deposit?.status || "pending"} tone={item.deposit?.status === "confirmed" ? "good" : "warn"} />
                 <StatusBadge value={getMatchingDisplayStatus(item)} tone={getMatchingDisplayTone(item)} />
+                {hasPenaltyRecord(item) ? (
+                  <StatusBadge value={`무응답 ${getPenaltyStats(item).totalNoResponseCount}회`} tone="warn" />
+                ) : null}
               </div>
             </div>
           </div>
@@ -165,7 +170,7 @@ export default function ApplicationsTable({
                   />
                 </th>
               ) : null}
-              {["신청자", "연락처", "성별/나이", "직업", "지역", "시간", "검토", "입금", "매칭", "신청일"].map((head) => (
+              {["신청자", "연락처", "성별/나이", "직업", "지역", "시간", "검토", "입금", "매칭", "무응답", "신청일"].map((head) => (
                 <th key={head} className="border-r border-white/10 px-3 py-3 text-xs font-black last:border-r-0">
                   {head}
                 </th>
@@ -224,13 +229,23 @@ export default function ApplicationsTable({
                   <td className="px-3 py-3"><StatusBadge value={item.reviewStatus || "pending"} tone={item.reviewStatus === "approved" ? "good" : "warn"} /></td>
                   <td className="px-3 py-3"><StatusBadge value={item.deposit?.status || "pending"} tone={item.deposit?.status === "confirmed" ? "good" : "warn"} /></td>
                   <td className="px-3 py-3"><StatusBadge value={getMatchingDisplayStatus(item)} tone={getMatchingDisplayTone(item)} /></td>
+                  <td className="px-3 py-3">
+                    {hasPenaltyRecord(item) ? (
+                      <div className="grid gap-1 text-xs font-bold text-orange-700">
+                        <span>총 {getPenaltyStats(item).totalNoResponseCount}회</span>
+                        <span className="text-zinc-400">제안 {getPenaltyStats(item).proposalNoResponseCount} · 일정 {getPenaltyStats(item).scheduleNoResponseCount}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-bold text-zinc-300">-</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 text-sm font-bold text-zinc-700">{formatDate(item.submittedAt || item.createdAt || item.completedAtClient)}</td>
                 </tr>
               );
             })}
             {!applications.length ? (
               <tr>
-                <td colSpan={selectable ? 11 : 10} className="px-4 py-10 text-center text-sm font-bold text-zinc-400">
+                <td colSpan={selectable ? 12 : 11} className="px-4 py-10 text-center text-sm font-bold text-zinc-400">
                   표시할 신청자가 없습니다.
                 </td>
               </tr>
