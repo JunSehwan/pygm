@@ -66,7 +66,7 @@ export default function PrivacyPolicyPage() {
       <LegalSectionCard title="1. 개인정보의 처리 목적">
         <PolicyBullet text="회원 가입 및 본인 식별, 계정 관리" />
         <PolicyBullet text="프로필 등록, 매칭, 차밍카드 및 서비스 기능 제공" />
-        <PolicyBullet text="유료 결제 처리, 주문 내역 관리, 환불 및 민원 처리" />
+        <PolicyBullet text="유료 결제 처리, 주문 내역 관리, 투윅스 예치금 반환 및 민원 처리" />
         <PolicyBullet text="부정 이용 방지, 서비스 보안 유지, 운영 정책 집행" />
         <PolicyBullet text="고객문의 응대, 공지사항 전달, 분쟁 해결" />
         <PolicyBullet text="서비스 품질 개선, 접속 통계 분석, 장애 대응" />
@@ -88,13 +88,15 @@ export default function PrivacyPolicyPage() {
         <p className="pt-2 font-semibold text-slate-800">다. 본인확인 및 인증</p>
         <p>
           휴대전화번호, 이름, 생년월일, 성별, 내/외국인 정보, 본인확인 결과값,
-          DI(동일인 식별 및 중복가입 확인을 위한 식별값), 재직 또는 추가 인증을 위해
+          CI(연계정보·본인 식별 및 중복가입 방지를 위한 식별값), 인증수단 또는
+          본인확인기관에 따라 제공되는 기타 본인확인 정보, 재직 또는 추가 인증을 위해
           회원이 제출한 정보 및 이미지
         </p>
 
         <p className="pt-2 font-semibold text-slate-800">라. 결제 및 환불</p>
         <p>
-          주문번호, 결제수단 정보, 결제 내역, 구매 상품, 환불 처리 내역
+          주문번호, 결제수단 정보, 결제 내역, 구매 상품, 환불 처리 내역,
+          투윅스 예치금 반환 요청 시 은행명·계좌번호·예금주 정보
         </p>
 
         <p className="pt-2 font-semibold text-slate-800">마. 고객문의</p>
@@ -156,10 +158,10 @@ export default function PrivacyPolicyPage() {
         </p>
 
         <div className="space-y-2 pt-1">
-          <InfoLine label="수탁업체" value="주식회사 코리아포트원" />
+          <InfoLine label="수탁업체" value="주식회사 코리아포트원, 주식회사 케이지이니시스" />
           <InfoLine
             label="위탁업무"
-            value="휴대폰 본인인증 연동, 본인확인 결과 연계 및 처리"
+            value="본인인증 연동, KG이니시스 통합인증 제공, 본인확인 결과 연계 및 처리"
           />
           <InfoLine
             label="위탁목적"
@@ -167,7 +169,7 @@ export default function PrivacyPolicyPage() {
           />
           <InfoLine
             label="처리항목"
-            value="이름, 휴대전화번호, 생년월일, 성별, 내/외국인 정보, 본인확인 결과값, DI(동일인 식별 및 중복가입 확인값)"
+            value="이름, 휴대전화번호, 생년월일, 성별, 내/외국인 정보, 본인확인 결과값, CI(연계정보) 및 인증수단에 따라 제공되는 본인확인 정보"
           />
           <InfoLine
             label="보유기간"
@@ -192,9 +194,11 @@ export default function PrivacyPolicyPage() {
         </p>
 
         <p className="pt-3 text-[13px] leading-6 text-slate-600">
-          회사는 현재 기관 간 연계 식별을 위한 CI는 요청하지 않으며, 동일인 식별 및
-          중복가입 확인을 위한 DI만 처리합니다. 향후 위탁업체 또는 위탁업무 내용이
-          변경되는 경우 본 개인정보처리방침을 통하여 지체 없이 반영 및 고지합니다.
+          회사는 본인확인 및 중복가입·부정이용 방지를 위해 본인확인기관이 제공하는
+          CI(연계정보)를 처리할 수 있습니다. CI를 포함한 본인확인 정보는 서비스 운영에
+          필요한 최소 범위에서 처리하며, 일반 프로필이나 공개 화면에 노출하지 않습니다.
+          향후 위탁업체 또는 위탁업무 내용이 변경되는 경우 본 개인정보처리방침을 통하여
+          지체 없이 반영 및 고지합니다.
         </p>
       </LegalSectionCard>
 

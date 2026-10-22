@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "next -p 3060",
-    "build": "NODE_ENV=production ANALYZE=true next build",
+    "build": "next build",
     "start": "NODE_ENV=production next start -p 3060",
     "lint": "next lint",
     "serve": "firebase serve -p 3060"
@@ -41,6 +41,7 @@
     "next": "^15.1.2",
     "next-redux-wrapper": "^8.1.0",
     "prop-types": "^15.8.1",
+    "qrcode": "^1.5.4",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^5.4.0",
     "react-rating": "^2.0.5",

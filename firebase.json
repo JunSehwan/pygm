@@ -11,25 +11,95 @@
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "*.local"
+        "*.local",
+        ".env",
+        ".env.*",
+        "serviceAccountKey.json",
+        "serviceAccountKey*.json",
+        "*service-account*.json",
+        "*service_account*.json"
       ],
       "codebase": "default",
-      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run lint"]
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
     }
   ],
   "hosting": {
     "public": "out",
     "cleanUrls": true,
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "predeploy": ["npm run build"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "predeploy": [
+      "npm run build"
+    ],
+    "redirects": [
+      {
+        "source": "/pending",
+        "destination": "/arena/pending",
+        "type": 301
+      },
+      {
+        "source": "/layout",
+        "destination": "/",
+        "type": 301
+      }
+    ],
     "rewrites": [
+      {
+        "source": "/2weeks/proposal/dashboard",
+        "destination": "/2weeks/proposal/dashboard.html"
+      },
+      {
+        "source": "/2weeks",
+        "destination": "/2weeks.html"
+      },
+      {
+        "source": "/2weeks/review",
+        "destination": "/2weeks/review.html"
+      },
+      {
+        "source": "/2weeks/success-story",
+        "destination": "/2weeks/success-story.html"
+      },
+      {
+        "source": "/2weeks/feedback",
+        "destination": "/2weeks/feedback.html"
+      },
+      {
+        "source": "/2weeks/feedback/**",
+        "destination": "/2weeks/feedback.html"
+      },
       {
         "source": "/arena",
         "destination": "/arena.html"
       },
       {
+        "source": "/arena/received/*",
+        "destination": "/arena/received/[interestId].html"
+      },
+      {
         "source": "/arena/**",
         "destination": "/arena/[uid].html"
+      },
+      {
+        "source": "/cards/*/answer-read",
+        "destination": "/cards/[cardId]/answer-read.html"
+      },
+      {
+        "source": "/cards/*/answer",
+        "destination": "/cards/[cardId]/answer.html"
+      },
+      {
+        "source": "/cards/*",
+        "destination": "/cards/[cardId].html"
+      },
+      {
+        "source": "/topic/*",
+        "destination": "/topic/[slug].html"
       }
     ]
   },

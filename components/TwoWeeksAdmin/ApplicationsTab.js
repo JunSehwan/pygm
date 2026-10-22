@@ -8,10 +8,20 @@ export default function ApplicationsTab({
   selectedApplication,
   setSelectedApplication,
   onUpdate,
+  onUpdateAdminMatchingMeta,
   onApproveWithSms,
+  onCompleteWithSms,
   onSendIncompleteSms,
+  onSendInitialDepositReminder,
+  onSendDepositTopUpReminder,
+  onConfirmDepositTopUp,
+  onCompleteDepositRefund,
+  onManageSanction,
+  onLoadSanctionHistory,
   onBulkApproveWithSms,
   onBulkApproveWithoutSms,
+  onBulkCompleteWithSms,
+  onBulkCompleteWithoutSms,
   busyId,
 }) {
   const [selectedIds, setSelectedIds] = useState([]);
@@ -38,13 +48,13 @@ export default function ApplicationsTab({
     setSelectedIds(checked ? applications.map((item) => item.id) : []);
   };
 
-  const handleBulkApprove = async () => {
-    await onBulkApproveWithSms(selectedApplications);
+  const handleBulkComplete = async () => {
+    await onBulkCompleteWithSms?.(selectedApplications);
     setSelectedIds([]);
   };
 
-  const handleBulkApproveNoSms = async () => {
-    await onBulkApproveWithoutSms(selectedApplications);
+  const handleBulkCompleteNoSms = async () => {
+    await onBulkCompleteWithoutSms?.(selectedApplications);
     setSelectedIds([]);
   };
 
@@ -53,23 +63,23 @@ export default function ApplicationsTab({
       <div className="grid gap-4">
         <Section
           title="신청자 목록"
-          desc="프로필 검토/승인은 이 탭에서 처리합니다. 행을 클릭하면 상세 모달이 열립니다."
+          desc="신규 회원은 프로필 사진 최소 3장, 입금 확인과 운영자 검토가 끝나면 매칭보드로 보냅니다. 기존 승인 1~2장 회원은 그대로 진행할 수 있습니다."
           action={
             <div className="flex flex-wrap gap-2">
               <ActionButton
-                onClick={handleBulkApprove}
-                disabled={!selectedApplications.length || busyId === "bulkApprove"}
+                onClick={handleBulkComplete}
+                disabled={!selectedApplications.length || busyId === "bulkComplete"}
                 tone="good"
               >
-                선택 {selectedApplications.length}명 승인+문자
+                선택 {selectedApplications.length}명 신청완료+문자
               </ActionButton>
 
               <ActionButton
-                onClick={handleBulkApproveNoSms}
-                disabled={!selectedApplications.length || busyId === "bulkApproveNoSms"}
+                onClick={handleBulkCompleteNoSms}
+                disabled={!selectedApplications.length || busyId === "bulkCompleteNoSms"}
                 tone="light"
               >
-                테스트 승인(문자없이)
+                테스트 완료(문자없이)
               </ActionButton>
             </div>
           }
@@ -91,8 +101,16 @@ export default function ApplicationsTab({
         application={selectedApplication}
         onClose={() => setModalOpen(false)}
         onUpdate={onUpdate}
+        onUpdateAdminMatchingMeta={onUpdateAdminMatchingMeta}
         onApproveWithSms={onApproveWithSms}
+        onCompleteWithSms={onCompleteWithSms}
         onSendIncompleteSms={onSendIncompleteSms}
+        onSendInitialDepositReminder={onSendInitialDepositReminder}
+        onSendDepositTopUpReminder={onSendDepositTopUpReminder}
+        onConfirmDepositTopUp={onConfirmDepositTopUp}
+        onCompleteDepositRefund={onCompleteDepositRefund}
+        onManageSanction={onManageSanction}
+        onLoadSanctionHistory={onLoadSanctionHistory}
         busyId={busyId}
       />
     </>

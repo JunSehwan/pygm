@@ -2,9 +2,15 @@ import RegisterHeader from "./RegisterHeader";
 
 export default function RegisterLayout({ children, dark = false }) {
   return (
-    <div className={dark ? "min-h-screen bg-black text-white" : "min-h-screen bg-[#f7f8fa] text-slate-950"}>
+    <div
+      className={
+        dark
+          ? "min-h-[100dvh] bg-black text-white"
+          : "min-h-[100dvh] bg-[#f4f6f8] text-[#102a43]"
+      }
+    >
       <RegisterHeader />
-      <div className="pt-[68px] md:pt-[78px]">{children}</div>
+      <div className="pt-[64px] md:pt-[72px]">{children}</div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 
-const HERO_IMG = "/images/tests/dummy.png"; // 너가 원하는 픽셀/일러스트로 교체
+const HERO_IMG = "/image/tests/dummy.png"; // 너가 원하는 픽셀/일러스트로 교체
 
 function stageFromDiff(diff) {
   if (diff <= -51) return "😎 주제파악불가형 (눈높이 초과)";

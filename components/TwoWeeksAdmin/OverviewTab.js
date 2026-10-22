@@ -1,5 +1,6 @@
 import ApplicationsTable from "./ApplicationsTable";
 import { ActionButton, Section, StatCard } from "./AdminCommon";
+import { TEST_PHONE_FORMATTED } from "./constants";
 import { makeStats } from "./utils";
 
 export default function OverviewTab({
@@ -19,7 +20,7 @@ export default function OverviewTab({
     <div className="grid gap-4">
       <Section
         title="운영 테스트"
-        desc={`더미 신청자 ${dummyCount}명 · 더미 번호는 010-7578-1252로 통일됩니다.`}
+        desc={`더미 신청자 ${dummyCount}명 · 더미 번호는 ${TEST_PHONE_FORMATTED}로 통일됩니다.`}
         action={
           <div className="flex flex-wrap gap-2">
             <ActionButton onClick={onCreateDummy} disabled={creatingDummy} tone="dark">

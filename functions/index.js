@@ -1,11 +1,10 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const express = require("express");
-const axios = require("axios");
 const cors = require("cors");
-const CryptoJS = require("crypto-js");
 const dayjs = require("dayjs");
 const logger = require("firebase-functions/logger");
+const crypto = require("crypto");
 const apps = express();
 
 const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
@@ -142,154 +141,18 @@ apps.get("/sitemap.xml", async (req, res) => {
 exports.myApp = functions.https.onRequest(apps);
 
 
-// ✅ 네이버 SMS 발송 Function
-exports.sendSms = onRequest(
-  { region: "asia-northeast3", cors: true },
-  async (req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-    if (req.method === "OPTIONS") return res.status(200).end();
-
-    try {
-      const { to, message } = req.body;
-      if (!to || !message) {
-        return res.status(400).json({ error: "Missing 'to' or 'message' field" });
-      }
-      
-      const serviceId = process.env.NEXT_PUBLIC_NCP_SERVICE_ID;
-      const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;
-      const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;
-      const from = (process.env.NEXT_PUBLIC_MY_NUM || "").replace(/[^0-9]/g, "");
-      // const from = process.env.NEXT_PUBLIC_MY_NUM;
-
-      if (!serviceId || !accessKey || !secretKey || !from) {
-        return res.status(500).json({ error: "Missing environment variables" });
-      }
-
-      const method = "POST";
-      const urlPath = `/sms/v2/services/${serviceId}/messages`;
-      const url = `https://sens.apigw.ntruss.com${urlPath}`;
-      const timestamp = Date.now().toString();
-
-      const hmac = CryptoJS.algo.HMAC.create(CryptoJS.algo.SHA256, secretKey);
-      hmac.update(method);
-      hmac.update(" ");
-      hmac.update(urlPath);
-      hmac.update("\n");
-      hmac.update(timestamp);
-      hmac.update("\n");
-      hmac.update(accessKey);
-      const signature = hmac.finalize().toString(CryptoJS.enc.Base64);
-
-      const body = {
-        type: "SMS",
-        countryCode: "82",
-        from,
-        content: message,
-        messages: [{ to }],
-      };
-
-      const response = await axios.post(url, body, {
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "x-ncp-iam-access-key": accessKey,
-          "x-ncp-apigw-timestamp": timestamp,
-          "x-ncp-apigw-signature-v2": signature,
-        },
-      });
-
-      return res.status(200).json({ success: true, data: response.data });
-    } catch (error) {
-      console.error("SMS 전송 실패:", error.response?.data || error.message);
-      return res.status(400).json({
-        error: "Failed to send SMS",
-        details: error.response?.data || error.message,
-      });
-    }
-  }
-);
-// ✅ LMS 발송 (v2 버전)
-exports.sendLms = onRequest(
-  { region: "asia-northeast3", cors: true },
-  async (req, res) => {
-    try {
-      const { to, message, subject, forceLms } = req.body;
-
-      if (!to || !message) {
-        res.status(400).json({ error: "Missing 'to' or 'message'" });
-        return;
-      }
-
-      const serviceId = process.env.NEXT_PUBLIC_NCP_SERVICE_ID;
-      const secretKey = process.env.NEXT_PUBLIC_NCP_SECRET_KEY;
-      const accessKey = process.env.NEXT_PUBLIC_NCP_KEY;
-      const from = (process.env.NEXT_PUBLIC_MY_NUM || "").replace(/[^0-9]/g, "");
-
-      const method = "POST";
-      const space = " ";
-      const newLine = "\n";
-      const urlPath = `/sms/v2/services/${serviceId}/messages`;
-      const timestamp = Date.now().toString();
-
-      const hmac = CryptoJS.algo.HMAC.create(CryptoJS.algo.SHA256, secretKey);
-      hmac.update(method);
-      hmac.update(space);
-      hmac.update(urlPath);
-      hmac.update(newLine);
-      hmac.update(timestamp);
-      hmac.update(newLine);
-      hmac.update(accessKey);
-      const signature = hmac.finalize().toString(CryptoJS.enc.Base64);
-
-      const cleanMessage = String(message || "").replace(
-        /([\uD800-\uDBFF][\uDC00-\uDFFF])/g,
-        ""
-      );
-
-      const getByteLength = (str = "") =>
-        Buffer.byteLength(String(str), "utf8");
-
-      const messageType =
-        forceLms || getByteLength(cleanMessage) > 90 ? "LMS" : "SMS";
-
-      const payload = {
-        type: messageType,
-        countryCode: "82",
-        from,
-        subject: subject || "피그말리온 안내",
-        content: cleanMessage,
-        messages: [{ to }],
-      };
-
-      const response = await axios.post(
-        `https://sens.apigw.ntruss.com${urlPath}`,
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "x-ncp-iam-access-key": accessKey,
-            "x-ncp-apigw-timestamp": timestamp,
-            "x-ncp-apigw-signature-v2": signature,
-          },
-        }
-      );
-
-      logger.info("✅ LMS 전송 성공:", response.data);
-      res.status(200).json({ success: true, data: response.data });
-    } catch (error) {
-      logger.error("❌ LMS 전송 실패:", error.response?.data || error.message);
-      res.status(400).json({
-        error: "Failed to send LMS",
-        details: error.response?.data || error.message,
-      });
-    }
-  }
-);
+// SMS/LMS는 인증 + 수신자 제한 + rate-limit이 적용된 gateway만 공개한다.
+// 기존 함수명은 유지해서 기존 프론트 호출 URL과 호환된다.
+const authenticatedSmsGateway = require("./authenticatedSmsGateway");
+exports.sendSms = authenticatedSmsGateway.sendSms;
+exports.sendLms = authenticatedSmsGateway.sendLms;
 
 // 이미 admin.initializeApp() 되어 있으면 중복 호출하지 마세요.
 const PORTONE_API_SECRET = defineSecret("PORTONE_API_SECRET");
+const {
+  isTwoWeeksTestPhone,
+  normalizeTwoWeeksPhone,
+} = require("./twoWeeksTestAuth");
 
 exports.verifyIdentityResult = onCall(
   {
@@ -509,12 +372,22 @@ exports.verifyIdentityResult = onCall(
 
     try {
       const data = request.data || {};
-      const { identityVerificationId, requestedPhone } = data;
+      const { identityVerificationId, requestedPhone, source } = data;
+      const verificationSource = String(source || "").trim();
 
       if (!identityVerificationId) {
         throw new HttpsError(
           "invalid-argument",
           "identityVerificationId가 필요합니다."
+        );
+      }
+
+      const isTwoWeeksIdentitySource = ["twoweeks_register", "twoweeks_dashboard_upgrade"].includes(verificationSource);
+
+      if (isTwoWeeksIdentitySource && !request.auth?.uid) {
+        throw new HttpsError(
+          "unauthenticated",
+          "투윅스 본인인증을 위해 인증 세션이 필요합니다."
         );
       }
 
@@ -578,6 +451,55 @@ exports.verifyIdentityResult = onCall(
 
           const identity = extractIdentityInfo(verification);
 
+          if (verificationSource === "twoweeks_register") {
+            const normalizedIdentityPhone = normalizeTwoWeeksPhone(identity.phone || requestedPhone || "");
+            const ciHash = identity.ci
+              ? crypto.createHash("sha256").update(String(identity.ci)).digest("hex")
+              : "";
+
+            if (normalizedIdentityPhone && !isTwoWeeksTestPhone(normalizedIdentityPhone)) {
+              const db = admin.firestore();
+              const phoneChecks = [
+                db.collection("twoweeksApplications")
+                  .where("basic.phoneNormalized", "==", normalizedIdentityPhone)
+                  .limit(1),
+                db.collection("twoweeksApplications")
+                  .where("phoneIdentityVerification.phone", "==", normalizedIdentityPhone)
+                  .limit(1),
+              ];
+
+              for (const query of phoneChecks) {
+                const duplicateSnap = await query.get();
+                if (!duplicateSnap.empty) {
+                  throw new HttpsError(
+                    "already-exists",
+                    "이미 가입된 연락처입니다. 새로 가입하지 말고 기존 신청현황에서 확인해주세요."
+                  );
+                }
+              }
+            }
+
+            if (ciHash) {
+              const duplicateCiSnap = await admin
+                .firestore()
+                .collection("twoweeksIdentityVerifications")
+                .where("ciHash", "==", ciHash)
+                .limit(10)
+                .get();
+
+              const hasConsumedIdentity = duplicateCiSnap.docs.some((doc) =>
+                Boolean(String(doc.data()?.applicationId || "").trim())
+              );
+
+              if (hasConsumedIdentity) {
+                throw new HttpsError(
+                  "already-exists",
+                  "동일한 본인인증 정보로 등록된 신청이 있습니다. 연락처를 변경한 이력이 있거나 신청현황에서 조회되지 않으면 고객센터에 문의해주세요."
+                );
+              }
+            }
+          }
+
           if (requestedPhone && identity.phone) {
             const req = onlyDigits(requestedPhone);
             const got = onlyDigits(identity.phone);
@@ -591,12 +513,43 @@ exports.verifyIdentityResult = onCall(
             }
           }
 
+          if (isTwoWeeksIdentitySource) {
+            const nowMs = Date.now();
+            const verificationRef = admin
+              .firestore()
+              .collection("twoweeksIdentityVerifications")
+              .doc(String(identityVerificationId).slice(0, 120));
+            const ciHash = identity.ci
+              ? crypto.createHash("sha256").update(String(identity.ci)).digest("hex")
+              : "";
+
+            await verificationRef.set(
+              {
+                verified: true,
+                source: verificationSource,
+                provider: "PORTONE",
+                ownerUid: request.auth.uid,
+                phone: identity.phone,
+                name: identity.name || "",
+                birth: identity.birth || "",
+                gender: identity.gender || "",
+                // CI 원문은 저장하지 않고 동일인 중복가입 방지용 hash만 서버 비공개 문서에 저장한다.
+                ciHash,
+                verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+                verifiedAtClient: new Date(nowMs).toISOString(),
+                expiresAt: admin.firestore.Timestamp.fromMillis(nowMs + 2 * 60 * 60 * 1000),
+              },
+              { merge: true }
+            );
+          }
+
           // 디버깅용: 민감정보 원문은 남기지 않고 어떤 필드가 잡혔는지만 확인
           console.log("[verifyIdentityResult] extracted fields", {
             hasPhone: !!identity.phone,
             hasName: !!identity.name,
             hasBirth: !!identity.birth,
             hasGender: !!identity.gender,
+            hasCi: !!identity.ci,
             status,
             topLevelKeys: Object.keys(verification || {}).slice(0, 50),
             customerKeys: Object.keys(verification?.customer || {}).slice(0, 50),
@@ -616,8 +569,11 @@ exports.verifyIdentityResult = onCall(
             birth: identity.birth,
             gender: identity.gender,
             carrier: identity.carrier,
-            ci: identity.ci,
-            di: identity.di,
+            // 투윅스는 CI/DI 원문을 브라우저까지 내려보낼 필요가 없다.
+            // 기존 차밍수프 가입 경로는 호환성을 위해 종전 값을 유지한다.
+            ...(isTwoWeeksIdentitySource
+              ? {}
+              : { ci: identity.ci, di: identity.di }),
           };
         }
 
@@ -1022,6 +978,11 @@ exports.recommendAdminCards = onCall(
   },
   async (request) => {
     try {
+      const { isAdminUid } = require("./twoWeeksCallerAuth");
+      if (!request.auth?.uid || !(await isAdminUid(request.auth.uid))) {
+        throw new HttpsError("permission-denied", "관리자만 사용할 수 있습니다.");
+      }
+
       if (!OPENAI_API_KEY) {
         throw new HttpsError(
           "failed-precondition",
@@ -1120,8 +1081,130 @@ exports.deleteCurrentUserAccount = deleteCurrentUserAccount;
 // 3일마다 문자말송(만약에 남성 소개가 도착한다면..)
 exports.scheduleArenaOffers = require("./arenaOfferScheduler").scheduleArenaOffers;
 
-// 투윅스 만남 전날/당일 리마인드 문자
-exports.sendTwoWeeksMeetingReminders = require("./twoWeeksMeetingReminders").sendTwoWeeksMeetingReminders;
+// 투윅스 만남 전날/당일 리마인드 문자 + 종료 후 피드백 접근 복구
+const twoWeeksMeetingReminderFunctions = require("./twoWeeksMeetingReminders");
+exports.sendTwoWeeksMeetingReminders = twoWeeksMeetingReminderFunctions.sendTwoWeeksMeetingReminders;
+exports.ensureTwoWeeksFeedbackAccess = twoWeeksMeetingReminderFunctions.ensureTwoWeeksFeedbackAccess;
+exports.resolveTwoWeeksFeedbackAccess = twoWeeksMeetingReminderFunctions.resolveTwoWeeksFeedbackAccess;
 
 // 투윅스 제안/일정 기한 만료 자동 처리
 exports.processTwoWeeksDeadlineExpirations = require("./twoWeeksDeadlineExpirations").processTwoWeeksDeadlineExpirations;
+
+// 투윅스 양쪽 수락 완료 후 일정조율 시작 문자
+exports.notifyTwoWeeksMutualAccepted = require("./twoWeeksMutualAcceptedNotification").notifyTwoWeeksMutualAccepted;
+
+// 투윅스 제안 거절 시 상대방 위로/결과 안내 문자
+exports.notifyTwoWeeksProposalDeclined = require("./twoWeeksDeclinedNotification").notifyTwoWeeksProposalDeclined;
+exports.respondTwoWeeksProposal = require("./twoWeeksProposalRespond").respondTwoWeeksProposal;
+exports.notifyTwoWeeksAdminMatchLifecycle = require("./twoWeeksAdminLifecycleNotification").notifyTwoWeeksAdminMatchLifecycle;
+
+// 투윅스 매칭 제안 단계 선명 프로필 조회 및 기존 흐림 스냅샷 갱신
+exports.getTwoWeeksMatchedCandidateProfile = require("./twoWeeksMatchedCandidateProfile").getTwoWeeksMatchedCandidateProfile;
+
+// 투윅스 노쇼/불참 피드백 접수 시 관리자 문자
+exports.notifyTwoWeeksFeedbackIssue = require("./twoWeeksFeedbackIssueNotification").notifyTwoWeeksFeedbackIssue;
+
+// 투윅스 정상 피드백 완료 및 중요 불편 피드백 관리자 문자
+exports.notifyTwoWeeksFeedbackAdmin = require("./twoWeeksFeedbackAdminNotification").notifyTwoWeeksFeedbackAdmin;
+
+// 투윅스 약속시간 +5분 상대 미도착 현장 호출 문자
+const twoWeeksMissingArrivalAlert = require("./twoWeeksMissingArrivalAlert");
+exports.sendTwoWeeksMissingArrivalAlert = twoWeeksMissingArrivalAlert.sendTwoWeeksMissingArrivalAlert;
+exports.sendTwoWeeksArrivalConfirmation = twoWeeksMissingArrivalAlert.sendTwoWeeksArrivalConfirmation;
+
+// 투윅스 예치금 반환 요청 / 관리자 반환완료 처리
+const twoWeeksDepositRefund = require("./twoWeeksDepositRefund");
+exports.requestTwoWeeksDepositRefund = twoWeeksDepositRefund.requestTwoWeeksDepositRefund;
+exports.completeTwoWeeksDepositRefund = twoWeeksDepositRefund.completeTwoWeeksDepositRefund;
+
+// TwoWeeks 피드백 완료 후 연락처 공개 여부에 따른 매칭 일시정지 / 자동 다음 매칭
+exports.processTwoWeeksCompletedFeedback = require("./twoWeeksFeedbackLifecycle").processTwoWeeksCompletedFeedback;
+
+// 투윅스 피드백 미응답 24시간 재안내 / 48시간 자동 마감
+exports.processTwoWeeksFeedbackTimeouts = require("./twoWeeksFeedbackTimeouts").processTwoWeeksFeedbackTimeouts;
+exports.migrateTwoWeeksFeedbackPrivacy = require("./twoWeeksFeedbackPrivacyMigration").migrateTwoWeeksFeedbackPrivacy;
+
+// 투윅스 상호 추후 만남 의향 + 연락처 공개 동의 시 연락처 공개
+exports.getTwoWeeksMutualContact = require("./twoWeeksMutualContact").getTwoWeeksMutualContact;
+
+// 투윅스 양쪽 수락 이후 만남 취소 및 예치금 차감
+exports.cancelTwoWeeksMatch = require("./twoWeeksMatchCancellation").cancelTwoWeeksMatch;
+
+// 투윅스 당일취소·노쇼 계정 제재 및 관리자 이력 관리
+const twoWeeksSanctions = require("./twoWeeksSanctions");
+exports.manageTwoWeeksMemberSanction = twoWeeksSanctions.manageTwoWeeksMemberSanction;
+exports.releaseExpiredTwoWeeksSanctions = twoWeeksSanctions.releaseExpiredTwoWeeksSanctions;
+exports.getTwoWeeksSanctionHistory = twoWeeksSanctions.getTwoWeeksSanctionHistory;
+
+// 투윅스 탈퇴: 상태/차감 미리보기, 원자적 탈퇴·반환 접수, 현재 만남 후 예약 탈퇴
+const twoWeeksWithdrawal = require("./twoWeeksWithdrawal");
+exports.getTwoWeeksWithdrawalPreview = twoWeeksWithdrawal.getTwoWeeksWithdrawalPreview;
+exports.requestTwoWeeksWithdrawal = twoWeeksWithdrawal.requestTwoWeeksWithdrawal;
+exports.finalizeScheduledTwoWeeksWithdrawal = twoWeeksWithdrawal.finalizeScheduledTwoWeeksWithdrawal;
+exports.activateReviewedTwoWeeksWithdrawalRefund = twoWeeksWithdrawal.activateReviewedTwoWeeksWithdrawalRefund;
+
+// 투윅스 상호 연락처 공개 후 또는 사용자 선택에 따른 매칭 일시정지 / 재개
+exports.setTwoWeeksMatchingAvailability = require("./twoWeeksMatchingAvailability").setTwoWeeksMatchingAvailability;
+
+// 투윅스 피드백 제출: 48시간 마감 및 제출 후 수정불가를 서버에서 검증
+exports.submitTwoWeeksFeedback = require("./twoWeeksFeedbackSubmission").submitTwoWeeksFeedback;
+
+
+// 투윅스 실제 만남 후기 / 연락처 연결 후 성공스토리 수집·익명 공개 관리
+const twoWeeksMarketingStories = require("./twoWeeksMarketingStories");
+exports.ensureTwoWeeksReviewAccess = twoWeeksMarketingStories.ensureTwoWeeksReviewAccess;
+exports.resolveTwoWeeksMarketingAccess = twoWeeksMarketingStories.resolveTwoWeeksMarketingAccess;
+exports.submitTwoWeeksReview = twoWeeksMarketingStories.submitTwoWeeksReview;
+exports.submitTwoWeeksSuccessStory = twoWeeksMarketingStories.submitTwoWeeksSuccessStory;
+exports.moderateTwoWeeksMarketingContent = twoWeeksMarketingStories.moderateTwoWeeksMarketingContent;
+exports.sendTwoWeeksSuccessStoryInvitations = twoWeeksMarketingStories.sendTwoWeeksSuccessStoryInvitations;
+
+// 투윅스 랜딩페이지 최근 활동: 서버에서 개인정보를 제거한 요약만 공개한다.
+exports.getTwoWeeksActivityFeed = require("./twoWeeksActivityFeed").getTwoWeeksActivityFeed;
+
+// TwoWeeks dashboard authentication: server-side OTP verification + magic-link validation.
+// Successful verification binds the current Firebase Auth UID to one application with a short-lived server session.
+const twoWeeksDashboardAuth = require("./twoWeeksDashboardAuth");
+exports.createTwoWeeksDashboardAccess = twoWeeksDashboardAuth.createTwoWeeksDashboardAccess;
+exports.requestTwoWeeksDashboardOtp = twoWeeksDashboardAuth.requestTwoWeeksDashboardOtp;
+exports.verifyTwoWeeksDashboardOtp = twoWeeksDashboardAuth.verifyTwoWeeksDashboardOtp;
+exports.authenticateTwoWeeksDashboardLink = twoWeeksDashboardAuth.authenticateTwoWeeksDashboardLink;
+exports.completeTwoWeeksDashboardIdentity = twoWeeksDashboardAuth.completeTwoWeeksDashboardIdentity;
+
+// Firestore Rules 강화 후에도 양쪽 신청서의 상호수락/일정확정 상태가 서버에서 일관되게 동기화되도록 한다.
+exports.syncTwoWeeksMatchParticipants = require("./twoWeeksMatchParticipantSync").syncTwoWeeksMatchParticipants;
+
+// 투윅스 신규 신청 저장: 본인인증 확인 후 공개/비공개 신청문서를 서버에서 원자적으로 생성
+const twoWeeksApplicationSubmission = require("./twoWeeksApplicationSubmission");
+exports.validateTwoWeeksApplicationSubmission = twoWeeksApplicationSubmission.validateTwoWeeksApplicationSubmission;
+exports.finalizeTwoWeeksApplicationSubmission = twoWeeksApplicationSubmission.finalizeTwoWeeksApplicationSubmission;
+
+const twoWeeksProfileUpdate = require("./twoWeeksProfileUpdate");
+exports.updateTwoWeeksProfile = twoWeeksProfileUpdate.updateTwoWeeksProfile;
+exports.submitTwoWeeksVerificationDocument = twoWeeksProfileUpdate.submitTwoWeeksVerificationDocument;
+exports.getTwoWeeksVerificationDocumentStatus = twoWeeksProfileUpdate.getTwoWeeksVerificationDocumentStatus;
+
+const twoWeeksMarketingAttribution = require("./twoWeeksMarketingAttribution");
+exports.trackTwoWeeksCampaignVisit = twoWeeksMarketingAttribution.trackTwoWeeksCampaignVisit;
+exports.createTwoWeeksMarketingCampaign = twoWeeksMarketingAttribution.createTwoWeeksMarketingCampaign;
+exports.setTwoWeeksMarketingCampaignStatus = twoWeeksMarketingAttribution.setTwoWeeksMarketingCampaignStatus;
+exports.setTwoWeeksReferralResolution = twoWeeksMarketingAttribution.setTwoWeeksReferralResolution;
+exports.getTwoWeeksMarketingDashboard = twoWeeksMarketingAttribution.getTwoWeeksMarketingDashboard;
+
+// 투윅스 V5 HOME 콘텐츠·친구추천 (기존 매칭·인증 Functions는 그대로 유지)
+const twoWeeksHomeContent = require("./twoWeeksHomeContent");
+exports.listTwoWeeksHomeAdmin = twoWeeksHomeContent.listTwoWeeksHomeAdmin;
+exports.saveTwoWeeksHomeContent = twoWeeksHomeContent.saveTwoWeeksHomeContent;
+exports.uploadTwoWeeksDatingNoteImage = twoWeeksHomeContent.uploadTwoWeeksDatingNoteImage;
+exports.deleteTwoWeeksHomeContent = twoWeeksHomeContent.deleteTwoWeeksHomeContent;
+const twoWeeksReferralProgram = require("./twoWeeksReferralProgram");
+exports.createMyTwoWeeksInviteLink = twoWeeksReferralProgram.createMyTwoWeeksInviteLink;
+exports.getMyTwoWeeksReferralSummary = twoWeeksReferralProgram.getMyTwoWeeksReferralSummary;
+exports.assessTwoWeeksReferralRewards = twoWeeksReferralProgram.assessTwoWeeksReferralRewards;
+exports.listTwoWeeksReferralRewards = twoWeeksReferralProgram.listTwoWeeksReferralRewards;
+exports.updateTwoWeeksReferralReward = twoWeeksReferralProgram.updateTwoWeeksReferralReward;
+
+exports.onTwoWeeksMatchReferralMilestone = twoWeeksReferralProgram.onTwoWeeksMatchReferralMilestone;
+
+// MY: End only the authenticated 2WEEKS dashboard OTP session.
+exports.logoutMyTwoWeeksDashboardSession = require("./twoWeeksDashboardSessionLogout").logoutMyTwoWeeksDashboardSession;

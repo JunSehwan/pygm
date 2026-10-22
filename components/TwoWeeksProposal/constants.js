@@ -6,18 +6,23 @@ export const TWOWEEKS_ROUND_ID = "twoweeks_beta_1";
 export const TWOWEEKS_ROUND_LABEL = "투윅스 1기";
 
 export const PROPOSAL_IDENTITY_SOURCE = "twoweeks_proposal_dashboard";
+export const PROPOSAL_IDENTITY_UPGRADE_SOURCE = "twoweeks_dashboard_upgrade";
 
 export const STATUS_LABELS = {
   applied: "신청 완료",
   pending: "검토 대기",
   reviewing: "검토 중",
   approved: "검토 완료",
+  not_ready: "매칭 준비 전",
   not_started: "매칭 대기",
   proposed: "제안 도착",
   accepted: "수락 완료",
   declined: "거절 완료",
   confirmed: "확정 대기",
   completed: "완료",
+  paused: "매칭 일시정지",
+  admin_review: "운영자 검토",
+  ready: "준비 완료",
   cancelled: "취소",
 };
 
@@ -37,7 +42,7 @@ export const PROPOSAL_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const PROPOSAL_MAGIC_SESSION_METHOD = "sms_magic_link";
 
 export const ACTIVITY_AREAS = ["강남구", "서초구", "동작구", "관악구", "영등포구"];
-export const TIME_SLOTS = ["평일 저녁", "토요일 낮", "토요일 저녁", "일요일 낮", "일요일 저녁"];
+export const TIME_SLOTS = ["금요일 저녁", "토요일 낮", "토요일 저녁", "일요일 낮", "일요일 저녁"];
 export const JOB_CATEGORIES = ["회사원", "공무원", "전문직", "자영업", "프리랜서", "학생", "기타"];
 
 export const PROFILE_LOCKED_MATCHING_STATUSES = ["confirmed", "completed"];

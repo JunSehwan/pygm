@@ -2279,19 +2279,35 @@ export async function onBuyWink(nickname, email, winks, money) {
   }
 }
 
+async function getAuthenticatedSmsHeaders() {
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+  }
+
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("문자 발송을 위한 로그인 세션이 없습니다. 화면을 새로고침한 뒤 다시 시도해주세요.");
+  }
+
+  const idToken = await user.getIdToken();
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${idToken}`,
+  };
+}
+
 export async function sendSms(to, message) {
+  const headers = await getAuthenticatedSmsHeaders();
   const res = await fetch(
     "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendSms",
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ to, message }),
     }
   );
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "SMS send failed");
   return data;
 }
@@ -2303,11 +2319,12 @@ export async function sendLms(
   subject = "차밍수프 안내",
   options = {}
 ) {
+  const headers = await getAuthenticatedSmsHeaders();
   const res = await fetch(
     "https://asia-northeast3-pygmalion-96c6f.cloudfunctions.net/sendLms",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         to,
         message,
@@ -2317,7 +2334,7 @@ export async function sendLms(
     }
   );
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "LMS send failed");
   return data;
 }

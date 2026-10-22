@@ -16,10 +16,10 @@ export function LegalSection({ title, children }) {
   );
 }
 
-export function LegalInfoBox() {
+export function LegalInfoBox({ title = "사업자 정보" }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white px-4 py-4 shadow-sm">
-      <h2 className="text-[16px] font-bold text-slate-900">사업자 정보</h2>
+      <h2 className="text-[16px] font-bold text-slate-900">{title}</h2>
       <div className="mt-3 grid gap-1.5 break-keep text-[13px] leading-6 text-slate-600">
         <p>상호: {LEGAL_META.companyName}</p>
         <p>대표자: {LEGAL_META.representativeName}</p>
@@ -34,19 +34,30 @@ export function LegalInfoBox() {
   );
 }
 
-export default function LegalPage({ title, description, children }) {
+export default function LegalPage({
+  title,
+  description,
+  serviceLabel = LEGAL_META.serviceName,
+  businessInfoTitle = "사업자 정보",
+  wide = false,
+  children,
+}) {
   const router = useRouter();
 
   return (
     <>
       <Head>
-        <title>{title} | {LEGAL_META.serviceName}</title>
-        <meta name="description" content={description || `${LEGAL_META.serviceName} ${title}`} />
+        <title>{title} | {serviceLabel}</title>
+        <meta name="description" content={description || `${serviceLabel} ${title}`} />
       </Head>
 
       <main className="min-h-screen bg-white md:bg-[#f6f7fb]">
         <div className="mx-auto flex min-h-screen w-full max-w-[1200px] items-start justify-center md:px-6 md:py-10">
-          <section className="relative flex min-h-screen w-full max-w-[430px] flex-col overflow-hidden bg-slate-50 md:min-h-[760px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
+          <section
+            className={`relative flex min-h-screen w-full max-w-[430px] flex-col overflow-hidden bg-slate-50 md:min-h-[760px] md:rounded-[24px] md:border md:border-slate-200/80 md:shadow-[0_20px_60px_rgba(15,23,42,0.10)] ${
+              wide ? "md:max-w-[760px]" : ""
+            }`}
+          >
             <header className="shrink-0 bg-white px-4 pb-4 pt-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <button
@@ -59,7 +70,7 @@ export default function LegalPage({ title, description, children }) {
                 </button>
                 <div className="min-w-0 flex-1 text-center">
                   <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-violet-500">
-                    {LEGAL_META.serviceName}
+                    {serviceLabel}
                   </div>
                   <h1 className="mt-1 text-[20px] font-black tracking-[-0.04em] text-slate-950">{title}</h1>
                 </div>
@@ -70,7 +81,7 @@ export default function LegalPage({ title, description, children }) {
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-3 pb-8">
                 {children}
-                <LegalInfoBox />
+                <LegalInfoBox title={businessInfoTitle} />
 
                 <div className="rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
                   <div className="flex flex-wrap gap-x-3 gap-y-2 text-[12px] font-semibold text-slate-600">

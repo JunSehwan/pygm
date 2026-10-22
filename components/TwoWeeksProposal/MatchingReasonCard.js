@@ -1,56 +1,34 @@
-import { FiMapPin, FiStar, FiClock } from "react-icons/fi";
-import { AGE_PRIORITY_LABELS } from "./constants";
+import { FiCheck, FiHeart } from "react-icons/fi";
 
 export default function MatchingReasonCard({ score }) {
-  if (!score) return null;
-
-  const age = score.agePriority || {};
+  const reasons = Array.isArray(score?.reasons) ? score.reasons.filter(Boolean).slice(0, 3) : [];
+  if (!score?.complete || !reasons.length) return null;
 
   return (
-    <div className="rounded-[28px] border border-zinc-200 bg-[#faf8f6] p-5 md:p-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="rounded-[24px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-rose-50 p-5 md:p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-lg text-[#1877f2] shadow-sm ring-1 ring-inset ring-blue-100">
+          <FiHeart aria-hidden="true" />
+        </span>
         <div>
-          <div className="text-sm font-semibold text-orange-500">추천 기준</div>
-          <h3 className="mt-1 text-xl font-black tracking-[-0.04em] text-zinc-950">
-            {AGE_PRIORITY_LABELS[age.grade] || "후보풀 검토"}
-          </h3>
-        </div>
-        <div className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-black text-white">
-          {score.total}점
+          <div className="text-[12px] font-bold text-[#1877f2]">조건 계산 + 운영자 최종 검토</div>
+          <h3 className="mt-1 text-[20px] font-bold tracking-[-0.04em] text-[#1c1e21]">두 분을 소개한 이유</h3>
+          <p className="mt-1 break-keep text-[12px] font-semibold leading-5 text-[#65676b]">
+            내부 점수 대신, 실제 선택에 도움이 되는 이유만 간단히 보여드려요.
+          </p>
         </div>
       </div>
 
-      <div className="mt-5 space-y-3">
-        <div className="flex gap-3 rounded-2xl bg-white p-4">
-          <FiStar className="mt-1 shrink-0 text-orange-500" />
-          <div>
-            <div className="text-sm font-black text-zinc-950">{age.diffLabel}</div>
-            <div className="mt-1 break-keep text-xs leading-5 text-zinc-500">{age.detail}</div>
-          </div>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl bg-white p-4">
-            <div className="flex items-center gap-2 text-sm font-black text-zinc-950">
-              <FiMapPin className="text-orange-500" />
-              활동 지역
-            </div>
-            <div className="mt-2 text-xs leading-5 text-zinc-500">
-              {score.areaOverlap?.length ? score.areaOverlap.join(" · ") : "추가 조율 필요"}
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-white p-4">
-            <div className="flex items-center gap-2 text-sm font-black text-zinc-950">
-              <FiClock className="text-orange-500" />
-              가능 시간
-            </div>
-            <div className="mt-2 text-xs leading-5 text-zinc-500">
-              {score.timeOverlap?.length ? score.timeOverlap.join(" · ") : "추가 조율 필요"}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ul className="mt-5 grid gap-2.5">
+        {reasons.map((reason, index) => (
+          <li key={`${reason}_${index}`} className="flex gap-3 rounded-2xl bg-white px-4 py-3.5 shadow-sm">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1877f2] text-[11px] text-white">
+              <FiCheck aria-hidden="true" />
+            </span>
+            <div className="break-keep text-[13px] font-bold leading-6 text-[#1c1e21]">{reason}</div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

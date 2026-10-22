@@ -1,11 +1,17 @@
 import { FiCheckCircle } from "react-icons/fi";
 import { DEPOSIT_INFO } from "./constants";
+import { TWOWEEKS_DEPOSIT_DEDUCTION_POLICY, formatWon } from "../TwoWeeksShared/depositPolicy";
 
 const policyItems = [
-  "운영상 매칭 실패 시 다음 회차 이월이 기본이며, 요청 시 환불 가능합니다.",
-  "정상 참여 시 환급 또는 다음 회차 크레딧 전환이 가능합니다.",
-  "상호 수락 후 확정된 뒤 무단 불참 또는 당일 취소 시 미환급될 수 있습니다.",
-  "거절 또는 실패 시 운영자 검토 후 다음 후보 제안이 가능합니다.",
+  `양쪽 수락 후 일정·장소 확정 전 취소: ${formatWon(TWOWEEKS_DEPOSIT_DEDUCTION_POLICY.afterMutualAcceptBeforeScheduleConfirmed.amount)} 차감`,
+  `일정·장소 확정 후 만남 전날까지 취소: ${formatWon(TWOWEEKS_DEPOSIT_DEDUCTION_POLICY.afterScheduleConfirmedUntilDayBefore.amount)} 차감`,
+  `만남 당일 00:00 이후 취소: ${formatWon(TWOWEEKS_DEPOSIT_DEDUCTION_POLICY.sameDayCancel.amount)} 전액 차감`,
+  `노쇼(무단 불참): ${formatWon(TWOWEEKS_DEPOSIT_DEDUCTION_POLICY.noShow.amount)} 전액 차감`,
+  `차감 후 예치금 잔액이 ${formatWon(DEPOSIT_INFO.amount)} 미만이면 다음 매칭 전 부족분을 추가 예치해야 합니다.`,
+  "정상 참여 시 예치금은 반환받거나 다음 회차 예치금으로 유지할 수 있습니다.",
+  "운영상 매칭 실패 시 다음 회차 이월이 기본이며, 요청 시 반환 가능합니다.",
+  "서비스 이용을 중단할 경우 신청현황의 예치금 메뉴에서 반환 계좌를 입력해 요청할 수 있으며, 처리 가능한 잔액은 접수 후 3일 이내 반환합니다.",
+  "반환에는 은행명·계좌번호·예금주만 필요하며 통장사본은 제출하지 않습니다.",
 ];
 
 export default function DepositPolicyCard({ dark = false }) {

@@ -80,7 +80,24 @@ export function makeDummyApplication(seed, adminUid = "") {
         size: 0,
         dummy: true,
       },
-      additionalPhotos: [],
+      additionalPhotos: [
+        {
+          url: `https://picsum.photos/seed/${photoSeed}-2/480/620`,
+          path: "",
+          name: "dummy-profile-2.jpg",
+          type: "image/jpeg",
+          size: 0,
+          dummy: true,
+        },
+        {
+          url: `https://picsum.photos/seed/${photoSeed}-3/480/620`,
+          path: "",
+          name: "dummy-profile-3.jpg",
+          type: "image/jpeg",
+          size: 0,
+          dummy: true,
+        },
+      ],
       verificationDocument: {
         url: `https://picsum.photos/seed/${photoSeed}-doc/640/420`,
         path: "",
@@ -100,7 +117,7 @@ export function makeDummyApplication(seed, adminUid = "") {
       verifiedAtClient: new Date().toISOString(),
     },
     deposit: {
-      amount: 20000,
+      amount: 30000,
       currency: "KRW",
       method: "manual_bank_transfer",
       bankName: "하나은행",
@@ -117,8 +134,10 @@ export function makeDummyApplication(seed, adminUid = "") {
       agreedAtClient: new Date().toISOString(),
     },
     disclosurePolicySnapshot: {
-      proposalStage: "대표 사진 1장과 기본 정보 일부 공개",
-      contactDisclosure: "바이트미팅 후 상호 연결 희망 시 공개",
+      proposalStage: "등록한 프로필 사진(최소 3장)과 기본 정보 일부 공개",
+      profilePhotoMinimum: 3,
+      profilePhotoMaximum: 5,
+      contactDisclosure: "바이트소개팅 후 상호 연결 희망 시 공개",
       organizationDisclosure: "운영자 인증용, 상대방에게 공개하지 않음",
       identityDocumentDisclosure: "상대방에게 공개하지 않음",
     },

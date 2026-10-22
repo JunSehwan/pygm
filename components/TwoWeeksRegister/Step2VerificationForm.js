@@ -1,6 +1,6 @@
 import { FiCheckCircle, FiInfo } from "react-icons/fi";
 import ProgressBar from "./ProgressBar";
-import { JOB_CATEGORIES } from "./constants";
+import { COMPANY_SCALE_OPTIONS, JOB_CATEGORIES } from "./constants";
 import { ChipGroup, FileUploadBox, TextInput } from "./FormControls";
 import PhotoUploadGrid from "./PhotoUploadGrid";
 
@@ -43,16 +43,16 @@ export default function Step2VerificationForm({ form, setForm, errors, onNext })
 
           <div className="mt-10">
             <h1 className="break-keep text-[34px] font-black leading-tight tracking-[-0.055em] text-black md:text-[42px]">
-              사진과 인증 정보를 등록해주세요
+              프로필 사진과 인증 정보를 등록해주세요
             </h1>
             <p className="mt-4 break-keep text-sm leading-7 text-slate-500 md:text-base">
-              사진은 4:5 비율로 맞춰 보여집니다.
+              서로 다른 분위기의 사진을 3장 이상 등록하면 상대가 프로필을 더 충분히 확인할 수 있습니다.
             </p>
           </div>
 
           <div className="mt-10 divide-y divide-slate-100 border-y border-slate-100">
             <div className="grid gap-5 py-8 md:grid-cols-[190px_1fr]">
-              <Label title="사진 업로드" sub={"대표 1장 필수\n권장 4:5 · 1080×1350px\n최대 5장"} />
+              <Label title="프로필 사진 (최소 3장)" sub={"대표사진 포함 최소 3장 · 최대 5장\n권장 4:5 · 1080×1350px\n얼굴이 잘 보이는 최근 사진을 등록해주세요"} />
               <PhotoUploadGrid
                 representativePhoto={form.representativePhoto}
                 additionalPhotos={form.additionalPhotos}
@@ -66,10 +66,36 @@ export default function Step2VerificationForm({ form, setForm, errors, onNext })
               <ChipGroup
                 options={JOB_CATEGORIES}
                 value={form.jobCategory ? [form.jobCategory] : []}
-                onToggle={(item) => update("jobCategory", form.jobCategory === item ? "" : item)}
+                onToggle={(item) =>
+                  setForm((prev) => {
+                    const nextJobCategory = prev.jobCategory === item ? "" : item;
+                    return {
+                      ...prev,
+                      jobCategory: nextJobCategory,
+                      companyScale: nextJobCategory === "회사원" ? prev.companyScale || "" : "",
+                    };
+                  })
+                }
                 error={errors.jobCategory}
               />
             </div>
+
+            {form.jobCategory === "회사원" ? (
+              <div className="grid gap-5 py-8 md:grid-cols-[190px_1fr]">
+                <Label title="회사 유형" sub="현재 재직 중인 회사 기준" />
+                <div>
+                  <ChipGroup
+                    options={COMPANY_SCALE_OPTIONS}
+                    value={form.companyScale ? [form.companyScale] : []}
+                    onToggle={(item) => update("companyScale", form.companyScale === item ? "" : item)}
+                    error={errors.companyScale}
+                  />
+                  <p className="mt-2 break-keep text-xs leading-5 text-slate-400">
+                    운영 검토와 매칭 참고를 위한 정보입니다. 회사명 및 인증자료와 함께 확인합니다.
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid gap-5 py-8 md:grid-cols-[190px_1fr]">
               <Label title="회사명" sub="대학원생만 학교명 입력" />
@@ -121,7 +147,7 @@ export default function Step2VerificationForm({ form, setForm, errors, onNext })
             <GuideCard
               title="사진 검토 기준"
               icon={<FiCheckCircle />}
-              items={["4:5 세로형 권장", "얼굴이 잘 보이는 단독 사진", "선명한 화질"]}
+              items={["서로 다른 분위기의 최근 사진 3장 이상", "얼굴이 잘 보이는 단독 사진", "일상·전신 등 모습을 충분히 알 수 있는 사진", "4:5 세로형 · 선명한 화질 권장"]}
             />
             <GuideCard
               title="인증 자료 안내"

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiImage, FiMove, FiPlus, FiStar, FiTrash2 } from "react-icons/fi";
-
-const MAX_PROFILE_PHOTOS = 5;
+import { FiMove, FiPlus, FiStar, FiTrash2 } from "react-icons/fi";
+import {
+  TWOWEEKS_MAX_PROFILE_PHOTOS,
+  TWOWEEKS_MIN_PROFILE_PHOTOS,
+} from "../TwoWeeksShared/profilePhotoPolicy";
 
 function cx(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -34,33 +36,47 @@ function usePhotoPreview(item) {
   return url;
 }
 
-function PhotoCard({ item, index, isMain, onRemove, onDragStart, onDrop }) {
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function PhotoCard({
+  item,
+  index,
+  isMain,
+  dragging,
+  onRemove,
+  onDragStart,
+  onDrop,
+  onPointerStart,
+  onPointerMove,
+  onPointerEnd,
+}) {
   const previewUrl = usePhotoPreview(item);
 
   return (
     <div
       draggable
-      onDragStart={() => onDragStart(index)}
+      data-photo-index={index}
+      onDragStart={(event) => onDragStart(index, event)}
+      onDragEnd={onPointerEnd}
       onDragOver={(event) => event.preventDefault()}
       onDrop={() => onDrop(index)}
-      className="group relative aspect-[4/5] overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100"
+      className={cx(
+        "group relative aspect-[4/5] overflow-hidden rounded-2xl border bg-zinc-100 transition",
+        dragging ? "border-orange-500 opacity-70 ring-4 ring-orange-500/15" : "border-zinc-200"
+      )}
     >
       {previewUrl ? (
         <img src={previewUrl} alt={`프로필 사진 ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
       <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/10 to-transparent" />
 
-      <div className="absolute left-3 top-3">
+      {isMain ? <div className="absolute left-3 top-3">
         <span
-          className={cx(
-            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black shadow-sm backdrop-blur",
-            isMain ? "bg-orange-500 text-white" : "bg-white/90 text-zinc-700"
-          )}
+          className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-black text-white shadow-sm backdrop-blur"
         >
-          {isMain ? <FiStar /> : <FiImage />}
-          {isMain ? "대표" : `추가 ${index}`}
+          <FiStar /> 대표
         </span>
-      </div>
+      </div> : null}
 
       <button
         type="button"
@@ -72,12 +88,18 @@ function PhotoCard({ item, index, isMain, onRemove, onDragStart, onDrop }) {
       </button>
 
       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white">
-        <div className="min-w-0 truncate text-xs font-semibold">
-          {item?.file?.name || item?.meta?.name || item?.label || "프로필 사진"}
-        </div>
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold backdrop-blur">
+        <span className="text-xs font-bold">{isMain ? "대표사진" : `사진 ${index + 1}`}</span>
+        <button
+          type="button"
+          aria-label={`${index + 1}번째 사진 순서 이동`}
+          onPointerDown={(event) => onPointerStart(index, event)}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+          className="flex shrink-0 touch-none items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold backdrop-blur"
+        >
           <FiMove /> 이동
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -85,18 +107,37 @@ function PhotoCard({ item, index, isMain, onRemove, onDragStart, onDrop }) {
 
 export default function PhotoEditGrid({ photos = [], onChange, error }) {
   const inputRef = useRef(null);
+  const pointerIndexRef = useRef(null);
   const [dragIndex, setDragIndex] = useState(null);
+  const [fileError, setFileError] = useState("");
 
-  const safePhotos = useMemo(() => (Array.isArray(photos) ? photos.filter(Boolean).slice(0, MAX_PROFILE_PHOTOS) : []), [photos]);
+  const safePhotos = useMemo(
+    () => (Array.isArray(photos) ? photos.filter(Boolean).slice(0, TWOWEEKS_MAX_PROFILE_PHOTOS) : []),
+    [photos]
+  );
 
   const commitPhotos = (nextPhotos) => {
-    onChange?.(nextPhotos.filter(Boolean).slice(0, MAX_PROFILE_PHOTOS));
+    onChange?.(nextPhotos.filter(Boolean).slice(0, TWOWEEKS_MAX_PROFILE_PHOTOS));
   };
 
   const appendFiles = (files) => {
-    const selected = Array.from(files || [])
-      .filter(Boolean)
-      .filter((file) => ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type))
+    const incoming = Array.from(files || []).filter(Boolean);
+    const invalidType = incoming.find((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type));
+    if (invalidType) {
+      setFileError("JPG, PNG, WEBP 파일만 등록할 수 있습니다.");
+      return;
+    }
+    const tooLarge = incoming.find((file) => file.size > MAX_IMAGE_BYTES);
+    if (tooLarge) {
+      setFileError("사진은 파일당 10MB 이하로 등록해주세요.");
+      return;
+    }
+    if (safePhotos.length + incoming.length > TWOWEEKS_MAX_PROFILE_PHOTOS) {
+      setFileError(`프로필 사진은 최대 ${TWOWEEKS_MAX_PROFILE_PHOTOS}장까지 등록할 수 있습니다.`);
+      return;
+    }
+
+    const selected = incoming
       .map((file, index) => ({
         source: "file",
         id: `file_${Date.now()}_${index}_${file.name}`,
@@ -105,7 +146,8 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
       }));
 
     if (!selected.length) return;
-    commitPhotos([...safePhotos, ...selected].slice(0, MAX_PROFILE_PHOTOS));
+    setFileError("");
+    commitPhotos([...safePhotos, ...selected]);
   };
 
   const removePhoto = (index) => {
@@ -113,12 +155,37 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
   };
 
   const handleDrop = (targetIndex) => {
-    if (dragIndex === null || dragIndex === targetIndex) return;
+    const sourceIndex = pointerIndexRef.current ?? dragIndex;
+    if (sourceIndex === null || sourceIndex === targetIndex) return;
     const next = [...safePhotos];
-    const [moved] = next.splice(dragIndex, 1);
+    const [moved] = next.splice(sourceIndex, 1);
     next.splice(targetIndex, 0, moved);
     commitPhotos(next);
+    pointerIndexRef.current = targetIndex;
+    setDragIndex(targetIndex);
+  };
+
+  const finishDrag = () => {
+    pointerIndexRef.current = null;
     setDragIndex(null);
+  };
+
+  const startPointerDrag = (index, event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    pointerIndexRef.current = index;
+    setDragIndex(index);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  };
+
+  const movePointerDrag = (event) => {
+    if (pointerIndexRef.current === null || typeof document === "undefined") return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-photo-index]");
+    const targetIndex = Number(target?.dataset?.photoIndex);
+    if (Number.isInteger(targetIndex) && targetIndex >= 0 && targetIndex < safePhotos.length) {
+      handleDrop(targetIndex);
+    }
+    event.preventDefault();
   };
 
   return (
@@ -135,20 +202,28 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
         }}
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {safePhotos.map((item, index) => (
           <PhotoCard
             key={item.id || item.url || `${item?.file?.name}_${index}`}
             item={item}
             index={index}
             isMain={index === 0}
+            dragging={dragIndex === index}
             onRemove={removePhoto}
-            onDragStart={setDragIndex}
+            onDragStart={(photoIndex, event) => {
+              pointerIndexRef.current = photoIndex;
+              setDragIndex(photoIndex);
+              event.dataTransfer.effectAllowed = "move";
+            }}
             onDrop={handleDrop}
+            onPointerStart={startPointerDrag}
+            onPointerMove={movePointerDrag}
+            onPointerEnd={finishDrag}
           />
         ))}
 
-        {safePhotos.length < MAX_PROFILE_PHOTOS ? (
+        {safePhotos.length < TWOWEEKS_MAX_PROFILE_PHOTOS ? (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -161,15 +236,24 @@ export default function PhotoEditGrid({ photos = [], onChange, error }) {
               <FiPlus />
             </div>
             <div className="text-sm font-black leading-5 text-zinc-950">사진 추가</div>
-            <div className="mt-1 text-xs leading-5 text-zinc-400">최대 5장</div>
+            <div className="mt-1 text-xs leading-5 text-zinc-400">최소 3장 · 최대 5장</div>
           </button>
         ) : null}
       </div>
 
-      <div className="mt-3 text-xs leading-5 text-zinc-500">
-        권장 4:5 · 1080×1350px. 첫 사진이 대표사진입니다.
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-zinc-500">
+        <span>사진을 드래그하여 순서를 변경할 수 있습니다. 첫 사진이 대표사진입니다.</span>
+        <span className={cx(
+          "rounded-full px-2.5 py-1 font-black",
+          safePhotos.length >= TWOWEEKS_MIN_PROFILE_PHOTOS
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-amber-50 text-amber-700"
+        )}>
+          현재 {safePhotos.length}장 / 최소 {TWOWEEKS_MIN_PROFILE_PHOTOS}장
+        </span>
       </div>
 
+      {fileError ? <div className="mt-2 text-xs font-medium text-red-500">{fileError}</div> : null}
       {error ? <div className="mt-2 text-xs font-medium text-red-500">{error}</div> : null}
     </div>
   );

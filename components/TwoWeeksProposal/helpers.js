@@ -1,3 +1,22 @@
+import { calculateMatchingCompatibility } from "../TwoWeeksShared/matchingCompatibility";
+import {
+  TWOWEEKS_MAX_PROFILE_PHOTOS,
+  TWOWEEKS_MIN_PROFILE_PHOTOS,
+} from "../TwoWeeksShared/profilePhotoPolicy";
+export function normalizeTimeSlotLabel(value = "") {
+  if (value === "평일 저녁") return "금요일 저녁";
+  return value || "";
+}
+
+export function normalizeTimeSlotLabels(values = []) {
+  const list = Array.isArray(values) ? values : [];
+  return Array.from(new Set(list.map(normalizeTimeSlotLabel).filter(Boolean)));
+}
+
+export function formatTimeSlots(values = []) {
+  return normalizeTimeSlotLabels(values).join(" · ");
+}
+
 export function normalizePhone(value = "") {
   const raw = String(value || "").trim();
 
@@ -117,15 +136,20 @@ export function getApplicationTimeValue(application = {}) {
   return 0;
 }
 
+function getPhotoPreviewUrl(photo = {}) {
+  return photo?.securePreviewUrl || photo?.blurredUrl || photo?.previewUrl || photo?.thumbnailUrl || "";
+}
+
 export function getPhotoItems(application = {}) {
   const identity = application?.identity || {};
   const photos = [];
 
-  if (identity.representativePhoto?.url) {
+  if (identity.representativePhoto?.url || getPhotoPreviewUrl(identity.representativePhoto)) {
     photos.push({
       id: "representative",
       label: "대표",
-      url: identity.representativePhoto.url,
+      url: identity.representativePhoto?.url || "",
+      previewUrl: getPhotoPreviewUrl(identity.representativePhoto),
       meta: identity.representativePhoto,
     });
   }
@@ -135,11 +159,12 @@ export function getPhotoItems(application = {}) {
     : [];
 
   additional.forEach((photo, index) => {
-    if (!photo?.url) return;
+    if (!photo?.url && !getPhotoPreviewUrl(photo)) return;
     photos.push({
       id: `additional_${index}`,
       label: `추가 ${index + 1}`,
-      url: photo.url,
+      url: photo?.url || "",
+      previewUrl: getPhotoPreviewUrl(photo),
       meta: photo,
     });
   });
@@ -154,8 +179,8 @@ export function getAreaOverlap(a = [], b = []) {
 }
 
 export function getTimeOverlap(a = [], b = []) {
-  const left = Array.isArray(a) ? a : [];
-  const right = Array.isArray(b) ? b : [];
+  const left = normalizeTimeSlotLabels(a);
+  const right = normalizeTimeSlotLabels(b);
   return left.filter((item) => right.includes(item));
 }
 
@@ -256,52 +281,7 @@ export function getAgePriority(viewer = {}, candidate = {}) {
 }
 
 export function scoreCandidate(viewer = {}, candidate = {}) {
-  const viewerBasic = getSafeBasic(viewer);
-  const candidateBasic = getSafeBasic(candidate);
-
-  const agePriority = getAgePriority(viewer, candidate);
-  const areaOverlap = getAreaOverlap(viewerBasic.activityAreas, candidateBasic.activityAreas);
-  const timeOverlap = getTimeOverlap(viewerBasic.availableTimeSlots, candidateBasic.availableTimeSlots);
-
-  const areaScore = Math.min(areaOverlap.length, 3) * 18;
-  const timeScore = Math.min(timeOverlap.length, 3) * 12;
-  const preferredAreaBonus =
-    viewerBasic.preferredArea && candidateBasic.activityAreas?.includes(viewerBasic.preferredArea)
-      ? 12
-      : 0;
-
-  const statusBonus =
-    candidate.reviewStatus === "approved" || candidate.reviewStatus === "priority"
-      ? 12
-      : candidate.deposit?.status === "confirmed"
-      ? 8
-      : 0;
-
-  const total = Math.round(
-    agePriority.score * 0.55 +
-      areaScore +
-      timeScore +
-      preferredAreaBonus +
-      statusBonus
-  );
-
-  return {
-    total,
-    agePriority,
-    areaOverlap,
-    timeOverlap,
-    preferredAreaBonus,
-    statusBonus,
-    reasons: [
-      agePriority.detail,
-      areaOverlap.length
-        ? `활동 지역이 ${areaOverlap.join(", ")} 기준으로 겹칩니다.`
-        : "활동 지역은 운영자가 조율 가능한 범위에서 추가 검토합니다.",
-      timeOverlap.length
-        ? `가능 시간대가 ${timeOverlap.join(", ")} 기준으로 겹칩니다.`
-        : "가능 시간대는 추가 조율이 필요합니다.",
-    ],
-  };
+  return calculateMatchingCompatibility(viewer, candidate);
 }
 
 export function isCandidateEligible(viewer = {}, candidate = {}) {
@@ -341,25 +321,23 @@ export function isApplicationProfileEditable(application = {}) {
   const response = String(application?.currentProposal?.response || "");
 
   const lockedStatuses = ["cancelled", "withdrawn", "rejected"];
-  const lockedMatchingStatuses = ["confirmed", "completed"];
-  const lockedScheduleStatuses = ["confirmed", "completed"];
-  const lockedProposalStatuses = ["confirmed", "completed"];
+  const activeMatchingStatuses = ["proposed", "pending", "accepted", "mutualAccepted", "confirmed", "meeting", "feedback_pending"];
+  const activeScheduleStatuses = ["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice", "place_pending", "confirmed", "schedule_confirmed"];
+  const terminalProposalStatuses = ["declined", "expired", "proposal_expired", "schedule_expired", "counterpart_expired", "cancelled", "canceled", "failed", "completed"];
 
   if (lockedStatuses.includes(status)) return false;
-  if (lockedMatchingStatuses.includes(matchingStatus)) return false;
-  if (lockedScheduleStatuses.includes(scheduleStatus)) return false;
-  if (lockedProposalStatuses.includes(proposalStatus)) return false;
+  if (activeMatchingStatuses.includes(matchingStatus)) return false;
+  if (activeScheduleStatuses.includes(scheduleStatus)) return false;
+  if (application?.currentProposal?.matchId && !terminalProposalStatuses.includes(proposalStatus) && activeMatchingStatuses.includes(matchingStatus)) return false;
 
-  // 사용자가 이미 수락했더라도 실제 일정/상호확정 전이면 일단 수정은 허용한다.
-  // 다만 화면에서 "확정 전까지만 반영" 안내를 노출한다.
-  if (response === "confirmed") return false;
+  if (["accepted", "confirmed"].includes(response)) return false;
 
   return true;
 }
 
 export function getProfileEditLockReason(application = {}) {
   if (isApplicationProfileEditable(application)) {
-    return "매칭 확정 전까지 수정할 수 있습니다.";
+    return "진행 중인 매칭이 없을 때 다음 매칭용 프로필을 수정할 수 있습니다.";
   }
 
   const matchingStatus = String(application?.matchingStatus || "");
@@ -368,7 +346,7 @@ export function getProfileEditLockReason(application = {}) {
     return "매칭이 확정된 뒤에는 상대에게 전달된 정보가 바뀌지 않도록 프로필 수정이 제한됩니다.";
   }
 
-  return "현재 상태에서는 프로필 수정이 제한됩니다.";
+  return "진행 중인 제안·일정·만남·피드백 처리가 끝난 뒤 수정할 수 있습니다.";
 }
 
 export function buildMyProfileRows(application = {}) {
@@ -382,7 +360,7 @@ export function buildMyProfileRows(application = {}) {
     ["회사/학교", identity.organizationName || "운영자 인증용"],
     ["활동 지역", (basic.activityAreas || []).join(" · ") || "-"],
     ["가장 편한 지역", basic.preferredArea || "-"],
-    ["가능 시간", (basic.availableTimeSlots || []).join(" · ") || "-"],
+    ["가능 시간", formatTimeSlots(basic.availableTimeSlots) || "-"],
     ["키", basic.height ? `${basic.height}cm` : "미입력"],
     ["1줄 소개", basic.introduction || "-"],
   ];
@@ -399,15 +377,35 @@ export function buildProfileEditInitialForm(application = {}) {
     meta: photo.meta,
   }));
 
+  const matchingPreferences = application?.matchingPreferences || basic?.matchingPreferences || {};
+
   return {
     nickname: basic.nickname || "",
     activityAreas: Array.isArray(basic.activityAreas) ? basic.activityAreas : [],
     preferredArea: basic.preferredArea || "",
-    availableTimeSlots: Array.isArray(basic.availableTimeSlots) ? basic.availableTimeSlots : [],
+    availableTimeSlots: normalizeTimeSlotLabels(basic.availableTimeSlots),
     height: basic.height ? String(basic.height) : "",
     introduction: basic.introduction || "",
+    marriagePlan: matchingPreferences.marriagePlan || "",
+    childrenPlan: matchingPreferences.childrenPlan || "",
+    religion: matchingPreferences.religion || "",
+    religionPreference: matchingPreferences.religionPreference || "",
+    smoking: matchingPreferences.smoking || "",
+    smokingPreference: matchingPreferences.smokingPreference || "",
+    drinkingFrequency: matchingPreferences.drinkingFrequency || "",
     jobCategory: identity.jobCategory || "",
+    companyScale: identity.companyScale || "",
     organizationName: identity.organizationName || "",
+    educationLevel: identity.educationLevel || "",
+    schoolName: identity.schoolName || "",
+    mbti: application?.profileTraits?.mbti || "",
+    interests: Array.isArray(application?.profileTraits?.interests) ? application.profileTraits.interests : [],
+    preferredAgeMin: matchingPreferences.preferredAgeRange?.min ? String(matchingPreferences.preferredAgeRange.min) : "",
+    preferredAgeMax: matchingPreferences.preferredAgeRange?.max ? String(matchingPreferences.preferredAgeRange.max) : "",
+    preferredDrinking: matchingPreferences.drinkingPreference || "",
+    preferredStyles: Array.isArray(matchingPreferences.preferredStyles) ? matchingPreferences.preferredStyles : [],
+    preferredJobCategories: Array.isArray(matchingPreferences.preferredJobCategories) ? matchingPreferences.preferredJobCategories : [],
+    additionalPreference: matchingPreferences.additionalPreference || "",
     photos,
   };
 }
@@ -426,6 +424,9 @@ export function validateProfileEditForm(form = {}) {
   }
 
   if (!form.preferredArea) errors.preferredArea = "가장 편한 지역을 선택해주세요.";
+  if (form.preferredArea && !form.activityAreas?.includes(form.preferredArea)) {
+    errors.preferredArea = "가장 편한 지역은 선택한 활동지역 안에서 골라주세요.";
+  }
 
   if (!Array.isArray(form.availableTimeSlots) || form.availableTimeSlots.length < 1) {
     errors.availableTimeSlots = "가능한 시간대를 1개 이상 남겨주세요.";
@@ -435,16 +436,39 @@ export function validateProfileEditForm(form = {}) {
     errors.height = "키는 130~230cm 범위로 입력해주세요.";
   }
 
-  if (!form.introduction?.trim()) errors.introduction = "1줄 자기소개를 입력해주세요.";
+  if (!form.introduction?.trim()) errors.introduction = "짧은 자기소개를 입력해주세요.";
   if (form.introduction?.trim() && form.introduction.trim().length > 80) {
-    errors.introduction = "1줄 자기소개는 80자 이내로 입력해주세요.";
+    errors.introduction = "짧은 자기소개는 80자 이내로 입력해주세요.";
   }
 
+  if (!form.marriagePlan) errors.marriagePlan = "결혼 의향을 선택해주세요.";
+  if (!form.childrenPlan) errors.childrenPlan = "자녀 계획을 선택해주세요.";
+  if (!form.religion) errors.religion = "현재 종교를 선택해주세요.";
+  if (!form.religionPreference) errors.religionPreference = "상대방 종교에 대한 생각을 선택해주세요.";
+  if (!form.smoking) errors.smoking = "흡연 여부를 선택해주세요.";
+  if (!form.smokingPreference) errors.smokingPreference = "상대방 흡연 허용 범위를 선택해주세요.";
+  if (!form.drinkingFrequency) errors.drinkingFrequency = "음주 빈도를 선택해주세요.";
+
   if (!form.jobCategory) errors.jobCategory = "직업군을 선택해주세요.";
+  if (form.jobCategory === "회사원" && !form.companyScale) errors.companyScale = "회사 유형을 선택해주세요.";
   if (!form.organizationName?.trim()) errors.organizationName = "회사명 또는 학교명을 입력해주세요.";
 
-  if (!Array.isArray(form.photos) || form.photos.filter(Boolean).length < 1) {
-    errors.photos = "대표 사진 1장 이상은 유지해주세요.";
+  if (form.educationLevel && !form.schoolName?.trim()) errors.schoolName = "학교명을 입력해주세요.";
+  if (form.interests?.length > 10) errors.interests = "관심사는 최대 10개까지 선택해주세요.";
+  if (form.preferredStyles?.length > 3) errors.preferredStyles = "원하는 스타일은 최대 3개까지 선택해주세요.";
+  if (form.preferredJobCategories?.length > 2) errors.preferredJobCategories = "선호 직업군은 최대 2개까지 선택해주세요.";
+  if (form.preferredAgeMin || form.preferredAgeMax) {
+    const min = Number(form.preferredAgeMin), max = Number(form.preferredAgeMax);
+    if (!form.preferredAgeMin || !form.preferredAgeMax || !Number.isInteger(min) || !Number.isInteger(max) || min < 18 || max > 80 || min > max) {
+      errors.preferredAgeRange = "희망 연령은 18~80세에서 최소·최대 값을 확인해주세요.";
+    }
+  }
+  if ((form.additionalPreference || "").length > 300) errors.additionalPreference = "추가 희망조건은 300자 이내로 작성해주세요.";
+
+  if (!Array.isArray(form.photos) || form.photos.filter(Boolean).length < TWOWEEKS_MIN_PROFILE_PHOTOS) {
+    errors.photos = `프로필 사진은 대표사진 포함 최소 ${TWOWEEKS_MIN_PROFILE_PHOTOS}장을 유지해주세요.`;
+  } else if (form.photos.filter(Boolean).length > TWOWEEKS_MAX_PROFILE_PHOTOS) {
+    errors.photos = `프로필 사진은 최대 ${TWOWEEKS_MAX_PROFILE_PHOTOS}장까지 등록할 수 있습니다.`;
   }
 
   return errors;
@@ -457,13 +481,13 @@ export function buildPublicProfile(application = {}) {
   return {
     title: `${getGenderLabel(basic.gender)} / ${formatFullAgeBasic(basic)} / ${identity.jobCategory || "직장인"}`,
     subtitle: `${(basic.activityAreas || []).slice(0, 2).join(" · ") || "활동지역 확인중"} 가능 / ${
-      (basic.availableTimeSlots || []).slice(0, 2).join(" · ") || "시간대 확인중"
+      formatTimeSlots((basic.availableTimeSlots || []).slice(0, 2)) || "시간대 확인중"
     }`,
     rows: [
       ["나이", `${formatFullAgeBasic(basic)}(${formatBirthYearTwoDigits(basic.birthYear)})`],
       ["직업군", identity.jobCategory || "-"],
       ["활동 지역", (basic.activityAreas || []).join(" · ") || "-"],
-      ["가능 시간", (basic.availableTimeSlots || []).join(" · ") || "-"],
+      ["가능 시간", formatTimeSlots(basic.availableTimeSlots) || "-"],
       ["키", basic.height ? `${basic.height}cm` : "미입력"],
       ["1줄 소개", basic.introduction || "소개 문구를 확인 중입니다."],
     ],

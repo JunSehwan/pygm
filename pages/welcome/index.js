@@ -164,9 +164,9 @@ export default function WelcomePage() {
           return;
         }
 
-        // pending 상태면 pending
+        // 프로필 심사 대기 화면은 /arena/pending 경로를 사용한다.
         if (currentUser?.date_pending === true) {
-          router.replace("/pending");
+          router.replace("/arena/pending");
           return;
         }
 
@@ -206,7 +206,7 @@ export default function WelcomePage() {
       }
 
       if (currentUser?.date_pending === true) {
-        router.replace("/pending");
+        router.replace("/arena/pending");
         return;
       }
     });

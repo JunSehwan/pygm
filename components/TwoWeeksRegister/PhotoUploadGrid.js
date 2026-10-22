@@ -1,53 +1,49 @@
 import { useMemo, useRef, useState } from "react";
-import { FiImage, FiMove, FiPlus, FiStar, FiTrash2 } from "react-icons/fi";
+import { FiCamera, FiCheck, FiPlus, FiStar, FiTrash2 } from "react-icons/fi";
 import { FieldError, useObjectUrl } from "./FormControls";
 import { cx } from "./helpers";
+import {
+  TWOWEEKS_MAX_PROFILE_PHOTOS,
+  TWOWEEKS_MIN_PROFILE_PHOTOS,
+} from "../TwoWeeksShared/profilePhotoPolicy";
 
-const MAX_PROFILE_PHOTOS = 5;
-
-function PhotoCard({ file, index, isMain, onRemove, onDragStart, onDrop }) {
+function PhotoCard({ file, isMain = false, onRemove, onMakeMain, onDragStart, onDrop }) {
   const previewUrl = useObjectUrl(file);
-
   return (
     <div
       draggable
-      onDragStart={() => onDragStart(index)}
+      onDragStart={onDragStart}
       onDragOver={(event) => event.preventDefault()}
-      onDrop={() => onDrop(index)}
-      className="group relative aspect-[4/5] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+      onDrop={(event) => { event.preventDefault(); onDrop(); }}
+      className={cx(
+        "group relative overflow-hidden rounded-2xl bg-[#eef2f7]",
+        isMain ? "aspect-[4/5] w-full shadow-[0_8px_24px_rgba(20,42,64,.12)]" : "aspect-[4/5] w-full"
+      )}
     >
-      {previewUrl ? (
-        <img src={previewUrl} alt={`사진 ${index + 1}`} className="absolute inset-0 h-full w-full object-cover" />
+      {previewUrl ? <img src={previewUrl} alt={isMain ? "대표 프로필 사진" : "추가 프로필 사진"} className="absolute inset-0 h-full w-full object-cover" /> : null}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15" />
+      {isMain ? (
+        <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#ff821f] px-3 py-1.5 text-xs font-extrabold text-white shadow-sm">
+          <FiStar /> 대표사진
+        </div>
       ) : null}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/8 to-transparent" />
-
-      <div className="absolute left-3 top-3 flex gap-2">
-        <span
-          className={cx(
-            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black shadow-sm backdrop-blur",
-            isMain ? "bg-orange-500 text-white" : "bg-white/90 text-slate-700"
-          )}
-        >
-          {isMain ? <FiStar /> : <FiImage />}
-          {isMain ? "대표" : `추가 ${index}`}
-        </span>
-      </div>
-
       <button
         type="button"
-        onClick={() => onRemove(index)}
-        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur transition hover:bg-black"
-        aria-label="사진 삭제"
+        onClick={onRemove}
+        aria-label={isMain ? "대표사진 삭제" : "추가사진 삭제"}
+        className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80"
       >
-        <FiTrash2 />
+        <FiTrash2 size={16} />
       </button>
-
-      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white">
-        <div className="min-w-0 truncate text-xs font-semibold">{file?.name}</div>
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold backdrop-blur">
-          <FiMove /> 드래그
-        </div>
-      </div>
+      {!isMain ? (
+        <button
+          type="button"
+          onClick={onMakeMain}
+          className="absolute bottom-2 left-2 right-2 rounded-full bg-white/95 px-2 py-2 text-xs font-extrabold text-[#24486f] shadow-sm transition hover:bg-white"
+        >
+          대표로 설정
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -55,40 +51,34 @@ function PhotoCard({ file, index, isMain, onRemove, onDragStart, onDrop }) {
 export default function PhotoUploadGrid({ representativePhoto, additionalPhotos = [], setForm, error }) {
   const inputRef = useRef(null);
   const [dragIndex, setDragIndex] = useState(null);
-
   const photos = useMemo(
-    () => [representativePhoto, ...(additionalPhotos || [])].filter(Boolean).slice(0, MAX_PROFILE_PHOTOS),
+    () => [representativePhoto, ...(additionalPhotos || [])].filter(Boolean).slice(0, TWOWEEKS_MAX_PROFILE_PHOTOS),
     [representativePhoto, additionalPhotos]
   );
-
   const commitPhotos = (nextPhotos) => {
-    const compact = nextPhotos.filter(Boolean).slice(0, MAX_PROFILE_PHOTOS);
-    setForm((prev) => ({
-      ...prev,
-      representativePhoto: compact[0] || null,
-      additionalPhotos: compact.slice(1),
-    }));
+    const compact = nextPhotos.filter(Boolean).slice(0, TWOWEEKS_MAX_PROFILE_PHOTOS);
+    setForm((prev) => ({ ...prev, representativePhoto: compact[0] || null, additionalPhotos: compact.slice(1) }));
   };
-
   const appendFiles = (files) => {
     const selected = Array.from(files || []).filter(Boolean);
-    if (!selected.length) return;
-    commitPhotos([...photos, ...selected].slice(0, MAX_PROFILE_PHOTOS));
+    if (selected.length) commitPhotos([...photos, ...selected]);
   };
-
-  const removePhoto = (index) => {
-    const next = photos.filter((_, photoIndex) => photoIndex !== index);
-    commitPhotos(next);
+  const makeMain = (index) => {
+    if (index === 0) return;
+    const next = [...photos];
+    const [selected] = next.splice(index, 1);
+    commitPhotos([selected, ...next]);
   };
-
-  const handleDrop = (targetIndex) => {
+  const removePhoto = (index) => commitPhotos(photos.filter((_, i) => i !== index));
+  const dropPhoto = (targetIndex) => {
     if (dragIndex === null || dragIndex === targetIndex) return;
     const next = [...photos];
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(targetIndex, 0, moved);
+    const [selected] = next.splice(dragIndex, 1);
+    next.splice(targetIndex, 0, selected);
     commitPhotos(next);
     setDragIndex(null);
   };
+  const hasEnough = photos.length >= TWOWEEKS_MIN_PROFILE_PHOTOS;
 
   return (
     <div data-tw-field="true">
@@ -98,46 +88,57 @@ export default function PhotoUploadGrid({ representativePhoto, additionalPhotos 
         multiple
         accept="image/png,image/jpeg,image/jpg,image/webp"
         className="hidden"
-        onChange={(event) => {
-          appendFiles(event.target.files);
-          event.target.value = "";
-        }}
+        onChange={(event) => { appendFiles(event.target.files); event.target.value = ""; }}
       />
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {photos.map((file, index) => (
-          <PhotoCard
-            key={`${file.name}_${file.size}_${index}`}
-            file={file}
-            index={index}
-            isMain={index === 0}
-            onRemove={removePhoto}
-            onDragStart={setDragIndex}
-            onDrop={handleDrop}
-          />
-        ))}
-
-        {photos.length < MAX_PROFILE_PHOTOS ? (
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <span className="text-sm font-bold text-[#36536d]">등록한 사진 {photos.length}장 <span className="font-medium text-[#8a9aa9]">/ 최소 {TWOWEEKS_MIN_PROFILE_PHOTOS}장</span></span>
+        <span className={cx(
+          "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-extrabold",
+          hasEnough ? "bg-emerald-50 text-emerald-700" : "bg-[#eff4ff] text-[#3268d9]"
+        )}>{hasEnough ? <><FiCheck /> 등록 완료</> : "최대 5장"}</span>
+      </div>
+      <div className="mx-auto w-full max-w-[340px]">
+        {photos[0] ? (
+          <PhotoCard file={photos[0]} isMain onRemove={() => removePhoto(0)} onDragStart={() => setDragIndex(0)} onDrop={() => dropPhoto(0)} />
+        ) : (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className={cx(
-              "flex aspect-[4/5] flex-col items-center justify-center rounded-2xl border border-dashed bg-white px-3 py-4 text-center transition hover:border-black hover:bg-slate-50",
-              error ? "border-red-300" : "border-slate-200"
-            )}
+            className="flex aspect-[4/5] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#cad8eb] bg-[#f6f9ff] text-[#3268d9] transition hover:border-[#3268d9]"
           >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-xl text-slate-500">
-              <FiPlus />
-            </div>
-            <div className="text-sm font-black leading-5 text-slate-950">사진 여러 장 선택</div>
-            <div className="mt-1 text-xs leading-5 text-slate-400">최대 5장</div>
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm"><FiCamera size={27} /></span>
+            <span className="mt-4 text-base font-extrabold">대표사진 등록하기</span>
+            <span className="mt-1 text-xs text-[#8293aa]">사진을 여러 장 한 번에 선택할 수 있어요</span>
           </button>
-        ) : null}
+        )}
       </div>
-
-      <div className="mt-3 text-xs leading-5 text-slate-500">
-        권장 4:5 · 1080×1350px. 첫 사진이 대표사진입니다.
-      </div>
+      {photos.length > 0 ? (
+        <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3">
+          {photos.slice(1).map((file, index) => (
+            <PhotoCard
+              key={`${file.name}_${file.size}_${index}`}
+              file={file}
+              onRemove={() => removePhoto(index + 1)}
+              onMakeMain={() => makeMain(index + 1)}
+              onDragStart={() => setDragIndex(index + 1)}
+              onDrop={() => dropPhoto(index + 1)}
+            />
+          ))}
+          {photos.length < TWOWEEKS_MAX_PROFILE_PHOTOS ? (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="flex aspect-[4/5] flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#d5e0ec] bg-white text-[#8293a7] transition hover:border-[#3268d9] hover:text-[#3268d9]"
+            >
+              <FiPlus size={26} />
+              <span className="mt-2 text-xs font-bold">사진 추가</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {photos.length > 0 ? (
+        <p className="mt-3 text-center text-xs leading-5 text-[#8293a7]">추가사진 아래 ‘대표로 설정’을 누르면 대표사진이 바뀌어요.</p>
+      ) : null}
       <FieldError>{error}</FieldError>
     </div>
   );

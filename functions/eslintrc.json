@@ -1,19 +1,16 @@
 {
   "root": true,
   "env": {
-    "es6": true,
+    "es2021": true,
     "node": true
   },
-  "extends": [
-    "eslint:recommended",
-    "google",
-    "next",
-    "next/babel",
-    "next/core-web-vitals"
-  ],
+  "extends": ["eslint:recommended"],
+  "parserOptions": {
+    "ecmaVersion": 2022
+  },
   "rules": {
     "no-unused-vars": "warn",
-    "quotes": ["error", "double"],
-    "@next/next/no-img-element": "off"
-  }
+    "no-prototype-builtins": "off"
+  },
+  "ignorePatterns": ["node_modules/**"]
 }

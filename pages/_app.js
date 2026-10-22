@@ -18,7 +18,9 @@ import LoadingPage from "components/Common/Loading";
 import { useLoading } from "components/Common/useLoading";
 
 export const GOOGLE_TAG = process.env.NEXT_PUBLIC_GOOGLE_TAG;
-export const GOOGLE_ANAL = process.env.NEXT_PUBLIC_GOOGLE_ANAL;
+export const GOOGLE_ANAL =
+  process.env.NEXT_PUBLIC_GOOGLE_ANAL ||
+  process.env.NEXT_PUBLIC_GA_TRACKING_ID;
 
 const _app = ({ Component, pageProps, ...rest }) => {
   const router = useRouter();
@@ -107,8 +109,8 @@ const _app = ({ Component, pageProps, ...rest }) => {
         <Provider store={store}>
           <Component {...pageProps} />
           {nowLoading ? <LoadingPage /> : null}
-          <GoogleTagManager gtmId={GOOGLE_TAG} />
-          <GoogleAnalytics gaId={GOOGLE_ANAL} />
+          {GOOGLE_TAG ? <GoogleTagManager gtmId={GOOGLE_TAG} /> : null}
+          {GOOGLE_ANAL ? <GoogleAnalytics gaId={GOOGLE_ANAL} /> : null}
         </Provider>
       </ThemeProvider>
     </>

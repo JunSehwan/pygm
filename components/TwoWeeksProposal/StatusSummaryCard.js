@@ -1,6 +1,6 @@
 import { FiClock, FiCreditCard, FiHeart, FiUser } from "react-icons/fi";
 import { STATUS_LABELS } from "./constants";
-import { getGenderLabel, getSafeBasic } from "./helpers";
+import { formatFullAgeBasic, getGenderLabel, getSafeBasic } from "./helpers";
 
 function StatBox({ icon: Icon, label, value }) {
   return (
@@ -33,9 +33,9 @@ export default function StatusSummaryCard({ application }) {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <StatBox icon={FiUser} label="신청자" value={`${getGenderLabel(basic.gender)} / ${formatFullAgeBasic(basic)}`} />
-        <StatBox icon={FiCreditCard} label="예치금" value={application?.deposit?.status === "confirmed" ? "입금 확인" : "확인 대기"} />
+        <StatBox icon={FiCreditCard} label="예치금" value={application?.deposit?.status === "waived" ? "면제" : application?.deposit?.status === "confirmed" ? "입금 확인" : application?.deposit?.requestStage === "later" ? "추후 안내" : "확인 대기"} />
         <StatBox icon={FiHeart} label="매칭 상태" value={STATUS_LABELS[application?.matchingStatus] || "매칭 대기"} />
-        <StatBox icon={FiClock} label="응답 기준" value="제안 후 24시간" />
+        <StatBox icon={FiClock} label="응답 기준" value="제안 후 48시간" />
       </div>
     </div>
   );

@@ -1,95 +1,104 @@
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { FiArrowRight } from "react-icons/fi";
+import { FiArrowUpRight, FiMessageCircle } from "react-icons/fi";
 import { LEGAL_LINKS, LEGAL_META } from "components/About/LegalMeta";
 import MobileFrame from "./MobileFrame";
 import LogoMark from "./LogoMark";
-import { REGISTER_URL } from "./constants";
-import { reveal } from "./motionConfig";
+import {
+  KAKAO_INQUIRY_URL,
+  REGISTER_URL,
+} from "./constants";
+import { trackTwoWeeksEvent } from "lib/gtag";
 
 export default function FooterSection() {
   return (
-    <section className="relative min-h-[100svh] overflow-hidden bg-black md:min-h-screen md:snap-start">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(255,102,0,0.12),transparent_20%),radial-gradient(circle_at_right_bottom,rgba(255,102,0,0.18),transparent_22%)]" />
-      <div className="absolute bottom-0 right-0 h-[48%] w-[70%] bg-[radial-gradient(circle_at_bottom_right,rgba(255,150,80,0.16),transparent_36%)]" />
-      <LogoMark
-        variant="white"
-        className="pointer-events-none absolute bottom-8 right-8 hidden h-72 w-72 opacity-[0.08] md:block"
-        imgClassName="scale-125"
-      />
-
-      <MobileFrame className="relative flex min-h-[100svh] flex-col justify-between py-16 md:min-h-screen md:py-20">
-        <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <motion.div {...reveal("scale")}>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-transparent px-3 py-2">
-              <LogoMark
-                variant="white"
-                decorative={false}
-                className="h-5 w-[92px] md:h-6 md:w-[112px]"
-              />
-              {/* <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-300 md:text-xs">
-                BETA
-              </span> */}
-            </div>
-
-            <h2 className="text-[36px] font-black leading-tight tracking-[-0.055em] text-white md:text-6xl">
-              투윅스 <span className="text-orange-500">1기</span>에 참여해볼까요?
-            </h2>
-
-            <p className="mx-auto mt-5 max-w-2xl break-keep text-[15px] leading-7 text-zinc-300 md:text-lg md:leading-8">
-              2주에 한 번 이어지는 새로운 오프라인 만남.
-            </p>
-
-            <div className="mt-8">
-              <Link
-                href={REGISTER_URL}
-                className="group inline-flex items-center justify-center rounded-full bg-orange-500 px-8 py-4 text-base font-semibold text-white shadow-[0_18px_50px_rgba(249,115,22,0.22)] transition hover:-translate-y-0.5 hover:bg-orange-400"
-              >
-                투윅스 1기에 신청하기
-                <FiArrowRight className="ml-2 transition group-hover:translate-x-1" />
-              </Link>
-            </div>
-          </motion.div>
+    <footer className="bg-white text-slate-950">
+      <MobileFrame className="pb-32 pt-10 md:pb-36 md:pt-16">
+        <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white px-6 py-12 text-center shadow-[0_22px_70px_rgba(15,23,42,0.08)] md:rounded-[44px] md:px-12 md:py-20">
+          <p className="text-xs font-black tracking-[0.08em] text-[#d85b48] md:text-sm">
+            투윅스 1기 모집 중
+          </p>
+          <h2 className="mt-5 break-keep text-[38px] font-black leading-[1.1] tracking-[-0.06em] md:text-7xl">
+            2주에 한 번,
+            <br />
+            일상에 작은 설렘을 더해보세요.
+          </h2>
+          <p className="mx-auto mt-5 max-w-xl break-keep text-base font-medium leading-8 text-slate-600 md:text-lg">
+            한 사람을 소개받고, 괜찮으면 카페에서 한 시간.
+            <br className="hidden sm:block" /> 투윅스는 그 정도의 가벼운 시작이면 충분합니다.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              href={REGISTER_URL}
+              onClick={() =>
+                trackTwoWeeksEvent("twoweeks_cta_click", {
+                  location: "footer",
+                  destination: "register",
+                })
+              }
+              className="group inline-flex h-14 items-center justify-center gap-2 rounded-full bg-slate-950 px-8 text-base font-black text-white transition hover:-translate-y-0.5 hover:bg-[#d85b48]"
+            >
+              무료로 시작하기
+              <FiArrowUpRight className="transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+            <a
+              href={KAKAO_INQUIRY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                trackTwoWeeksEvent("twoweeks_consultation_click", {
+                  location: "footer",
+                  destination: "kakao",
+                })
+              }
+              className="inline-flex h-14 items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-8 text-base font-black text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-950"
+            >
+              <FiMessageCircle aria-hidden="true" />
+              먼저 상담하기
+            </a>
+          </div>
+          <p className="mt-5 text-xs font-bold text-slate-500 md:text-sm">
+            현재 소개비 무료 · 서울 남부권 중심으로 운영 중
+          </p>
         </div>
 
-        <motion.footer
-          {...reveal("up", 0.12)}
-          className="mt-16 rounded-[24px] border border-white/10 bg-white/[0.04] p-5 text-left backdrop-blur-xl md:rounded-[28px] md:p-8"
-        >
-          <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-start">
-            <div>
-              <div className="flex items-center">
-                <LogoMark
-                  variant="white"
-                  decorative={false}
-                  className="h-7 w-[112px] md:h-8 md:w-[132px]"
-                />
+        <div className="mt-10 grid gap-8 border-t border-slate-200 pt-8 md:grid-cols-[1fr_auto] md:items-start">
+          <div>
+            <LogoMark
+              variant="dark"
+              decorative={false}
+              className="h-8 w-8"
+            />
+            <div className="mt-3 space-y-1 text-xs leading-6 text-slate-500 md:text-sm md:leading-7">
+              <div>
+                상호: {LEGAL_META.companyName} · 대표자:{" "}
+                {LEGAL_META.representativeName}
               </div>
-
-              <div className="mt-3 space-y-1 text-xs leading-6 text-zinc-300 md:text-sm md:leading-7">
-                <div>상호: {LEGAL_META.companyName}</div>
-                <div>대표자: {LEGAL_META.representativeName}</div>
-                <div>사업자등록번호: {LEGAL_META.businessRegistrationNumber}</div>
-                <div>주소: {LEGAL_META.address}</div>
-                <div>고객센터 전화: {LEGAL_META.phoneNumber}</div>
-                <div>이메일: {LEGAL_META.email}</div>
+              <div>
+                사업자등록번호: {LEGAL_META.businessRegistrationNumber}
               </div>
-            </div>
-
-            <div className="text-xs text-zinc-400 md:text-right md:text-sm">
-              <div>© 2026 {LEGAL_META.serviceName}</div>
-              <div className="mt-1">All rights reserved.</div>
-              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 md:justify-end">
-                {LEGAL_LINKS.map((link) => (
-                  <Link key={link.href} href={link.href} className="underline text-slate-200 underline-offset-4">
-                    {link.label}
-                  </Link>
-                ))}
+              <div>주소: {LEGAL_META.address}</div>
+              <div>
+                고객센터: {LEGAL_META.phoneNumber} · {LEGAL_META.email}
               </div>
             </div>
           </div>
-        </motion.footer>
+
+          <div className="text-xs text-slate-500 md:text-right md:text-sm">
+            <div>© 2026 {LEGAL_META.serviceName}. All rights reserved.</div>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 md:justify-end">
+              {LEGAL_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="font-bold text-slate-700 underline underline-offset-4"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
       </MobileFrame>
-    </section>
+    </footer>
   );
 }

@@ -7,7 +7,7 @@ function TabButton({ tab, active, onClick }) {
       type="button"
       onClick={() => onClick(tab.id)}
       className={cx(
-        "h-11 whitespace-nowrap border px-4 text-sm font-black transition",
+        "h-11 whitespace-nowrap border border-solid px-4 text-sm font-black transition",
         active
           ? "border-zinc-950 bg-zinc-950 text-white"
           : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-950 hover:text-zinc-950"
@@ -20,7 +20,7 @@ function TabButton({ tab, active, onClick }) {
 
 export default function AdminHeader({ activeTab, onChangeTab }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-200 bg-[#f4f1eb]/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-solid border-zinc-200 bg-[#f4f1eb]/95 backdrop-blur">
       <div className="mx-auto w-full max-w-[1440px] px-3 py-3 sm:px-5 lg:px-8">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>

@@ -3,10 +3,18 @@ import { FiImage, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 export default function PhotoGallery({
   photos = [],
-  blurred = true,
-  noticeText = "사진은 제안 단계에서 흐림 처리됩니다",
+  blurred = false,
+  noticeText = "",
 }) {
-  const safePhotos = useMemo(() => (Array.isArray(photos) ? photos.filter((photo) => photo?.url) : []), [photos]);
+  const safePhotos = useMemo(() => {
+    const rawPhotos = Array.isArray(photos) ? photos.filter((photo) => photo?.url || photo?.previewUrl) : [];
+
+    return rawPhotos.map((photo) => ({
+      ...photo,
+      displayUrl: photo.url || photo.previewUrl || "",
+      url: photo.url || photo.previewUrl || "",
+    }));
+  }, [photos]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const current = safePhotos[selectedIndex] || null;
@@ -21,13 +29,8 @@ export default function PhotoGallery({
     });
   };
 
-  const mainImageClass = blurred
-    ? "h-full w-full scale-105 object-cover blur-[18px] brightness-95"
-    : "h-full w-full object-cover";
-
-  const thumbImageClass = blurred
-    ? "h-full w-full scale-110 object-cover blur-[8px]"
-    : "h-full w-full object-cover";
+  const mainImageClass = "h-full w-full object-cover";
+  const thumbImageClass = "h-full w-full object-cover";
 
   return (
     <div>
@@ -36,11 +39,11 @@ export default function PhotoGallery({
           {current?.url ? (
             <>
               <img
-                src={current.url}
+                src={current.displayUrl || current.url}
                 alt="프로필 사진"
                 className={mainImageClass}
               />
-              <div className={blurred ? "absolute inset-0 bg-black/10" : "absolute inset-0 bg-black/0"} />
+              <div className="absolute inset-0 bg-black/0" />
             </>
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center text-zinc-400">
@@ -52,6 +55,12 @@ export default function PhotoGallery({
           {noticeText ? (
             <div className="absolute left-4 top-4 rounded-full bg-black/55 px-3 py-1 text-xs font-bold text-white backdrop-blur">
               {noticeText}
+            </div>
+          ) : null}
+
+          {safePhotos.length ? (
+            <div className="absolute right-4 top-4 rounded-full bg-black/55 px-3 py-1 text-xs font-bold text-white backdrop-blur">
+              {selectedIndex + 1} / {safePhotos.length}
             </div>
           ) : null}
 
@@ -91,7 +100,7 @@ export default function PhotoGallery({
             >
               <div className="aspect-square">
                 <img
-                  src={photo.url}
+                  src={photo.displayUrl || photo.url}
                   alt={`프로필 사진 ${index + 1}`}
                   className={thumbImageClass}
                 />

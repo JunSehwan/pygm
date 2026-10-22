@@ -1,4 +1,4 @@
-import { signInAnonymously } from "firebase/auth";
+import { signInAnonymously, signInWithCustomToken } from "firebase/auth";
 import {
   collection,
   doc,
@@ -12,18 +12,28 @@ import {
   where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { auth, db, storage, sendLms } from "firebaseConfig";
 import { TWOWEEKS_ROUND_ID } from "./constants";
+import { TWOWEEKS_MAX_PROFILE_PHOTOS } from "../TwoWeeksShared/profilePhotoPolicy";
 import {
-  scoreCandidate,
-  formatPhone,
   getApplicationTimeValue,
   isApplicationProfileEditable,
   normalizePhone,
+  normalizeTimeSlotLabels,
 } from "./helpers";
-import { isTwoWeeksTestPhone, TWOWEEKS_TEST_CODE } from "../TwoWeeksShared/testAuth";
+import { normalizeTwoWeeksDeclineReason } from "../TwoWeeksShared/declineReasons";
+import { summaryPastMatch } from "./introJourneyState";
 
 async function ensureAuth() {
+  try {
+    if (typeof auth.authStateReady === "function") {
+      await auth.authStateReady();
+    }
+  } catch {
+    // Firebase Auth 초기 상태 확인 실패 시 아래 fallback을 사용한다.
+  }
+
   if (auth.currentUser) return auth.currentUser;
 
   try {
@@ -83,11 +93,72 @@ export async function loadActiveCafeCandidates() {
 const RESPONSE_DUE_DAYS = 2;
 const SCHEDULE_DUE_DAYS = 2;
 
+function getTimeMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (typeof value?.toDate === "function") return value.toDate().getTime();
+  if (typeof value?.seconds === "number") return value.seconds * 1000;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+function getSeoulDateKey(value) {
+  const ms = getTimeMs(value);
+  if (!ms) return "";
+
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(ms));
+  } catch {
+    return "";
+  }
+}
+
+function getConfirmedMeetingStart(matchData = {}) {
+  return (
+    matchData?.finalMeeting?.startAtClient ||
+    matchData?.finalMeeting?.finalTimeChoice?.startAtClient ||
+    matchData?.finalMeeting?.timeChoice?.startAtClient ||
+    matchData?.schedule?.finalMeeting?.startAtClient ||
+    matchData?.schedule?.finalTimeChoice?.startAtClient ||
+    matchData?.schedule?.finalChoice?.timeChoice?.startAtClient ||
+    ""
+  );
+}
+
+function assertMeetingDay(matchData = {}) {
+  const meetingStart = getConfirmedMeetingStart(matchData);
+  const meetingDayKey = getSeoulDateKey(meetingStart);
+  const todayKey = getSeoulDateKey(Date.now());
+
+  if (!meetingDayKey) {
+    throw new Error("확정된 만남 일시를 확인할 수 없습니다.");
+  }
+
+  if (!todayKey || meetingDayKey !== todayKey) {
+    throw new Error("현장사진과 도착 확인은 약속 당일에만 사용할 수 있습니다.");
+  }
+}
+
 function addDaysClient(days = 2) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 function getSiteOrigin() {
+  // 브라우저에서 실행될 때는 현재 origin을 최우선으로 사용한다.
+  // localhost/preview에서 운영 도메인으로 튀는 문제를 방지한다.
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+
   const configuredOrigin =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_SERVICE_URL ||
@@ -95,10 +166,6 @@ function getSiteOrigin() {
     "";
 
   if (configuredOrigin) return configuredOrigin.replace(/\/$/, "");
-
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin;
-  }
 
   return "https://charmingsoup.com";
 }
@@ -171,6 +238,46 @@ async function sendEventSms(application = {}, title = "", lines = []) {
   }
 }
 
+async function notifyMutualAcceptedSchedule({ matchId = "", viewerApplicationId = "" } = {}) {
+  if (!matchId || !viewerApplicationId) {
+    return { status: "skipped", reason: "MISSING_MATCH" };
+  }
+
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "notifyTwoWeeksMutualAccepted");
+    const result = await callable({ matchId, viewerApplicationId });
+
+    return result?.data || { status: "sent" };
+  } catch (error) {
+    console.error("[TwoWeeksProposal] mutual accepted notification failed:", error);
+    return {
+      status: "failed",
+      errorMessage: error?.message || String(error),
+    };
+  }
+}
+
+async function notifyProposalDeclined({ matchId = "", declinedByApplicationId = "", declineReason = null } = {}) {
+  if (!matchId || !declinedByApplicationId || !declineReason?.code) {
+    return { status: "skipped", reason: "MISSING_MATCH" };
+  }
+
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "notifyTwoWeeksProposalDeclined");
+    const result = await callable({ matchId, declinedByApplicationId, declineReason });
+
+    return result?.data || { status: "sent" };
+  } catch (error) {
+    console.error("[TwoWeeksProposal] decline notification failed:", error);
+    return {
+      status: "failed",
+      errorMessage: error?.message || String(error),
+    };
+  }
+}
+
 async function getResponseDoc(viewerApplicationId, candidateApplicationId) {
   if (!viewerApplicationId || !candidateApplicationId) return null;
 
@@ -221,6 +328,17 @@ function getMatchStatusRank(match = {}) {
   const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
   const photoRevealStatus = String(match?.photoRevealStatus || "");
 
+  // 종료된 만남에는 finalMeeting과 공개 상태가 그대로 남는다.
+  // 종료 상태를 먼저 판정하지 않으면 과거 완료 건이 현재 확정 건과 같은
+  // 최우선 순위(7000)로 다시 선택될 수 있다.
+  if (status === "completed") {
+    return 1000;
+  }
+
+  if (["declined", "failed", "expired", "cancelled", "canceled"].includes(status)) {
+    return 0;
+  }
+
   if (status === "confirmed" || scheduleStatus === "confirmed" || match?.finalMeeting || photoRevealStatus === "revealed") {
     return 7000;
   }
@@ -231,10 +349,6 @@ function getMatchStatusRank(match = {}) {
 
   if (status === "proposed" || match?.proposalStatus === "proposed") {
     return 5000;
-  }
-
-  if (["declined", "failed", "expired", "cancelled", "canceled"].includes(status)) {
-    return 0;
   }
 
   return 1000;
@@ -268,6 +382,158 @@ function isSamePairMatch(match = {}, viewerApplicationId = "", candidateApplicat
     (match.maleApplicationId === viewerApplicationId && match.femaleApplicationId === candidateApplicationId) ||
     (match.femaleApplicationId === viewerApplicationId && match.maleApplicationId === candidateApplicationId)
   );
+}
+
+function isPhotoRevealedForMatch(match = {}) {
+  const status = String(match?.status || "");
+  const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
+  const photoRevealStatus = String(match?.photoRevealStatus || "");
+
+  return (
+    status === "confirmed" ||
+    scheduleStatus === "confirmed" ||
+    photoRevealStatus === "revealed" ||
+    Boolean(match?.finalMeeting || match?.schedule?.finalMeeting)
+  );
+}
+
+function isOrganizationVisibleForMatch(match = {}, bothAccepted = false) {
+  const status = String(match?.status || "");
+  const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
+
+  return (
+    bothAccepted ||
+    status === "mutualAccepted" ||
+    status === "confirmed" ||
+    ["ready", "waiting_counterpart", "needs_final_choice", "place_pending", "confirmed"].includes(scheduleStatus)
+  );
+}
+
+function getProposalPhotoUrl(photo = {}) {
+  return photo?.url || photo?.downloadURL || photo?.originalUrl || "";
+}
+
+function sanitizePhotoForProposalStage(photo = {}) {
+  if (!photo) return null;
+
+  const url = getProposalPhotoUrl(photo);
+
+  if (!url) {
+    return {
+      url: "",
+      proposalVisible: true,
+      originalMissing: true,
+      originalRedacted: false,
+    };
+  }
+
+  return {
+    url,
+    name: photo.name || "",
+    type: photo.type || "image/jpeg",
+    size: photo.size || 0,
+    proposalVisible: true,
+    originalRedacted: false,
+  };
+}
+
+function sanitizeCandidateApplicationForViewer(candidate = {}, options = {}) {
+  if (!candidate?.id) return null;
+
+  const basic = candidate.basic || {};
+  const identity = candidate.identity || {};
+  const matchingPreferences = candidate.matchingPreferences || basic.matchingPreferences || {};
+  const photoRevealed = options.photoRevealed === true;
+  const organizationVisible = options.organizationVisible === true;
+  const mapPhoto = sanitizePhotoForProposalStage;
+
+  return {
+    id: candidate.id,
+    roundId: candidate.roundId || "",
+    roundLabel: candidate.roundLabel || "",
+    status: candidate.status || "",
+    reviewStatus: candidate.reviewStatus || "",
+    matchingStatus: candidate.matchingStatus || "",
+    photoRevealStatus: photoRevealed ? "revealed" : "hidden",
+    basic: {
+      gender: basic.gender || "",
+      nickname: basic.nickname || "",
+      birthYear: basic.birthYear || null,
+      birthDate: basic.birthDate || "",
+      age: basic.age || null,
+      ageType: basic.ageType || "full_age",
+      activityAreas: Array.isArray(basic.activityAreas) ? basic.activityAreas : [],
+      preferredArea: basic.preferredArea || "",
+      availableTimeSlots: normalizeTimeSlotLabels(basic.availableTimeSlots || []),
+      height: basic.height || null,
+      introduction: basic.introduction || "",
+      maritalStatus: basic.maritalStatus || "",
+    },
+    identity: {
+      jobCategory: identity.jobCategory || "",
+      organizationName: organizationVisible ? identity.organizationName || "" : "",
+      representativePhoto: mapPhoto(identity.representativePhoto),
+      additionalPhotos: Array.isArray(identity.additionalPhotos)
+        ? identity.additionalPhotos.map(mapPhoto).filter(Boolean)
+        : [],
+      verificationDocument: null,
+    },
+    matchingPreferences: {
+      marriagePlan: matchingPreferences.marriagePlan || "",
+      childrenPlan: matchingPreferences.childrenPlan || "",
+      religion: matchingPreferences.religion || "",
+      religionPreference: matchingPreferences.religionPreference || "",
+      smoking: matchingPreferences.smoking || "",
+      smokingPreference: matchingPreferences.smokingPreference || "",
+      drinkingFrequency: matchingPreferences.drinkingFrequency || "",
+    },
+    disclosure: {
+      proposalPhotosVisible: true,
+      originalPhotoRedacted: false,
+      organizationRedacted: !organizationVisible,
+      sanitizedForDashboard: true,
+      source: "matched_candidate_clear_v1",
+    },
+  };
+}
+
+function buildCandidatePreviewForViewerFromMatch(match = {}, viewerApplicationId = "") {
+  const previews = match?.candidatePreviews || match?.candidatePreviewByApplicationId || {};
+  const preview = previews?.[viewerApplicationId] || null;
+
+  if (!preview?.id) return null;
+  return preview;
+}
+
+function hasClearProposalPhotos(candidate = {}) {
+  const representativePhoto = candidate?.identity?.representativePhoto || null;
+  if (!representativePhoto?.url) return false;
+
+  return (
+    representativePhoto?.proposalVisible === true ||
+    candidate?.disclosure?.proposalPhotosVisible === true ||
+    candidate?.disclosure?.source === "matched_candidate_clear_v1"
+  );
+}
+
+async function loadClearMatchedCandidateFromFunction({ viewerApplication = {}, match = {} }) {
+  const viewerApplicationId = String(viewerApplication?.id || "").trim();
+  const matchId = String(match?.id || "").trim();
+  if (!viewerApplicationId || !matchId) return null;
+
+  try {
+    await ensureAuth();
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "getTwoWeeksMatchedCandidateProfile");
+    const result = await callable({ viewerApplicationId, matchId });
+    return result?.data?.candidate || null;
+  } catch (error) {
+    console.warn(
+      "[TwoWeeksProposal] clear matched candidate load skipped:",
+      error?.code || error?.message || error
+    );
+    return null;
+  }
 }
 
 async function getMatchesForApplication(applicationId = "") {
@@ -306,21 +572,8 @@ async function loadMatchCandidateFromMatch(viewerApplication = {}, match = {}, a
   const candidateApplicationId = getCounterpartApplicationIdFromMatch(match, viewerApplication.id);
   if (!candidateApplicationId) return null;
 
-  let candidate = allApplications.find((item) => item.id === candidateApplicationId) || null;
-
-  if (!candidate) {
-    try {
-      const candidateSnap = await getDoc(doc(db, "twoweeksApplications", candidateApplicationId));
-      if (candidateSnap.exists()) candidate = mapDoc(candidateSnap);
-    } catch (error) {
-      console.warn("[TwoWeeksProposal] matched candidate load failed:", error?.code || error?.message || error);
-    }
-  }
-
-  if (!candidate) return null;
-
-  const viewerResponse = await getResponseDoc(viewerApplication.id, candidate.id);
-  const counterpartResponse = await getResponseDoc(candidate.id, viewerApplication.id);
+  const viewerResponse = await getResponseDoc(viewerApplication.id, candidateApplicationId);
+  const counterpartResponse = await getResponseDoc(candidateApplicationId, viewerApplication.id);
   const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
   const bothAccepted =
     viewerResponse?.response === "accepted" ||
@@ -330,37 +583,92 @@ async function loadMatchCandidateFromMatch(viewerApplication = {}, match = {}, a
     scheduleStatus === "confirmed" ||
     Boolean(match?.finalMeeting);
 
+  const photoRevealed = isPhotoRevealedForMatch(match);
+  const organizationVisible = isOrganizationVisibleForMatch(match, bothAccepted);
+  const matchPreview = buildCandidatePreviewForViewerFromMatch(match, viewerApplication.id);
+  let candidate = matchPreview;
+
+  // 신규 매칭은 match.candidatePreviews에 선명한 사진만 저장한다.
+  // 기존 매칭에 흐림 프리뷰가 남아 있으면 서버 함수가 참여자와 접근 토큰을 검증한 뒤
+  // 민감정보를 제외한 선명한 후보 프로필만 반환하고, 해당 매칭 스냅샷도 clear_v1로 갱신한다.
+  if (!hasClearProposalPhotos(candidate) || (organizationVisible && !candidate?.identity?.organizationName)) {
+    const clearCandidate = await loadClearMatchedCandidateFromFunction({ viewerApplication, match });
+    if (clearCandidate?.id) candidate = clearCandidate;
+  }
+
+  if (!candidate) {
+    candidate = sanitizeCandidateApplicationForViewer(
+      {
+        id: candidateApplicationId,
+        basic: {},
+        identity: {
+          representativePhoto: { originalMissing: true },
+          additionalPhotos: [],
+        },
+      },
+      { photoRevealed, organizationVisible }
+    );
+  }
+
+  if (!candidate) return null;
+
   return {
     candidate,
-    score: scoreCandidate(viewerApplication, candidate),
-    source: "match_lookup",
+    score: match?.matchingCompatibility || { total: match?.scoreTotal || 0, complete: false, reasons: [] },
+    source: hasClearProposalPhotos(candidate) ? "match_clear_preview" : "match_preview_missing",
     matchId: match.id,
     match,
     schedule: match?.schedule || {},
     finalMeeting: match?.finalMeeting || match?.schedule?.finalMeeting || null,
-    photoRevealStatus: match?.photoRevealStatus || "",
+    photoRevealStatus: photoRevealed ? "revealed" : match?.photoRevealStatus || "hidden",
     viewerResponse,
     counterpartResponse,
     bothAccepted,
   };
 }
 
+async function loadHistoricalMatchForDashboard(viewerApplication = {}, match = {}) {
+  if (!viewerApplication?.id || !match?.id) return null;
+
+  const candidateApplicationId = getCounterpartApplicationIdFromMatch(match, viewerApplication.id);
+  if (!candidateApplicationId) return null;
+
+  const [viewerResponse, counterpartResponse] = await Promise.all([
+    getResponseDoc(viewerApplication.id, candidateApplicationId),
+    getResponseDoc(candidateApplicationId, viewerApplication.id),
+  ]);
+
+  // 종료 이력은 결과 탭에 필요한 매칭/일정/응답만 반환한다.
+  // 과거 후보 프로필을 현재 대상후보처럼 다시 브라우저에 적재하지 않는다.
+  return {
+    candidate: null,
+    score: match?.matchingCompatibility || { total: match?.scoreTotal || 0, complete: false, reasons: [] },
+    source: "match_history",
+    matchId: match.id,
+    match,
+    schedule: match?.schedule || {},
+    finalMeeting: match?.finalMeeting || match?.schedule?.finalMeeting || null,
+    photoRevealStatus: "hidden",
+    viewerResponse,
+    counterpartResponse,
+    bothAccepted: false,
+  };
+}
+
 async function loadLatestMatchForApplication(viewerApplication = {}, allApplications = []) {
   if (!viewerApplication?.id) return null;
+
+  const lastCompletedMatchId = String(viewerApplication?.lastCompletedMatchId || "").trim();
+  if (lastCompletedMatchId) {
+    const lastCompletedMatch = await getMatchDoc(lastCompletedMatchId);
+    const historicalMatch = await loadHistoricalMatchForDashboard(viewerApplication, lastCompletedMatch);
+    if (historicalMatch) return historicalMatch;
+  }
 
   const matches = await getMatchesForApplication(viewerApplication.id);
   const match = pickBestDashboardMatch(matches);
 
-  return loadMatchCandidateFromMatch(viewerApplication, match, allApplications);
-}
-
-function getStoredDashboardToken(application = {}) {
-  return (
-    application?.dashboardAccess?.token ||
-    application?.access?.dashboardToken ||
-    application?.dashboardToken ||
-    ""
-  );
+  return loadHistoricalMatchForDashboard(viewerApplication, match);
 }
 
 function isDashboardAccessRevoked(application = {}) {
@@ -483,58 +791,51 @@ async function loadCurrentProposalCandidate(viewerApplication = {}, allApplicati
 
   if (!candidateApplicationId) return null;
 
-  let candidate = allApplications.find((item) => item.id === candidateApplicationId) || null;
-
-  if (!candidate) {
-    try {
-      const candidateSnap = await getDoc(doc(db, "twoweeksApplications", candidateApplicationId));
-      if (candidateSnap.exists()) {
-        candidate = mapDoc(candidateSnap);
-      }
-    } catch (error) {
-      console.warn("[TwoWeeksProposal] current proposal candidate load failed:", error);
-    }
-  }
-
-  if (!candidate) return null;
-
   const currentProposalMatchId = viewerApplication?.currentProposal?.matchId || "";
   let match = await getMatchDoc(currentProposalMatchId);
 
   // 신청자 문서의 currentProposal.matchId가 비어 있거나 오래된 경우,
   // 실제 twoweeksMatches 이력에서 같은 남녀 조합의 최신 매칭을 다시 찾는다.
   if (!match || (!match?.schedule && !match?.finalMeeting && !match?.status)) {
-    const pairMatch = await findBestMatchByPair(viewerApplication.id, candidate.id);
+    const pairMatch = await findBestMatchByPair(viewerApplication.id, candidateApplicationId);
     if (pairMatch) match = pairMatch;
   }
 
-  const viewerResponse = await getResponseDoc(viewerApplication.id, candidate.id);
-  const counterpartResponse = await getResponseDoc(candidate.id, viewerApplication.id);
-  const scheduleStatus = String(match?.scheduleStatus || match?.schedule?.status || "");
-  const bothAccepted =
-    viewerResponse?.response === "accepted" ||
-    counterpartResponse?.response === "accepted" ||
-    match?.status === "mutualAccepted" ||
-    match?.status === "confirmed" ||
-    scheduleStatus === "confirmed" ||
-    Boolean(match?.finalMeeting);
+  if (match?.id) {
+    return loadMatchCandidateFromMatch(viewerApplication, match, allApplications);
+  }
+
+  // match 문서가 없는 레거시 데이터는 참여자 검증을 할 수 없어 안전한 placeholder만 반환한다.
+  const safeCandidate = sanitizeCandidateApplicationForViewer(
+    {
+      id: candidateApplicationId,
+      basic: {},
+      identity: {
+        representativePhoto: { securePreviewMissing: true },
+        additionalPhotos: [],
+      },
+    },
+    { photoRevealed: false, organizationVisible: false }
+  );
+
+  const viewerResponse = await getResponseDoc(viewerApplication.id, candidateApplicationId);
+  const counterpartResponse = await getResponseDoc(candidateApplicationId, viewerApplication.id);
+  const bothAccepted = viewerResponse?.response === "accepted" || counterpartResponse?.response === "accepted";
 
   return {
-    candidate,
-    score: scoreCandidate(viewerApplication, candidate),
-    source: "admin_current_proposal",
-    matchId: match?.id || currentProposalMatchId,
+    candidate: safeCandidate,
+    score: { total: 0 },
+    source: "legacy_secure_placeholder",
+    matchId: currentProposalMatchId,
     match,
-    schedule: match?.schedule || {},
-    finalMeeting: match?.finalMeeting || match?.schedule?.finalMeeting || null,
-    photoRevealStatus: match?.photoRevealStatus || "",
+    schedule: {},
+    finalMeeting: null,
+    photoRevealStatus: "hidden",
     viewerResponse,
     counterpartResponse,
     bothAccepted,
   };
 }
-
-
 async function loadRoundAndBestMatch(viewerApplication) {
   if (!viewerApplication?.id) {
     return {
@@ -555,109 +856,17 @@ async function loadRoundAndBestMatch(viewerApplication) {
     console.warn("[TwoWeeksProposal] viewer refresh failed:", error?.code || error?.message || error);
   }
 
-  const roundId = freshViewerApplication.roundId || TWOWEEKS_ROUND_ID;
-
-  const roundQuery = query(
-    collection(db, "twoweeksApplications"),
-    where("roundId", "==", roundId)
-  );
-
-  const roundSnap = await getDocs(roundQuery);
-  const allApplications = roundSnap.docs.map(mapDoc);
-
-  // 고객 화면에는 운영자가 실제로 제안한 후보만 보여준다.
-  // 단, 신청자 currentProposal가 일부 누락/초기화된 경우에는 match 문서 이력에서 최신 진행 매칭을 복구한다.
+  // 보안상 고객 화면에서는 같은 회차의 전체 신청자 목록을 읽지 않는다.
+  // 운영자가 생성한 match 문서의 candidatePreviews 또는 확정 후 개별 후보 문서만 사용한다.
+  const allApplications = [];
   const currentProposalMatch = await loadCurrentProposalCandidate(freshViewerApplication, allApplications);
   const latestMatch = currentProposalMatch || (await loadLatestMatchForApplication(freshViewerApplication, allApplications));
 
   return {
     viewerApplication: freshViewerApplication,
-    allApplications,
+    allApplications: [],
     bestMatch: latestMatch,
   };
-}
-
-
-async function getApplicationsByPhone(phoneNormalized) {
-  const phoneFormatted = formatPhone(phoneNormalized);
-  const results = new Map();
-
-  const addResults = (snap) => {
-    snap.docs.forEach((docSnap) => results.set(docSnap.id, mapDoc(docSnap)));
-  };
-
-  const safeQuery = async (fieldPath, value) => {
-    if (!value) return;
-
-    try {
-      const snap = await getDocs(
-        query(collection(db, "twoweeksApplications"), where(fieldPath, "==", value))
-      );
-      addResults(snap);
-    } catch (error) {
-      console.warn(`[TwoWeeksProposal] lookup skipped: ${fieldPath}`, error?.code || error?.message || error);
-    }
-  };
-
-  const values = Array.from(new Set([phoneNormalized, phoneFormatted].filter(Boolean)));
-  const fieldPaths = [
-    "basic.phoneNormalized",
-    "basic.phone",
-    "phoneNormalized",
-    "phone",
-    "phonenumber",
-    "tel",
-    "identity.phone",
-    "phoneIdentityVerification.phone",
-  ];
-
-  for (const fieldPath of fieldPaths) {
-    for (const value of values) {
-      await safeQuery(fieldPath, value);
-    }
-  }
-
-  if (!results.size) {
-    try {
-      const roundSnap = await getDocs(
-        query(collection(db, "twoweeksApplications"), where("roundId", "==", TWOWEEKS_ROUND_ID))
-      );
-
-      roundSnap.docs
-        .map(mapDoc)
-        .filter((application) => {
-          const candidates = [
-            application?.basic?.phoneNormalized,
-            application?.basic?.phone,
-            application?.phoneNormalized,
-            application?.phone,
-            application?.phonenumber,
-            application?.tel,
-            application?.identity?.phone,
-            application?.phoneIdentityVerification?.phone,
-          ];
-
-          return candidates.some((value) => normalizePhone(value) === phoneNormalized);
-        })
-        .forEach((application) => results.set(application.id, application));
-    } catch (error) {
-      console.warn("[TwoWeeksProposal] fallback lookup failed:", error?.code || error?.message || error);
-      if (isPermissionLikeError(error)) throw toConsumerError(error);
-    }
-  }
-
-  return Array.from(results.values());
-}
-
-function createLookupCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function buildLookupCodeMessage(code) {
-  return [
-    `[투윅스] 신청현황 인증번호: ${code}`,
-    "5분 안에 입력해주세요.",
-  ].join(String.fromCharCode(10));
 }
 
 export async function sendDashboardLookupCode(phone) {
@@ -672,75 +881,129 @@ export async function sendDashboardLookupCode(phone) {
   }
 
   try {
+    // request callable 자체는 비로그인도 가능하지만, 현재 앱은 Firebase Auth 세션을
+    // 먼저 준비해두어 App/사용자 단위 추적이 가능하도록 한다.
     await ensureAuth();
 
-    const applications = await getApplicationsByPhone(phoneNormalized);
-
-    if (!applications.length) {
-      return {
-        ok: false,
-        code: "APPLICATION_NOT_FOUND",
-        message: "신청내역이 없습니다.",
-      };
-    }
-
-    const selectedApplication = pickDashboardApplication(applications);
-
-    if (isTwoWeeksTestPhone(phoneNormalized)) {
-      return {
-        ok: true,
-        phoneNormalized,
-        applicationId: selectedApplication?.id || "",
-        code: TWOWEEKS_TEST_CODE,
-        expiresAt: Date.now() + 30 * 60 * 1000,
-        sentAtClient: new Date().toISOString(),
-      };
-    }
-
-    const lookupCode = createLookupCode();
-
-    await sendLms(
-      phoneNormalized,
-      buildLookupCodeMessage(lookupCode),
-      "투윅스 신청현황 인증번호",
-      { forceLms: false }
-    );
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "requestTwoWeeksDashboardOtp");
+    const result = await callable({ phone: phoneNormalized });
+    const data = result?.data || {};
 
     return {
-      ok: true,
+      ok: data?.ok === true,
       phoneNormalized,
-      applicationId: selectedApplication?.id || "",
-      code: lookupCode,
-      expiresAt: Date.now() + 5 * 60 * 1000,
+      challengeId: data?.challengeId || "",
+      expiresAt: Number(data?.expiresAt || 0),
+      testMode: data?.testMode === true,
       sentAtClient: new Date().toISOString(),
     };
   } catch (error) {
     console.error("[TwoWeeksProposal] lookup code failed:", error?.code || error?.message || error);
 
-    if (isPermissionLikeError(error)) {
-      return {
-        ok: false,
-        code: "AUTH_UNAVAILABLE",
-        message: "잠시 후 다시 시도해주세요.",
-      };
-    }
+    const rawMessage = String(error?.message || "");
+    const message =
+      rawMessage.includes("신청내역")
+        ? "신청내역을 확인할 수 없습니다."
+        : rawMessage.includes("1분")
+          ? "인증번호는 1분 후 다시 요청할 수 있습니다."
+          : rawMessage.includes("횟수") || rawMessage.includes("너무 많")
+            ? "인증번호 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+            : "인증번호를 보내지 못했습니다. 잠시 후 다시 시도해주세요.";
 
     return {
       ok: false,
       code: "SMS_OR_LOOKUP_FAILED",
-      message: error?.message || "잠시 후 다시 시도해주세요.",
+      message,
     };
   }
 }
 
-export async function loadApplicationByAccessToken({ applicationId, token }) {
-  await ensureAuth();
+export async function verifyDashboardLookupCode({
+  phone,
+  code,
+  challengeId,
+  preferredApplicationId = "",
+}) {
+  const phoneNormalized = normalizePhone(phone);
+  const cleanCode = String(code || "").replace(/[^0-9]/g, "");
+  const cleanChallengeId = String(challengeId || "").trim();
 
+  if (!phoneNormalized || cleanCode.length !== 6 || !cleanChallengeId) {
+    throw new Error("인증번호 정보를 확인해주세요.");
+  }
+
+  try {
+    await ensureAuth();
+
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "verifyTwoWeeksDashboardOtp");
+    const result = await callable({
+      phone: phoneNormalized,
+      code: cleanCode,
+      challengeId: cleanChallengeId,
+      preferredApplicationId: String(preferredApplicationId || "").trim(),
+    });
+    const data = result?.data || {};
+
+    if (!data?.applicationId || (data?.sessionAuthorized !== true && !data?.customToken)) {
+      return {
+        ok: false,
+        code: "SESSION_CREATE_FAILED",
+        message: "신청현황 인증 세션을 만들지 못했습니다. 인증번호를 다시 요청해주세요.",
+      };
+    }
+
+    // 이전 배포 버전이 customToken을 반환해도 호환하고,
+    // 최신 버전은 현재 anonymous auth UID에 서버 세션만 연결한다.
+    if (data?.customToken) {
+      await signInWithCustomToken(auth, data.customToken);
+    }
+
+    return {
+      ok: true,
+      applicationId: data.applicationId,
+      phone: normalizePhone(data.phone || phoneNormalized),
+      name: data.name || "",
+      sessionExpiresAt: Number(data.sessionExpiresAt || 0),
+    };
+  } catch (error) {
+    const code = String(error?.code || "");
+    const raw = String(error?.message || "");
+    console.warn("[TwoWeeksProposal] lookup verify failed:", code || raw || error);
+
+    let message = "인증번호 확인 중 오류가 발생했습니다. 인증번호를 다시 요청해주세요.";
+    let nextCode = "VERIFY_FAILED";
+    if (raw.includes("만료") || code.includes("deadline-exceeded")) {
+      message = "인증번호가 만료되었습니다. 다시 요청해주세요.";
+      nextCode = "OTP_EXPIRED";
+    } else if (raw.includes("횟수") || code.includes("resource-exhausted")) {
+      message = "인증번호 입력 횟수를 초과했습니다. 다시 요청해주세요.";
+      nextCode = "OTP_ATTEMPTS_EXCEEDED";
+    } else if (raw.includes("일치") || code.includes("permission-denied")) {
+      message = "인증번호가 일치하지 않습니다.";
+      nextCode = "OTP_MISMATCH";
+    } else if (raw.includes("이미 사용") || code.includes("failed-precondition")) {
+      message = "이미 사용했거나 만료된 인증번호입니다. 다시 요청해주세요.";
+      nextCode = "OTP_CONSUMED";
+    }
+
+    return { ok: false, code: nextCode, message };
+  }
+}
+
+async function loadOwnedApplicationById(applicationId = "") {
   const cleanApplicationId = String(applicationId || "").trim();
-  const cleanToken = String(token || "").trim();
+  if (!cleanApplicationId) {
+    throw new Error("신청 정보를 확인할 수 없습니다.");
+  }
 
-  if (!cleanApplicationId || !cleanToken) {
-    throw new Error("신청현황 링크 정보가 올바르지 않습니다.");
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+  }
+
+  if (!auth.currentUser) {
+    throw new Error("신청현황 인증 세션이 만료되었습니다.");
   }
 
   const applicationRef = doc(db, "twoweeksApplications", cleanApplicationId);
@@ -750,210 +1013,180 @@ export async function loadApplicationByAccessToken({ applicationId, token }) {
     throw new Error("신청 정보를 찾지 못했습니다.");
   }
 
-  const viewerApplication = mapDoc(snap);
-  const storedToken = getStoredDashboardToken(viewerApplication);
+  return mapDoc(snap);
+}
 
-  if (!storedToken || storedToken !== cleanToken || isDashboardAccessRevoked(viewerApplication)) {
-    throw new Error("신청현황 링크가 만료되었거나 올바르지 않습니다. 문자로 받은 최신 링크를 다시 확인해주세요.");
+export async function loadApplicationByAccessToken({ applicationId, token }) {
+  const cleanApplicationId = String(applicationId || "").trim();
+  const cleanToken = String(token || "").trim();
+
+  if (!cleanApplicationId || !cleanToken) {
+    throw new Error("신청현황 링크 정보가 올바르지 않습니다.");
   }
 
-  await updateDoc(applicationRef, {
-    "dashboardAccess.lastOpenedAt": serverTimestamp(),
-    "dashboardAccess.lastOpenedAtClient": new Date().toISOString(),
-    updatedAt: serverTimestamp(),
-  }).catch((error) => {
-    console.warn("[TwoWeeksProposal] dashboard access touch failed:", error);
-  });
+  try {
+    await ensureAuth();
 
-  return loadRoundAndBestMatch(viewerApplication);
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "authenticateTwoWeeksDashboardLink");
+    const result = await callable({
+      applicationId: cleanApplicationId,
+      token: cleanToken,
+    });
+    const data = result?.data || {};
+
+    if (!data?.applicationId || (data?.sessionAuthorized !== true && !data?.customToken)) {
+      throw new Error("신청현황 인증 세션을 만들지 못했습니다.");
+    }
+
+    // 이전 customToken 방식도 호환하지만 최신 버전은 현재 Firebase Auth UID에
+    // 서버가 7일짜리 dashboard session을 연결한다.
+    if (data?.customToken) {
+      await signInWithCustomToken(auth, data.customToken);
+    }
+
+    const viewerApplication = await loadOwnedApplicationById(data.applicationId);
+    return loadRoundAndBestMatch(viewerApplication);
+  } catch (error) {
+    const code = String(error?.code || "");
+    const message = String(error?.message || "");
+    const expectedAuthFailure =
+      code.includes("permission-denied") ||
+      code.includes("not-found") ||
+      code.includes("invalid-argument") ||
+      code.includes("failed-precondition") ||
+      message.includes("만료") ||
+      message.includes("올바르지");
+
+    if (expectedAuthFailure) {
+      console.warn("[TwoWeeksProposal] magic link requires re-authentication:", code || message);
+      return {
+        authRequired: true,
+        reason: "magic_link_reauth",
+        applicationId: cleanApplicationId,
+      };
+    }
+
+    console.error("[TwoWeeksProposal] magic link authentication failed:", code || message || error);
+    throw new Error("신청현황을 불러오는 중 오류가 발생했습니다. 휴대폰 번호 인증으로 다시 확인해주세요.");
+  }
+}
+
+export async function completeDashboardIdentityUpgrade({ applicationId, identityVerificationId }) {
+  const cleanApplicationId = String(applicationId || "").trim();
+  const cleanVerificationId = String(identityVerificationId || "").trim();
+  if (!cleanApplicationId || !cleanVerificationId) {
+    throw new Error("본인인증 완료 정보를 확인할 수 없습니다.");
+  }
+
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "completeTwoWeeksDashboardIdentity");
+    const result = await callable({
+      applicationId: cleanApplicationId,
+      identityVerificationId: cleanVerificationId,
+    });
+    return result?.data || {};
+  } catch (error) {
+    console.error("[TwoWeeksProposal] identity upgrade completion failed:", error?.code || error?.message || error);
+    const raw = String(error?.message || "");
+    if (raw.includes("일치")) throw new Error("기존 신청정보와 본인인증 정보가 일치하지 않습니다. 관리자에게 문의해주세요.");
+    if (raw.includes("만료")) throw new Error("본인인증 확인정보가 만료되었습니다. 다시 본인인증해주세요.");
+    throw new Error("본인인증 정보를 기존 신청내역에 반영하지 못했습니다. 다시 시도해주세요.");
+  }
 }
 
 export async function loadApplicationByVerifiedPhone(phone, options = {}) {
-  await ensureAuth();
-
-  const phoneNormalized = normalizePhone(phone);
-
-  if (!phoneNormalized) {
-    throw new Error("본인인증된 연락처를 확인할 수 없습니다.");
+  // 서버 OTP 검증 후 custom auth가 발급되므로 더 이상 고객 브라우저에서
+  // 전화번호로 전체 신청서 컬렉션을 query하지 않는다.
+  const applicationId = String(options?.preferredApplicationId || "").trim();
+  if (!applicationId) {
+    throw new Error("신청현황 인증 세션이 만료되었습니다. 휴대폰 번호로 다시 인증해주세요.");
   }
 
-  let applications = [];
+  const viewerApplication = await loadOwnedApplicationById(applicationId);
+  const verifiedPhone = normalizePhone(phone);
+  const applicationPhone = normalizePhone(
+    viewerApplication?.basic?.phoneNormalized ||
+      viewerApplication?.basic?.phone ||
+      viewerApplication?.phoneIdentityVerification?.phone ||
+      ""
+  );
 
-  try {
-    applications = await getApplicationsByPhone(phoneNormalized);
-  } catch (error) {
-    throw toConsumerError(error);
+  if (verifiedPhone && applicationPhone && verifiedPhone !== applicationPhone) {
+    throw new Error("인증된 연락처와 신청 정보가 일치하지 않습니다.");
   }
-
-  if (!applications.length) {
-    return {
-      viewerApplication: null,
-      allApplications: [],
-      bestMatch: null,
-    };
-  }
-
-  const viewerApplication = pickDashboardApplication(applications, options.preferredApplicationId);
 
   return loadRoundAndBestMatch(viewerApplication);
 }
 
 
-export async function saveProposalResponse({
-  viewerApplication,
-  candidateApplication,
-  response,
-}) {
+export async function saveProposalResponse({ viewerApplication, candidateApplication, response, declineReason = null }) {
   await ensureAuth();
-
-  if (!viewerApplication?.id || !candidateApplication?.id) {
-    throw new Error("응답을 저장할 매칭 후보 정보가 없습니다.");
+  if (!viewerApplication?.id || !candidateApplication?.id || !viewerApplication?.currentProposal?.matchId) {
+    throw new Error("응답을 저장할 현재 매칭 정보가 없습니다. 새로고침 후 다시 시도해주세요.");
   }
-
   if (!["accepted", "declined"].includes(response)) {
     throw new Error("응답값이 올바르지 않습니다.");
   }
-
-  const responseId = `${viewerApplication.id}_${candidateApplication.id}`;
-  const responseRef = doc(db, "twoweeksProposalResponses", responseId);
-  const matchId = viewerApplication?.currentProposal?.matchId || "";
-  const responseDueAtClient = viewerApplication?.currentProposal?.responseDueAtClient || addDaysClient(RESPONSE_DUE_DAYS);
-
-  await setDoc(
-    responseRef,
-    {
-      roundId: viewerApplication.roundId || TWOWEEKS_ROUND_ID,
-      matchId,
-      viewerApplicationId: viewerApplication.id,
-      candidateApplicationId: candidateApplication.id,
-      viewerUid: viewerApplication.uid || "",
-      candidateUid: candidateApplication.uid || "",
-      viewerGender: viewerApplication.basic?.gender || "",
-      candidateGender: candidateApplication.basic?.gender || "",
-      response,
-      status: response,
-      responseDueDays: RESPONSE_DUE_DAYS,
-      responseDueAtClient,
-      respondedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      policySnapshot: {
-        proposalResponseDueDays: RESPONSE_DUE_DAYS,
-        scheduleSelectionDueDays: SCHEDULE_DUE_DAYS,
-        contactOpenAfterMutualConnection: true,
-        proposalStageContactPrivate: true,
-        photoBlurredAtProposalStage: true,
-        photoRevealAfterScheduleConfirmed: true,
-      },
-    },
-    { merge: true }
-  );
-
-  await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
-    "currentProposal.candidateApplicationId": candidateApplication.id,
-    "currentProposal.matchId": matchId,
-    "currentProposal.response": response,
-    "currentProposal.respondedAt": serverTimestamp(),
-    "currentProposal.respondedAtClient": new Date().toISOString(),
-    matchingStatus: response === "accepted" ? "accepted" : "declined",
-    updatedAt: serverTimestamp(),
-  });
-
-  const counterpartResponse = await getResponseDoc(candidateApplication.id, viewerApplication.id);
-  const bothAccepted = response === "accepted" && counterpartResponse?.response === "accepted";
-
-  if (matchId) {
-    if (response === "declined") {
-      await setDoc(
-        doc(db, "twoweeksMatches", matchId),
-        {
-          status: "declined",
-          declinedByApplicationId: viewerApplication.id,
-          declinedAt: serverTimestamp(),
-          declinedAtClient: new Date().toISOString(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ).catch((error) => {
-        console.warn("[TwoWeeksProposal] match decline update failed:", error);
-      });
-    }
-
-    if (bothAccepted) {
-      const existingMatch = await getMatchDoc(matchId);
-      const alreadyOpenedSchedule = Boolean(existingMatch?.scheduleStatus && existingMatch.scheduleStatus !== "not_started");
-      const scheduleDueAtClient = existingMatch?.schedule?.dueAtClient || addDaysClient(SCHEDULE_DUE_DAYS);
-      const matchRef = doc(db, "twoweeksMatches", matchId);
-
-      if (!alreadyOpenedSchedule) {
-        await setDoc(
-          matchRef,
-          {
-            status: "mutualAccepted",
-            scheduleStatus: "ready",
-            schedule: {
-              status: "ready",
-              dueDays: SCHEDULE_DUE_DAYS,
-              dueAtClient: scheduleDueAtClient,
-              openedAt: serverTimestamp(),
-              openedAtClient: new Date().toISOString(),
-              firstSelectorApplicationId: "",
-              firstChoices: [],
-              finalChoice: null,
-            },
-            photoRevealStatus: "hidden",
-            mutualAcceptedAt: serverTimestamp(),
-            mutualAcceptedAtClient: new Date().toISOString(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        ).catch((error) => {
-          console.warn("[TwoWeeksProposal] mutual accepted match update failed:", error);
-        });
-      } else {
-        await setDoc(
-          matchRef,
-          {
-            status: existingMatch?.status === "confirmed" ? "confirmed" : "mutualAccepted",
-            mutualAcceptedAtClient: existingMatch?.mutualAcceptedAtClient || new Date().toISOString(),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        ).catch((error) => {
-          console.warn("[TwoWeeksProposal] mutual accepted touch failed:", error);
-        });
-      }
-
-      await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
-        matchingStatus: "mutualAccepted",
-        "currentProposal.mutualAcceptedAt": serverTimestamp(),
-        "currentProposal.mutualAcceptedAtClient": new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      }).catch(() => {});
-
-      if (!alreadyOpenedSchedule) {
-        await sendEventSms(viewerApplication, "일정조율 시작", [
-          "상대도 만남 진행 의사를 선택했습니다.",
-          "2일 내 일시와 장소를 선택해주세요.",
-          "먼저 선택한 사람은 일시 3개와 장소 3개를 제안합니다.",
-        ]);
-
-        await sendEventSms(candidateApplication, "일정조율 시작", [
-          "상대도 만남 진행 의사를 선택했습니다.",
-          "2일 내 일시와 장소를 선택해주세요.",
-          "먼저 선택한 사람은 일시 3개와 장소 3개를 제안합니다.",
-        ]);
-      }
-    }
+  const normalizedDeclineReason = response === "declined" ? normalizeTwoWeeksDeclineReason(declineReason || {}) : null;
+  if (response === "declined" && !normalizedDeclineReason?.valid) {
+    throw new Error(normalizedDeclineReason?.message || "거절 사유를 선택해주세요.");
   }
 
-  return {
-    responseId,
-    bothAccepted,
+  // 응답 기록과 보호된 신청서 상태 변경은 서버 트랜잭션에서 함께 처리합니다.
+  // 기존 클라이언트의 'setDoc 성공 → updateDoc 권한 거부' 부분 저장을 방지합니다.
+  const functions = getFunctions(undefined, "asia-northeast3");
+  const submit = httpsCallable(functions, "respondTwoWeeksProposal");
+  const matchId = viewerApplication.currentProposal.matchId;
+  const payload = {
+    viewerApplicationId: viewerApplication.id,
+    candidateApplicationId: candidateApplication.id,
     matchId,
+    response,
+    ...(normalizedDeclineReason ? {
+      declineReason: { code: normalizedDeclineReason.code, text: normalizedDeclineReason.text || "" },
+    } : {}),
+  };
+  let result;
+  try {
+    const call = await submit(payload);
+    result = call?.data;
+    if (!result?.ok) throw new Error("응답 저장 결과를 확인하지 못했습니다.");
+  } catch (error) {
+    // 타임아웃 후 재시도를 허용합니다. 서버에서 중복 응답을 검증합니다.
+    const raw = String(error?.message || "").replace(/^FirebaseError:\s*/i, "").trim();
+    throw new Error(raw && !raw.includes("internal") ? raw : "응답 처리 결과를 확인하지 못했습니다. 새로고침 후 신청현황을 확인해주세요.");
+  }
+
+  let mutualAcceptedNotification = null;
+  let declineNotification = null;
+  if (response === "declined") {
+    // 기존 서버의 거절 사유 기록·상대 알림·관리자 기록 절차를 그대로 사용합니다.
+    declineNotification = await notifyProposalDeclined({
+      matchId,
+      declinedByApplicationId: viewerApplication.id,
+      declineReason: { code: normalizedDeclineReason.code, text: normalizedDeclineReason.text || "" },
+    });
+  }
+  if (result.bothAccepted) {
+    // 기존 서버의 일정 24시간 정책 초기화/문자·관리자 안내를 그대로 재사용합니다.
+    // 발송 실패가 이미 저장된 수락 응답을 취소하지는 않습니다.
+    mutualAcceptedNotification = await notifyMutualAcceptedSchedule({
+      matchId,
+      viewerApplicationId: viewerApplication.id,
+    });
+  }
+  return {
+    responseId: `${viewerApplication.id}_${candidateApplication.id}`,
+    bothAccepted: result.bothAccepted === true,
+    matchId,
+    responseOrder: result.responseOrder,
+    alreadySubmitted: result.alreadySubmitted === true,
+    mutualAcceptedNotification,
+    declineNotification,
   };
 }
-
 
 function formatMeetingTimeText(timeChoice = {}) {
   return [timeChoice.dateLabel, timeChoice.timeLabel].filter(Boolean).join(" ") || "-";
@@ -1385,6 +1618,41 @@ export async function saveMeetingAttendance({
   };
 }
 
+export async function sendMissingArrivalAlert({
+  viewerApplication,
+  candidateApplication,
+}) {
+  await ensureAuth();
+
+  if (!viewerApplication?.id || !candidateApplication?.id) {
+    throw new Error("도착 확인 요청에 필요한 만남 정보를 확인할 수 없습니다.");
+  }
+
+  const matchId = viewerApplication?.currentProposal?.matchId || "";
+  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
+
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "sendTwoWeeksMissingArrivalAlert");
+    const result = await callable({
+      matchId,
+      reporterApplicationId: viewerApplication.id,
+    });
+
+    return result?.data || { status: "sent", sent: true };
+  } catch (error) {
+    console.error("[TwoWeeksProposal] missing arrival alert failed:", error);
+
+    const message =
+      error?.details?.message ||
+      error?.message ||
+      "상대방에게 안내하는 중 오류가 발생했습니다.";
+
+    throw new Error(message.replace(/^FirebaseError:\s*/i, ""));
+  }
+}
+
+
 export async function saveMeetingArrival({
   viewerApplication,
   candidateApplication,
@@ -1403,8 +1671,21 @@ export async function saveMeetingArrival({
   const matchRef = doc(db, "twoweeksMatches", matchId);
   const matchSnap = await getDoc(matchRef);
   const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+  assertMeetingDay(matchData);
   const preMeetingNotes = matchData?.preMeetingNotes || {};
   const myPreMeetingNote = preMeetingNotes?.[viewerApplication.id]?.note || "";
+  const existingArrival = matchData?.meetingArrival || {};
+  const existingMyArrival = existingArrival?.[viewerApplication.id] || null;
+
+  if (existingMyArrival?.status === "arrived") {
+    return {
+      matchId,
+      arrival: existingMyArrival,
+      bothArrived:
+        existingArrival?.[candidateApplication.id]?.status === "arrived",
+      alreadyConfirmed: true,
+    };
+  }
 
   const payload = {
     applicationId: viewerApplication.id,
@@ -1415,7 +1696,6 @@ export async function saveMeetingArrival({
     updatedAtClient: arrivedAtClient,
   };
 
-  const existingArrival = matchData?.meetingArrival || {};
   const nextArrival = {
     ...existingArrival,
     [viewerApplication.id]: payload,
@@ -1444,42 +1724,32 @@ export async function saveMeetingArrival({
     updatedAt: serverTimestamp(),
   }).catch(() => {});
 
-  const dashboardUrl = getDashboardUrl(candidateApplication);
-  const noteLine = myPreMeetingNote
-    ? `상대 한마디: ${truncateText(myPreMeetingNote, 80)}`
-    : "상대 한마디는 아직 없습니다.";
+  let counterpartResult = { status: "skipped", reason: "NOT_SENT" };
 
-  const counterpartResult = await sendEventSms(candidateApplication, "상대방 도착 안내", [
-    "상대방이 미팅 장소에 도착하였음을 전달드립니다.",
-    noteLine,
-  ]);
-
-  const selfResult = await sendEventSms(viewerApplication, "도착 안내 완료", [
-    "상대방에게 도착 안내를 보냈습니다.",
-    "복장이나 위치가 바뀌면 만남 전 한마디를 수정해주세요.",
-  ]);
-
-  await setDoc(
-    matchRef,
-    {
-      meetingArrivalSms: {
-        [viewerApplication.id]: {
-          self: selfResult,
-          counterpart: counterpartResult,
-          sentAtClient: new Date().toISOString(),
-        },
-      },
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  ).catch(() => {});
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "sendTwoWeeksArrivalConfirmation");
+    const result = await callable({
+      matchId,
+      reporterApplicationId: viewerApplication.id,
+    });
+    counterpartResult = result?.data || { status: "sent", sent: true };
+  } catch (error) {
+    console.warn(
+      "[TwoWeeksProposal] arrival confirmation sms skipped:",
+      error?.code || error?.message || error
+    );
+    counterpartResult = {
+      status: "failed",
+      errorMessage: error?.message || String(error),
+    };
+  }
 
   return {
     matchId,
     arrival: payload,
     bothArrived,
     smsResult: counterpartResult,
-    selfSmsResult: selfResult,
   };
 }
 
@@ -1487,7 +1757,6 @@ export async function saveMeetingProofPhoto({
   viewerApplication,
   candidateApplication,
   file,
-  note = "",
   onProgress,
 }) {
   await ensureAuth();
@@ -1511,6 +1780,11 @@ export async function saveMeetingProofPhoto({
   const matchId = viewerApplication?.currentProposal?.matchId || "";
   if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
 
+  const matchRef = doc(db, "twoweeksMatches", matchId);
+  const matchSnap = await getDoc(matchRef);
+  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+  assertMeetingDay(matchData);
+
   const uploadedFile = await uploadMeetingProofFile({
     viewerApplication,
     matchId,
@@ -1523,15 +1797,12 @@ export async function saveMeetingProofPhoto({
     applicationId: viewerApplication.id,
     displayName: getApplicationDisplayName(viewerApplication),
     type: "seat_photo",
-    purpose: "arrival_or_no_show_evidence",
+    purpose: "counterpart_location_and_no_show_evidence",
     photo: uploadedFile,
-    note: String(note || "").trim().slice(0, 300),
-    privacyNotice: "상대방 얼굴 촬영 없이 본인 자리/음료/매장 일부만 촬영하도록 안내됨",
+    privacyNotice: "확정된 상대방과 운영자가 확인할 수 있으며, 타인 얼굴 없이 본인 자리/음료/매장 일부만 촬영하도록 안내됨",
     uploadedAt: serverTimestamp(),
     uploadedAtClient,
   };
-
-  const matchRef = doc(db, "twoweeksMatches", matchId);
 
   await setDoc(
     matchRef,
@@ -1640,7 +1911,7 @@ function safeFileName(name = "file") {
   return String(name || "file").replace(/[\\/#?%*:|"<>]/g, "_");
 }
 
-function buildFileMeta(downloadURL, storagePath, file) {
+function buildFileMeta(downloadURL, storagePath, file, extra = {}) {
   if (!file) return null;
   return {
     url: downloadURL,
@@ -1649,13 +1920,24 @@ function buildFileMeta(downloadURL, storagePath, file) {
     type: file.type || "",
     size: file.size || 0,
     uploadedAtClient: new Date().toISOString(),
+    ...extra,
   };
+}
+
+async function uploadProfileImageFileWithBlurredPreview({ application, file, index, onProgress }) {
+  // 제안 단계부터 선명한 사진을 공개하므로 별도 블러 파일을 생성하지 않는다.
+  return uploadRawProfilePhotoFile({
+    application,
+    file,
+    index,
+    onProgress,
+  });
 }
 
 function uploadMeetingProofFile({ viewerApplication, matchId, file, onProgress }) {
   return new Promise((resolve, reject) => {
     const currentUser = auth.currentUser;
-    const ownerUid = viewerApplication?.uid || currentUser?.uid || "anonymous";
+    const ownerUid = currentUser?.uid || viewerApplication?.uid || "anonymous";
     const storagePath = `twoweeksMatches/${matchId}/proofs/${viewerApplication.id}/${ownerUid}/proof_${Date.now()}_${safeFileName(file.name)}`;
     const storageRef = ref(storage, storagePath);
     const uploadTask = uploadBytesResumable(storageRef, file, {
@@ -1682,11 +1964,8 @@ function uploadMeetingProofFile({ viewerApplication, matchId, file, onProgress }
   });
 }
 
-function uploadPhotoFile({ application, file, index, onProgress }) {
+function uploadRawFile({ file, storagePath, onProgress }) {
   return new Promise((resolve, reject) => {
-    const currentUser = auth.currentUser;
-    const ownerUid = application?.uid || currentUser?.uid || "anonymous";
-    const storagePath = `twoweeksApplications/${application.id}/${ownerUid}/profileEdits/photos/edit_${Date.now()}_${index + 1}_${safeFileName(file.name)}`;
     const storageRef = ref(storage, storagePath);
     const uploadTask = uploadBytesResumable(storageRef, file, {
       contentType: file.type || "application/octet-stream",
@@ -1712,8 +1991,16 @@ function uploadPhotoFile({ application, file, index, onProgress }) {
   });
 }
 
+function uploadRawProfilePhotoFile({ application, file, index, onProgress }) {
+  const currentUser = auth.currentUser;
+  const ownerUid = currentUser?.uid || application?.uid || "anonymous";
+  const storagePath = `twoweeksApplications/${application.id}/${ownerUid}/profileEdits/photos/edit_${Date.now()}_${index + 1}_${safeFileName(file.name)}`;
+
+  return uploadRawFile({ file, storagePath, onProgress });
+}
+
 async function resolveProfilePhotos({ application, photos = [], onUploadProgress }) {
-  const compactPhotos = Array.isArray(photos) ? photos.filter(Boolean).slice(0, 4) : [];
+  const compactPhotos = Array.isArray(photos) ? photos.filter(Boolean).slice(0, TWOWEEKS_MAX_PROFILE_PHOTOS) : [];
   const newFileItems = compactPhotos.filter((item) => item?.source === "file" && item?.file);
   const progressMap = newFileItems.reduce((acc, item, index) => ({ ...acc, [index]: 0 }), {});
 
@@ -1741,7 +2028,7 @@ async function resolveProfilePhotos({ application, photos = [], onUploadProgress
     }
 
     if (item?.source === "file" && item?.file) {
-      const uploaded = await uploadPhotoFile({
+      const uploaded = await uploadProfileImageFileWithBlurredPreview({
         application,
         file: item.file,
         index,
@@ -1755,13 +2042,83 @@ async function resolveProfilePhotos({ application, photos = [], onUploadProgress
     resolved.push(null);
   }
 
-  const finalPhotos = resolved.filter(Boolean).slice(0, 4);
+  const finalPhotos = resolved.filter(Boolean).slice(0, TWOWEEKS_MAX_PROFILE_PHOTOS);
   onUploadProgress?.(100);
 
   return {
     representativePhoto: finalPhotos[0] || null,
     additionalPhotos: finalPhotos.slice(1),
   };
+}
+
+async function refreshActiveMatchCandidatePreviews(updatedApplication = {}) {
+  if (!updatedApplication?.id) return;
+
+  try {
+    const matches = await getMatchesForApplication(updatedApplication.id);
+    if (!matches.length) return;
+
+    const inactiveStatuses = new Set([
+      "declined",
+      "rejected",
+      "expired",
+      "failed",
+      "completed",
+      "cancelled",
+      "withdrawn",
+      "rematched",
+      "proposal_expired",
+      "schedule_expired",
+      "counterpart_expired",
+    ]);
+
+    const safePreview = sanitizeCandidateApplicationForViewer(updatedApplication, {
+      photoRevealed: false,
+      organizationVisible: false,
+    });
+
+    const refreshedAtClient = new Date().toISOString();
+    const updateTasks = matches
+      .filter((match) => match?.id && !inactiveStatuses.has(String(match?.status || "")))
+      .map((match) => {
+        const viewerApplicationId =
+          match.maleApplicationId === updatedApplication.id
+            ? match.femaleApplicationId
+            : match.femaleApplicationId === updatedApplication.id
+              ? match.maleApplicationId
+              : "";
+
+        if (!viewerApplicationId) return null;
+
+        return updateDoc(doc(db, "twoweeksMatches", match.id), {
+          [`candidatePreviews.${viewerApplicationId}`]: safePreview,
+          "securePhotoPolicy.proposalStageUsesClearPhotos": true,
+          "securePhotoPolicy.originalPhotoVisibleFromProposal": true,
+          "securePhotoPolicy.previewRefreshedAtClient": refreshedAtClient,
+          "securePhotoPolicy.previewVersion": "clear_v1",
+          updatedAt: serverTimestamp(),
+        });
+      })
+      .filter(Boolean);
+
+    if (updateTasks.length) {
+      const results = await Promise.allSettled(updateTasks);
+      results.forEach((result) => {
+        if (result.status === "rejected") {
+          console.warn(
+            "[TwoWeeksProposal] match candidate preview refresh skipped:",
+            result.reason?.code || result.reason?.message || result.reason
+          );
+        }
+      });
+    }
+  } catch (error) {
+    // 프로필 저장 자체는 성공시킨다. 매칭 스냅샷 갱신 실패는 다음 매칭 생성 시 다시 반영된다.
+    console.warn(
+      "[TwoWeeksProposal] active match candidate preview refresh skipped:",
+      error?.code || error?.message || error
+    );
+  }
 }
 
 export async function updateApplicationProfile({
@@ -1812,8 +2169,40 @@ export async function updateApplicationProfile({
     throw new Error("직업군을 선택해주세요.");
   }
 
+  if (form.jobCategory === "회사원" && !form.companyScale) {
+    throw new Error("회사 유형을 선택해주세요.");
+  }
+
   if (!organizationName) {
     throw new Error("회사명 또는 학교명을 입력해주세요.");
+  }
+
+  if (!form.marriagePlan) {
+    throw new Error("결혼 의향을 선택해주세요.");
+  }
+
+  if (!form.childrenPlan) {
+    throw new Error("자녀 계획을 선택해주세요.");
+  }
+
+  if (!form.religion) {
+    throw new Error("현재 종교를 선택해주세요.");
+  }
+
+  if (!form.religionPreference) {
+    throw new Error("상대방 종교에 대한 생각을 선택해주세요.");
+  }
+
+  if (!form.smoking) {
+    throw new Error("흡연 여부를 선택해주세요.");
+  }
+
+  if (!form.smokingPreference) {
+    throw new Error("상대방 흡연 허용 범위를 선택해주세요.");
+  }
+
+  if (!form.drinkingFrequency) {
+    throw new Error("음주 빈도를 선택해주세요.");
   }
 
   const photoResult = await resolveProfilePhotos({
@@ -1831,7 +2220,7 @@ export async function updateApplicationProfile({
     nickname,
     activityAreas: Array.isArray(form.activityAreas) ? form.activityAreas : [],
     preferredArea: form.preferredArea || "",
-    availableTimeSlots: Array.isArray(form.availableTimeSlots) ? form.availableTimeSlots : [],
+    availableTimeSlots: normalizeTimeSlotLabels(form.availableTimeSlots),
     height,
     introduction,
   };
@@ -1839,39 +2228,263 @@ export async function updateApplicationProfile({
   const nextIdentity = {
     ...(application.identity || {}),
     jobCategory: form.jobCategory,
+    companyScale: form.jobCategory === "회사원" ? form.companyScale || "" : "",
     organizationName,
     representativePhoto: photoResult.representativePhoto,
     additionalPhotos: photoResult.additionalPhotos,
   };
 
-  const applicationRef = doc(db, "twoweeksApplications", application.id);
+  const nextMatchingPreferences = {
+    ...(application.matchingPreferences || {}),
+    marriagePlan: form.marriagePlan,
+    childrenPlan: form.childrenPlan,
+    religion: form.religion,
+    religionPreference: form.religionPreference,
+    smoking: form.smoking,
+    smokingPreference: form.smokingPreference,
+    drinkingFrequency: form.drinkingFrequency,
+    completed: true,
+    updatedAtClient: new Date().toISOString(),
+  };
 
-  await updateDoc(applicationRef, {
-    "basic.nickname": nextBasic.nickname,
-    "basic.activityAreas": nextBasic.activityAreas,
-    "basic.preferredArea": nextBasic.preferredArea,
-    "basic.availableTimeSlots": nextBasic.availableTimeSlots,
-    "basic.height": nextBasic.height,
-    "basic.introduction": nextBasic.introduction,
-    "identity.jobCategory": nextIdentity.jobCategory,
-    "identity.organizationName": nextIdentity.organizationName,
-    "identity.representativePhoto": nextIdentity.representativePhoto,
-    "identity.additionalPhotos": nextIdentity.additionalPhotos,
-    "profileEdit.lastEditedAt": serverTimestamp(),
-    "profileEdit.lastEditedAtClient": new Date().toISOString(),
-    "profileEdit.editCount": increment(1),
-    "profileEdit.editableUntil": "matching_confirmed",
-    updatedAt: serverTimestamp(),
-  });
+  // Protected application fields must be updated by the owner-authorized server function.
+  // A direct Firestore update silently conflicts with existing security rules.
+  const callable = httpsCallable(getFunctions(undefined, "asia-northeast3"), "updateTwoWeeksProfile");
+  const requestForm = {
+    ...form,
+    photos: [photoResult.representativePhoto, ...(photoResult.additionalPhotos || [])],
+  };
+  const response = await callable({ applicationId: application.id, profile: requestForm });
+  const profileUpdateResult = response?.data || {};
+  if (!profileUpdateResult.ok) throw new Error("프로필 저장 결과를 확인하지 못했어요.");
 
+  const nextTraits = {
+    ...(application.profileTraits || {}),
+    mbti: form.mbti || "",
+    interests: form.interests || [],
+  };
+  const nextFullIdentity = {
+    ...nextIdentity,
+    educationLevel: form.educationLevel || "",
+    schoolName: (form.schoolName || "").trim(),
+  };
+  const range = form.preferredAgeMin && form.preferredAgeMax ? { min: Number(form.preferredAgeMin), max: Number(form.preferredAgeMax) } : null;
+  const nextFullPreferences = {
+    ...nextMatchingPreferences,
+    preferredAgeRange: range,
+    drinkingPreference: form.preferredDrinking || "",
+    preferredStyles: form.preferredStyles || [],
+    preferredJobCategories: form.preferredJobCategories || [],
+    additionalPreference: (form.additionalPreference || "").trim(),
+  };
   return {
     ...application,
     basic: nextBasic,
-    identity: nextIdentity,
-    profileEdit: {
-      ...(application.profileEdit || {}),
-      lastEditedAtClient: new Date().toISOString(),
-      editableUntil: "matching_confirmed",
-    },
+    identity: nextFullIdentity,
+    profileTraits: nextTraits,
+    matchingPreferences: nextFullPreferences,
+    profileUpdateResult,
+    reviewStatus: profileUpdateResult.reviewRequired ? "reviewing" : application.reviewStatus,
+    nextRoundStatus: profileUpdateResult.reviewRequired ? "not_ready" : application.nextRoundStatus,
+    matchingStatus: profileUpdateResult.reviewRequired ? "not_ready" : application.matchingStatus,
   };
+}
+
+export async function requestDepositRefund({ application, verifiedProfile, bankName, accountNumber, accountHolder }) {
+  await ensureAuth();
+
+  if (!application?.id) {
+    throw new Error("신청 정보를 확인할 수 없습니다.");
+  }
+
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "requestTwoWeeksDepositRefund");
+    const result = await callable({
+      applicationId: application.id,
+      bankName: String(bankName || "").trim(),
+      accountNumber: String(accountNumber || "").trim(),
+      accountHolder: String(accountHolder || "").trim(),
+    });
+
+    return result?.data || { ok: true };
+  } catch (error) {
+    console.error("[TwoWeeksProposal] deposit refund request failed:", error);
+    throw new Error(error?.message?.replace(/^FirebaseError:\s*/i, "") || "예치금 반환 요청 중 오류가 발생했습니다.");
+  }
+}
+
+export async function submitVerificationDocumentReplacement({ application, file, onUploadProgress }) {
+  const currentUser = await ensureAuth();
+  if (!currentUser || !application?.id || !file) throw new Error("제출할 직업 인증자료를 확인할 수 없습니다.");
+  const storagePath = `twoweeksApplications/${application.id}/${currentUser.uid}/profileEdits/verification/verification_${Date.now()}_${safeFileName(file.name)}`;
+  const verificationDocument = await uploadRawFile({ file, storagePath, onProgress: onUploadProgress });
+  try {
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "submitTwoWeeksVerificationDocument");
+    const result = await callable({ applicationId: application.id, verificationDocument });
+    return result?.data || { ok: true };
+  } catch (error) {
+    throw new Error(error?.message?.replace(/^FirebaseError:\s*/i, "") || "직업 인증자료 제출 중 오류가 발생했습니다.");
+  }
+}
+
+export async function getVerificationDocumentStatus({ application }) {
+  await ensureAuth();
+  if (!application?.id) throw new Error("신청 정보를 확인할 수 없습니다.");
+  const functions = getFunctions(undefined, "asia-northeast3");
+  const callable = httpsCallable(functions, "getTwoWeeksVerificationDocumentStatus");
+  const result = await callable({ applicationId: application.id });
+  return result?.data || { ok: true, document: null, review: null };
+}
+
+export async function getWithdrawalPreview({ application }) {
+  await ensureAuth();
+  if (!application?.id) throw new Error("신청 정보를 확인할 수 없습니다.");
+  const functions = getFunctions(undefined, "asia-northeast3");
+  const callable = httpsCallable(functions, "getTwoWeeksWithdrawalPreview");
+  const result = await callable({ applicationId: application.id });
+  return result?.data || null;
+}
+
+export async function requestWithdrawal({ application, ...payload }) {
+  await ensureAuth();
+  if (!application?.id) throw new Error("탈퇴할 신청 정보를 확인할 수 없습니다.");
+  const functions = getFunctions(undefined, "asia-northeast3");
+  const callable = httpsCallable(functions, "requestTwoWeeksWithdrawal");
+  const result = await callable({ applicationId: application.id, ...payload, confirmed: true });
+  return result?.data || { ok: true };
+}
+
+export async function loadMutualContact({ viewerApplication, match }) {
+  if (!viewerApplication?.id || !match?.id) return null;
+
+  try {
+    await ensureAuth();
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "getTwoWeeksMutualContact");
+    const result = await callable({
+      viewerApplicationId: viewerApplication.id,
+      matchId: match.id,
+    });
+    return result?.data?.opened ? result.data.contact || null : null;
+  } catch (error) {
+    console.warn("[TwoWeeksProposal] mutual contact load skipped:", error?.code || error?.message || error);
+    return null;
+  }
+}
+
+export async function ensureFeedbackAccess({ viewerApplication, match }) {
+  if (!viewerApplication?.id || !match?.id) {
+    throw new Error("피드백을 작성할 만남 정보를 확인할 수 없습니다.");
+  }
+
+  try {
+    await ensureAuth();
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "ensureTwoWeeksFeedbackAccess");
+    const result = await callable({
+      viewerApplicationId: viewerApplication.id,
+      matchId: match.id,
+    });
+
+    return result?.data || null;
+  } catch (error) {
+    console.error("[TwoWeeksProposal] feedback access failed:", error);
+    throw new Error(
+      error?.message?.replace(/^FirebaseError:\s*/i, "") ||
+        "피드백 화면을 여는 중 오류가 발생했습니다."
+    );
+  }
+}
+
+export async function ensureReviewAccess({ viewerApplication, match }) {
+  if (!viewerApplication?.id || !match?.id) {
+    throw new Error("후기를 작성할 만남 정보를 확인할 수 없습니다.");
+  }
+
+  try {
+    await ensureAuth();
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "ensureTwoWeeksReviewAccess");
+    const result = await callable({
+      viewerApplicationId: viewerApplication.id,
+      matchId: match.id,
+    });
+
+    return result?.data || null;
+  } catch (error) {
+    console.error("[TwoWeeksProposal] review access failed:", error);
+    throw new Error(
+      error?.message?.replace(/^FirebaseError:\s*/i, "") ||
+        "후기 화면을 여는 중 오류가 발생했습니다."
+    );
+  }
+}
+
+export async function cancelCurrentMatch({ viewerApplication, match, reason = "" }) {
+  if (!viewerApplication?.id || !match?.id) {
+    throw new Error("취소할 만남 정보를 확인할 수 없습니다.");
+  }
+
+  try {
+    await ensureAuth();
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "cancelTwoWeeksMatch");
+    const result = await callable({
+      viewerApplicationId: viewerApplication.id,
+      matchId: match.id,
+      reason: String(reason || "").trim(),
+    });
+    return result?.data || { ok: true };
+  } catch (error) {
+    console.error("[TwoWeeksProposal] match cancellation failed:", error);
+    throw new Error(error?.message?.replace(/^FirebaseError:\s*/i, "") || "만남 취소 처리 중 오류가 발생했습니다.");
+  }
+}
+
+
+export async function setMatchingAvailability({ viewerApplication, action = "resume" }) {
+  if (!viewerApplication?.id) {
+    throw new Error("매칭 상태를 변경할 신청 정보를 확인할 수 없습니다.");
+  }
+
+  try {
+    await ensureAuth();
+    const functions = getFunctions(undefined, "asia-northeast3");
+    const callable = httpsCallable(functions, "setTwoWeeksMatchingAvailability");
+    const result = await callable({
+      applicationId: viewerApplication.id,
+      action: action === "pause" ? "pause" : "resume",
+    });
+    return result?.data || { ok: true };
+  } catch (error) {
+    console.error("[TwoWeeksProposal] matching availability update failed:", error);
+    throw new Error(error?.message?.replace(/^FirebaseError:\s*/i, "") || "매칭 상태 변경 중 오류가 발생했습니다.");
+  }
+}
+
+// Lightweight past-introduction summaries only: no candidate identity/photos are returned.
+// Existing participant-scoped Firestore rules apply to both queries.
+export async function loadRecentIntroHistory(applicationId = "", excludeMatchId = "") {
+  const id = String(applicationId || "").trim();
+  if (!id) return [];
+  const [male, female] = await Promise.allSettled([
+    getDocs(query(collection(db, "twoweeksMatches"), where("maleApplicationId", "==", id))),
+    getDocs(query(collection(db, "twoweeksMatches"), where("femaleApplicationId", "==", id))),
+  ]);
+  if (male.status === "rejected" && female.status === "rejected") {
+    throw new Error("지난 소개 조회 권한을 확인하지 못했어요.");
+  }
+  const byId = new Map();
+  [male, female].forEach((result) => {
+    if (result.status !== "fulfilled") return;
+    result.value.docs.forEach((row) => byId.set(row.id, { id: row.id, ...row.data() }));
+  });
+  return Array.from(byId.values())
+    .filter((match) => match.id !== excludeMatchId)
+    .map((match) => summaryPastMatch(match, id))
+    .filter(Boolean)
+    .sort((a, b) => b.dateMs - a.dateMs)
+    .slice(0, 3);
 }

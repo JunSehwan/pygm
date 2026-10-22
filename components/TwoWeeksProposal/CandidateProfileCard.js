@@ -52,7 +52,7 @@ export default function CandidateProfileCard({
   return (
     <div className="rounded-[34px] border border-zinc-200 bg-white p-5 shadow-[0_24px_90px_rgba(0,0,0,0.07)] md:p-7">
       <div className="grid gap-7 lg:grid-cols-[0.86fr_1.14fr]">
-        <PhotoGallery photos={photos} />
+        <PhotoGallery photos={photos} blurred={false} />
 
         <div>
           <div className="inline-flex rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-600">
@@ -77,7 +77,7 @@ export default function CandidateProfileCard({
             <FiLock className="mt-1 shrink-0 text-orange-400" />
             <p className="break-keep text-xs leading-6 text-zinc-300">
               연락처와 인증자료는 공개되지 않습니다. 회사명은 양쪽 진행 의사 확인 후 공개됩니다.
-              사진은 사용자가 업로드한 이미지를 흐림 처리해 확인할 수 있습니다.
+              프로필 사진은 첫 제안 단계부터 선명하게 확인할 수 있습니다.
             </p>
           </div>
         </div>

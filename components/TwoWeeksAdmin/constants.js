@@ -1,10 +1,15 @@
 export const TABS = [
   { id: "overview", label: "대시보드" },
   { id: "applications", label: "신청자" },
-  { id: "review", label: "입금확인" },
+  { id: "review", label: "신청완료" },
   { id: "matching", label: "매칭보드" },
   { id: "schedule", label: "일정관리" },
   { id: "results", label: "결과관리" },
+  { id: "marketingStories", label: "후기/성공사례" },
+  { id: "marketingAttribution", label: "마케팅 유입" },
+  { id: "homeContent", label: "HOME 콘텐츠" },
+  { id: "referralRewards", label: "추천 보상" },
+  { id: "deposit", label: "예치금관리" },
   { id: "rounds", label: "회차관리" },
   { id: "cafes", label: "카페관리" },
 ];
@@ -16,7 +21,7 @@ export const STATUS_LABELS = {
   approved: "승인",
   rejected: "반려",
   waitlisted: "대기풀",
-  not_ready: "매칭 전",
+  not_ready: "매칭 준비 전",
   not_started: "매칭 대기",
   proposed: "제안 발송",
   accepted: "수락",
@@ -25,7 +30,11 @@ export const STATUS_LABELS = {
   completed: "완료",
   cancelled: "취소",
   failed: "매칭 실패",
-  refunded: "환불",
+  refund_requested: "반환 요청",
+  refunded: "반환 완료",
+  topup_required: "추가 예치 필요",
+  waived: "예치금 면제",
+  top_up_required: "추가 예치 필요",
   incomplete: "정보부족",
   mutualAccepted: "양쪽 수락",
   schedule_ready: "일정 선택 대기",
@@ -39,17 +48,37 @@ export const STATUS_LABELS = {
   matching: "매칭중",
   meeting: "만남진행",
   closed: "마감",
-  paused: "보류",
+  paused: "일시정지",
+  user_paused: "사용자 일시정지",
+  contact_connected: "연락처 공개 후 일시정지",
+  feedback_no_response_recorded: "피드백 미응답 기록",
+  ready: "준비 완료",
+  admin_review: "운영자 검토",
+  priority_review: "우선 검토",
+  hidden: "비공개",
+  revealed: "공개",
+  feedback_requested: "피드백 요청",
+  feedback_overdue: "피드백 미응답",
+  timeout_processed: "미응답 처리 완료",
+  waiting: "대기",
+  proposal_expired: "제안 기한초과",
+  schedule_expired: "일정 기한초과",
+  counterpart_expired: "상대 기한초과",
+  both_confirmed: "양쪽 확정",
+  both_arrived: "양쪽 도착",
+  attending: "참석",
+  arrived: "도착",
   no_show_confirmed: "노쇼 확정",
   no_show_dismissed: "노쇼 아님",
   evidence_requested: "추가 확인",
   no_penalty_rematch: "불이익 없이 재매칭",
+  sanction_restricted: "노쇼 제재중",
 };
 
 export const DEFAULT_ROUND_ID = "twoweeks_beta_1";
 export const DEFAULT_ROUND_LABEL = "투윅스 1기";
-export const TEST_PHONE_NORMALIZED = "01075781252";
-export const TEST_PHONE_FORMATTED = "010-7578-1252";
+export const TEST_PHONE_NORMALIZED = "01000000001";
+export const TEST_PHONE_FORMATTED = "010-0000-0001";
 
 export const DUMMY_NAMES = [
   "김도윤",
@@ -80,7 +109,7 @@ export const DUMMY_NICKNAMES = [
 export const DUMMY_JOBS = ["회사원", "공무원", "전문직", "자영업", "프리랜서"];
 export const DUMMY_ORGS = ["린나이코리아", "네이버", "카카오", "삼성전자", "현대모비스", "서울시", "LG CNS", "SK텔레콤"];
 export const DUMMY_AREAS = ["강남구", "서초구", "동작구", "관악구", "영등포구"];
-export const DUMMY_TIMES = ["평일 저녁", "토요일 낮", "토요일 저녁", "일요일 낮", "일요일 저녁"];
+export const DUMMY_TIMES = ["금요일 저녁", "토요일 낮", "토요일 저녁", "일요일 낮", "일요일 저녁"];
 
 export const DUMMY_INTROS = [
   "주말에는 카페를 가거나 산책하는 걸 좋아해요.",
@@ -92,7 +121,8 @@ export const DUMMY_INTROS = [
 
 
 export const RESPONSE_DUE_DAYS = 2;
-export const SCHEDULE_DUE_DAYS = 2;
+export const SCHEDULE_STAGE_DUE_HOURS = 24;
+export const SCHEDULE_TOTAL_DUE_HOURS = 48;
 
 export const MANAGED_TIME_SLOTS = [
   { key: "friday_evening", label: "금요일 저녁", hour: 19, minute: 30 },

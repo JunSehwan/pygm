@@ -1,15 +1,21 @@
 import { useMemo, useState } from "react";
 import { ActionButton, FieldRow, InfoBox, Section, StatCard, StatusBadge } from "./AdminCommon";
 import { formatDate } from "./utils";
+import { isTerminalProposalStatus } from "../TwoWeeksProposal/proposalLifecycle";
+import {
+  getProposalResponseDueAtClient,
+  getScheduleStageDueAtClient,
+} from "../TwoWeeksShared/schedulePolicy";
 
 function getScheduleStatus(match = {}) {
+  if (isTerminalProposalStatus(match?.status)) return match.status;
   return match.scheduleStatus || match?.schedule?.status || match.status || "not_started";
 }
 
 function getStatusTone(status = "") {
   if (["confirmed", "schedule_confirmed"].includes(status)) return "good";
   if (["place_pending", "ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice"].includes(status)) return "warn";
-  if (["cancelled", "failed", "declined"].includes(status)) return "bad";
+  if (["cancelled", "canceled", "failed", "declined", "expired", "proposal_expired", "schedule_expired", "counterpart_expired"].includes(status)) return "bad";
   if (["mutualAccepted"].includes(status)) return "good";
   return "default";
 }
@@ -19,6 +25,13 @@ function getStatusLabel(status = "") {
     proposed: "후보 응답 대기",
     accepted: "일부 수락",
     declined: "거절 발생",
+    proposal_expired: "제안 기한 종료",
+    schedule_expired: "일정 기한 종료",
+    counterpart_expired: "상대 선택 기한 종료",
+    expired: "기한 종료",
+    cancelled: "취소",
+    canceled: "취소",
+    failed: "종료",
     mutualAccepted: "양쪽 수락",
     ready: "일정 선택 대기",
     needs_first_choice: "일정 선택 대기",
@@ -44,13 +57,19 @@ function getDueAt(match = {}) {
   const status = getScheduleStatus(match);
   const schedule = match.schedule || {};
 
-  if (["waiting_counterpart", "needs_final_choice"].includes(status)) {
-    return schedule.counterpartDueAtClient || schedule.dueAtClient || "";
-  }
-
   if (status === "place_pending") return schedule.placeConfirmDueAtClient || "";
+  if (status === "confirmed") return "";
 
-  return schedule.dueAtClient || schedule.counterpartDueAtClient || match.responseDueAtClient || "";
+  return getScheduleStageDueAtClient(schedule, status);
+}
+
+function getMeetingWindowLabel(match = {}) {
+  const policy = match?.schedulePolicy || {};
+  const start = String(policy.windowStartDateKey || "").replaceAll("-", ".");
+  const end = String(policy.windowEndDateKey || "").replaceAll("-", ".");
+
+  if (start && end) return `${start} ~ ${end}`;
+  return "기존 매칭";
 }
 
 function isExpired(value) {
@@ -60,6 +79,9 @@ function isExpired(value) {
 }
 
 function canSendReminder(match = {}) {
+  if (isTerminalProposalStatus(match?.status) || isTerminalProposalStatus(match?.scheduleStatus || match?.schedule?.status)) {
+    return false;
+  }
   const status = getScheduleStatus(match);
   return match.status === "mutualAccepted" || ["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice"].includes(status);
 }
@@ -134,6 +156,7 @@ function MatchScheduleCard({ match, onConfirmSchedule, onSendReminder, busyId })
   const finalChoice = getFinalChoice(match);
   const firstChoices = Array.isArray(match?.schedule?.firstChoices) ? match.schedule.firstChoices : [];
   const dueAt = getDueAt(match);
+  const responseDueAt = getProposalResponseDueAtClient(match);
   const expired = isExpired(dueAt);
   const reminderBusy = busyId === `scheduleReminder:${match.id}`;
 
@@ -155,10 +178,11 @@ function MatchScheduleCard({ match, onConfirmSchedule, onSendReminder, busyId })
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <InfoBox label="응답 기한" value={match.responseDueAtClient ? formatDate(match.responseDueAtClient) : "2일 내"} />
-        <InfoBox label="일정 기한" value={dueAt ? formatDate(dueAt) : "2일 내"} />
-        <InfoBox label="사진 공개" value={match.photoRevealStatus === "revealed" ? "공개 완료" : "일정·장소 확정 후"} />
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InfoBox label="응답 기한" value={responseDueAt ? formatDate(responseDueAt) : "2일 내"} />
+        <InfoBox label="현재 단계 기한" value={dueAt ? formatDate(dueAt) : "24시간 내"} />
+        <InfoBox label="만남 후보 주말" value={getMeetingWindowLabel(match)} />
+        <InfoBox label="사진 공개" value="제안 단계부터 선명하게 공개" />
       </div>
 
       <div className="mt-4 border border-zinc-200 px-4">
@@ -199,6 +223,9 @@ function MatchScheduleCard({ match, onConfirmSchedule, onSendReminder, busyId })
 export default function ScheduleTab({ matches, onConfirmSchedule, onSendReminder, busyId }) {
   const scheduleMatches = useMemo(() => {
     return matches.filter((match) => {
+      if (isTerminalProposalStatus(match?.status) || isTerminalProposalStatus(match?.scheduleStatus || match?.schedule?.status)) {
+        return false;
+      }
       const status = getScheduleStatus(match);
       return (
         match.status === "mutualAccepted" ||
@@ -236,7 +263,7 @@ export default function ScheduleTab({ matches, onConfirmSchedule, onSendReminder
         desc="양쪽 모두 만남 진행 의사를 선택한 매칭의 일시/장소 선택 상태를 관리합니다. 후선택자가 일시와 장소를 선택하면 자동 확정되고 안내 문자가 발송됩니다."
       >
         <div className="mb-4 border border-orange-200 bg-orange-50 p-4 text-sm font-bold leading-6 text-orange-800">
-          모든 응답과 일정 선택은 2일 내 진행 기준입니다. 후선택자가 일시 1개와 장소 1개를 선택하면 고객 안내 문자가 자동 발송됩니다.
+          제안 응답은 48시간, 일정조율은 1차·후선택자 각 24시간(총 48시간) 기준입니다. 만남 후보일은 매칭 생성일 기준 다음 주 금·토·일로 고정됩니다.
         </div>
 
         <div className="grid gap-3">

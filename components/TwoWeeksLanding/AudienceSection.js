@@ -19,7 +19,7 @@ export default function AudienceSection() {
           <SectionTitle
             eyebrow="overview"
             title="투윅스 1기 모집"
-            desc="연령대와 활동 지역이 맞는 이성을 우선 소개하고, 첫 만남은 카페 1시간 바이트미팅으로 가볍게 시작합니다."
+            desc="연령대와 활동 지역이 맞는 이성을 우선 소개하고, 첫 만남은 카페에서 부담 없이 대화하는 바이트소개팅으로 시작합니다."
           />
         </motion.div>
 

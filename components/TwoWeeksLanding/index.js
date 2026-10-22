@@ -1,58 +1,68 @@
 import NavBar from "./NavBar";
 import HeroSection from "./HeroSection";
-import AudienceSection from "./AudienceSection";
-import FlowSection from "./FlowSection";
-import PolicySection from "./PolicySection";
-import FAQSection from "./FAQSection";
+import QuickProcessSection from "./QuickProcessSection";
+import ActivityTicker from "./ActivityTicker";
+import EmotionSection from "./EmotionSection";
+import CompareSection from "./CompareSection";
+import SafetySection from "./SafetySection";
+import ProfileExamplesSection from "./ProfileExamplesSection";
+import PricingSection from "./PricingSection";
+import DetailedJourneySection from "./DetailedJourneySection";
+import ProductPreviewSection from "./ProductPreviewSection";
 import FooterSection from "./FooterSection";
+import RecruitmentDock from "./RecruitmentDock";
+import CampaignAttributionTracker from "./CampaignAttributionTracker";
 
 export default function TwoWeeksLanding() {
   return (
-    <div className="bg-black text-zinc-950">
+    <div className="min-h-screen bg-white text-slate-950">
+      <CampaignAttributionTracker />
       <style jsx global>{`
         html {
           scroll-behavior: smooth;
+          scroll-padding-top: 88px;
         }
 
-        .tw-matrix-column {
-          animation-name: tw-matrix-fall;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-          filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.22));
+        body {
+          background: #ffffff;
         }
 
-        @keyframes tw-matrix-fall {
-          0% {
-            transform: translateY(-24%);
-            opacity: 0;
-          }
-          12% {
-            opacity: 0.65;
-          }
-          100% {
-            transform: translateY(168%);
-            opacity: 0;
+        html,
+        body,
+        div#__next {
+          overflow-x: clip !important;
+        }
+
+        @supports not (overflow: clip) {
+          div#__next {
+            overflow-x: visible !important;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .tw-matrix-column {
-            animation: none;
-            opacity: 0.12;
+          html {
+            scroll-behavior: auto;
           }
         }
       `}</style>
 
       <NavBar />
 
-      <main className="overflow-x-hidden bg-black md:snap-y md:snap-mandatory">
+      <main>
         <HeroSection />
-        <AudienceSection />
-        <FlowSection />
-        <PolicySection />
-        <FAQSection />
+        <QuickProcessSection />
+        <EmotionSection />
+        <CompareSection />
+        <SafetySection />
+        <ProfileExamplesSection />
+        <ActivityTicker />
+        <PricingSection />
+        <DetailedJourneySection />
+        <ProductPreviewSection />
         <FooterSection />
       </main>
+
+      <RecruitmentDock />
     </div>
   );
 }

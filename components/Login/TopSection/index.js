@@ -49,9 +49,9 @@ const TopSection = () => {
                     <span className="sr-only">PYGM</span>
                     <div className='w-full flex items-center overflow-hidden justify-center h-[160px] rounded-full'>
                       <Image
-                        src="/image/love.jpg"
+                        src="/image/date_home_topsection.jpg"
                         width={160}
-                        className='shadow-inner'
+                        className='h-[160px] w-[160px] object-cover shadow-inner'
                         alt="landing"
                         height={160}
                         unoptimized

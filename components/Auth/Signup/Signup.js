@@ -24,7 +24,7 @@ import {
   verifyIdentityResultWithServer,
 } from "lib/identityVerificationClient";
 
-import SignupFormCard from "./Signup/SignupFormCard";
+import SignupFormCard from "./SignupFormCard";
 
 const SIGNUP_DRAFT_KEY = "charmingsoup_signup_draft_v6";
 const SIGNUP_DRAFT_TTL_MS = 15 * 60 * 1000; // 5분

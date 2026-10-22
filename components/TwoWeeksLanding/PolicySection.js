@@ -1,40 +1,47 @@
-import { motion } from "framer-motion";
+import { FiCheck, FiShield } from "react-icons/fi";
 import MobileFrame from "./MobileFrame";
-import SectionTitle from "./SectionTitle";
-import { POLICY_CARDS } from "./constants";
-import { reveal } from "./motionConfig";
+import { TRUST_ITEMS } from "./constants";
 
 export default function PolicySection() {
   return (
-    <section className="min-h-[100svh] bg-[#fafafa] md:min-h-screen md:snap-start">
-      <MobileFrame className="flex min-h-[100svh] flex-col justify-center py-16 md:min-h-screen md:py-20">
-        <motion.div {...reveal("up")}>
-          <SectionTitle
-            eyebrow="policy"
-            title="투윅스 운영 정책"
-            desc="예치금, 사진 공개, 재매칭, 연락처 공개 기준까지 핵심 운영 정책을 투명하게 안내합니다."
-          />
-        </motion.div>
+    <section className="bg-[#fff4ef] text-slate-950">
+      <MobileFrame className="py-20 md:py-28">
+        <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
+          <div>
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl text-[#ff5b4d] shadow-sm">
+              <FiShield aria-hidden="true" />
+            </div>
+            <p className="mt-6 text-xs font-black uppercase tracking-[0.24em] text-[#ff5b4d] md:text-sm">
+              Simple & Safe
+            </p>
+            <h2 className="mt-5 break-keep text-[38px] font-black leading-[1.12] tracking-[-0.055em] md:text-6xl">
+              가볍게 시작해도,
+              <br />
+              <span className="text-slate-400">운영은 꼼꼼하게.</span>
+            </h2>
+          </div>
 
-        <div className="mx-auto mt-8 grid w-full max-w-[390px] gap-3 sm:max-w-[520px] sm:grid-cols-2 md:mt-12 md:max-w-none xl:grid-cols-3">
-          {POLICY_CARDS.map((card, idx) => (
-            <motion.div
-              key={card.title}
-              {...reveal(idx % 2 === 0 ? "left" : "right", idx * 0.04)}
-              whileHover={{ y: -5, transition: { duration: 0.22 } }}
-              className="rounded-[22px] border border-zinc-200 bg-white p-5 transition md:rounded-[28px] md:p-6"
-            >
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-orange-50 text-xl text-orange-500 md:h-12 md:w-12">
-                {card.icon}
-              </div>
-              <div className="mt-4 text-lg font-bold tracking-[-0.03em] text-zinc-950 md:mt-5 md:text-xl">
-                {card.title}
-              </div>
-              <div className="mt-2.5 whitespace-pre-line break-keep text-[13px] leading-6 text-zinc-500 md:mt-3 md:text-base md:leading-7">
-                {card.desc}
-              </div>
-            </motion.div>
-          ))}
+          <div className="grid gap-3">
+            {TRUST_ITEMS.map((item) => (
+              <article
+                key={item.label}
+                className="grid gap-3 rounded-[24px] border border-white bg-white/90 p-5 shadow-[0_12px_36px_rgba(124,45,18,0.06)] sm:grid-cols-[120px_150px_1fr] sm:items-center md:p-6"
+              >
+                <div className="flex items-center gap-2 text-sm font-black text-[#ff5b4d]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff5b4d] text-white">
+                    <FiCheck aria-hidden="true" />
+                  </span>
+                  {item.label}
+                </div>
+                <div className="text-xl font-black tracking-[-0.035em] text-slate-950">
+                  {item.value}
+                </div>
+                <p className="break-keep text-sm font-medium leading-7 text-slate-600">
+                  {item.desc}
+                </p>
+              </article>
+            ))}
+          </div>
         </div>
       </MobileFrame>
     </section>

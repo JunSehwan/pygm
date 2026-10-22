@@ -151,6 +151,9 @@ export default function LandingFooter() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-100 pt-3 text-[12px] font-medium text-slate-600">
+            <Link href="/2weeks" className="underline underline-offset-4">
+              투윅스 소개
+            </Link>
             {LEGAL_LINKS.map((link) => (
               <Link key={link.href} href={link.href} className="underline underline-offset-4">
                 {link.label}

@@ -21,10 +21,17 @@ export default function SEOHead({
   noindex = false,
   canonical,
   type = "website",
+  siteName = SITE_NAME,
+  appendSiteName = true,
+  imageAlt,
 }) {
   const router = useRouter();
 
-  const pageTitle = title ? `${title} | ${SITE_NAME}` : DEFAULT_TITLE;
+  const pageTitle = title
+    ? appendSiteName
+      ? `${title} | ${siteName}`
+      : title
+    : DEFAULT_TITLE;
 
   const cleanPath = (router.asPath || "/").split("?")[0].split("#")[0];
 
@@ -51,12 +58,15 @@ export default function SEOHead({
 
       <meta property="og:type" content={type} />
       <meta property="og:locale" content="ko_KR" />
-      <meta property="og:site_name" content={SITE_NAME} />
+      <meta property="og:site_name" content={siteName} />
       <meta property="og:title" content={pageTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={currentUrl} />
       <meta property="og:image" content={image} />
-      <meta property="og:image:alt" content={`${SITE_NAME} 대표 이미지`} />
+      <meta
+        property="og:image:alt"
+        content={imageAlt || `${siteName} 대표 이미지`}
+      />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={pageTitle} />

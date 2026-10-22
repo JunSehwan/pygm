@@ -1,10 +1,10 @@
 export const TWOWEEKS_TEST_CODE = "000000";
 
-const DEFAULT_TEST_PHONES = [
+export const TWOWEEKS_TEST_PHONES = Object.freeze([
   "01000000001",
   "01000000002",
   "01000000003",
-];
+]);
 
 export function normalizeTestPhone(value = "") {
   let digits = String(value || "").replace(/[^0-9]/g, "");
@@ -24,29 +24,8 @@ export function normalizeTestPhone(value = "") {
   return digits;
 }
 
-export function isTwoWeeksTestMode() {
-  const enabled = String(process.env.NEXT_PUBLIC_TWOWEEKS_TEST_MODE || "").toLowerCase();
-
-  if (enabled === "true" || enabled === "1" || enabled === "yes") return true;
-  if (typeof window !== "undefined") {
-    return ["localhost", "127.0.0.1"].includes(window.location.hostname);
-  }
-
-  return process.env.NODE_ENV !== "production";
-}
-
-export function getTwoWeeksTestPhones() {
-  const configured = String(process.env.NEXT_PUBLIC_TWOWEEKS_TEST_PHONES || "")
-    .split(",")
-    .map(normalizeTestPhone)
-    .filter(Boolean);
-
-  return Array.from(new Set([...DEFAULT_TEST_PHONES, ...configured]));
-}
-
 export function isTwoWeeksTestPhone(phone = "") {
-  if (!isTwoWeeksTestMode()) return false;
-  return getTwoWeeksTestPhones().includes(normalizeTestPhone(phone));
+  return TWOWEEKS_TEST_PHONES.includes(normalizeTestPhone(phone));
 }
 
 export function buildTwoWeeksTestIdentityData({

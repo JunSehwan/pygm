@@ -428,13 +428,12 @@ exports.scheduleArenaOffers = onSchedule(
         const offerSnap = await offerRef.get();
         const offerData = offerSnap.exists ? offerSnap.data() || {} : {};
         const expiresAt = toDate(offerData?.expiresAt);
-        const currentMaleUids = getOfferMaleUids(offerData);
+        const activeBatchExists =
+          !!expiresAt && expiresAt.getTime() > Date.now();
 
-        if (
-          expiresAt &&
-          expiresAt.getTime() > Date.now() &&
-          currentMaleUids.length > 0
-        ) {
+        // 72시간 배치가 살아 있으면 현재 남은 인원이 2명/1명/0명이어도
+        // 다음 배치를 절대 보충하지 않는다.
+        if (activeBatchExists) {
           continue;
         }
 
@@ -500,35 +499,61 @@ exports.scheduleArenaOffers = onSchedule(
           return acc;
         }, {});
 
-        const batchKey = new Date().toISOString();
-        const nextExpiresAt = new Date(Date.now() + ARENA_DURATION_MS);
+        const batchKey = nextMaleUids.length ? new Date().toISOString() : "";
+        const nextExpiresAt = nextMaleUids.length
+          ? new Date(Date.now() + ARENA_DURATION_MS)
+          : null;
 
-        await offerRef.set(
-          {
-            femaleUid,
-            maleUid: nextMaleUids[0] || "",
-            maleUids: nextMaleUids,
-            count: nextMaleUids.length,
-            status: nextMaleUids.length ? "offered" : "empty",
-            valueMatchPercent: valueMatchPercentMap[nextMaleUids[0]] || 0,
-            valueMatchPercentMap,
-            expiresAt: nextExpiresAt,
-            batchKey,
-            shownMaleUids: nextMaleUids.length
-              ? shouldResetShownHistory
-                ? nextMaleUids
-                : mergeRecentShownMaleUids(previouslyShownMaleUids, nextMaleUids)
-              : previouslyShownMaleUids,
-            shownHistoryResetAt:
-              shouldResetShownHistory && nextMaleUids.length
-                ? admin.firestore.FieldValue.serverTimestamp()
-                : offerData?.shownHistoryResetAt || null,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
+        let batchCreated = false;
 
-        if (!nextMaleUids.length) {
+        await db.runTransaction(async (transaction) => {
+          const latestOfferSnap = await transaction.get(offerRef);
+          const latestOfferData = latestOfferSnap.exists
+            ? latestOfferSnap.data() || {}
+            : {};
+          const latestExpiresAt = toDate(latestOfferData?.expiresAt);
+          const latestBatchIsActive =
+            !!latestExpiresAt && latestExpiresAt.getTime() > Date.now();
+
+          // 브라우저의 ensureArenaOffers와 동시에 실행되어도
+          // 먼저 생성된 72시간 배치를 덮어쓰지 않는다.
+          if (latestBatchIsActive) {
+            return;
+          }
+
+          const latestShownMaleUids = getShownMaleUids(latestOfferData);
+
+          transaction.set(
+            offerRef,
+            {
+              femaleUid,
+              maleUid: nextMaleUids[0] || "",
+              maleUids: nextMaleUids,
+              count: nextMaleUids.length,
+              status: nextMaleUids.length ? "offered" : "empty",
+              valueMatchPercent: valueMatchPercentMap[nextMaleUids[0]] || 0,
+              valueMatchPercentMap,
+              expiresAt: nextExpiresAt,
+              batchKey,
+              shownMaleUids: nextMaleUids.length
+                ? shouldResetShownHistory
+                  ? nextMaleUids
+                  : mergeRecentShownMaleUids(latestShownMaleUids, nextMaleUids)
+                : latestShownMaleUids,
+              shownHistoryResetAt:
+                shouldResetShownHistory && nextMaleUids.length
+                  ? admin.firestore.FieldValue.serverTimestamp()
+                  : latestOfferData?.shownHistoryResetAt || null,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          batchCreated = true;
+        });
+
+        // 다른 실행이 이미 활성 배치를 만들었다면 아무 것도 하지 않는다.
+        if (!batchCreated || !nextMaleUids.length) {
           continue;
         }
 

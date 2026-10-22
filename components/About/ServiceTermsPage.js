@@ -5,6 +5,45 @@ import AboutFrame from "./AboutFrame";
 import LegalSectionCard from "./LegalSectionCard";
 import { LEGAL_META } from "./LegalMeta";
 
+const TWOWEEKS_DEPOSIT_POLICY_ROWS = [
+  {
+    stage: "매칭 제안 단계에서 거절·패스",
+    deduction: "차감 없음",
+    handling: "예치금 잔액 전액 유지·반환",
+    basis: "아직 양쪽의 만남 의사가 확정되지 않은 단계",
+  },
+  {
+    stage: "양쪽 수락 후 일정·장소 확정 전 취소",
+    deduction: "기준 예치금의 30%",
+    handling: "나머지 70% 유지·반환",
+    basis: "상대방 일정 확보와 일정 조율이 시작된 단계의 운영 손실",
+  },
+  {
+    stage: "일정·장소 확정 후 만남 전날까지 취소",
+    deduction: "기준 예치금의 50%",
+    handling: "나머지 50% 유지·반환",
+    basis: "확정 약속 취소에 따른 상대방 안내와 장소·일정 재처리 비용",
+  },
+  {
+    stage: "만남 당일 00:00 이후 취소",
+    deduction: "기준 예치금의 100%",
+    handling: "반환 잔액 없음",
+    basis: "당일 취소로 회복하기 어려운 약속·운영 손실",
+  },
+  {
+    stage: "사전 연락 없는 무단 불참(노쇼)",
+    deduction: "기준 예치금의 100%",
+    handling: "반환 잔액 없음",
+    basis: "상대방의 시간 손실과 현장 확인·후속 처리 비용",
+  },
+  {
+    stage: "정상적으로 만남 완료 또는 회원 책임 없는 취소",
+    deduction: "차감 없음",
+    handling: "회원 요청에 따라 반환 또는 다음 회차 유지",
+    basis: "정상 이행, 회사 귀책 또는 상대방 귀책 등",
+  },
+];
+
 function InfoLine({ label, value }) {
   return (
     <div className="flex items-start gap-3 rounded-md bg-slate-50 px-3 py-3">
@@ -36,8 +75,8 @@ export default function ServiceTermsPage() {
                 {LEGAL_META.serviceName} 이용약관
               </div>
               <div className="mt-1 break-keep text-[12px] leading-5 text-slate-500">
-                본 약관은 회원가입, 프로필 이용, 콘텐츠 작성, 차밍스푼 결제 및
-                환불에 관한 기준을 규정합니다.
+                본 약관은 회원가입, 프로필 이용, 콘텐츠 작성, 차밍스푼 결제와
+                투윅스 매칭·예치금 운영 기준을 규정합니다.
               </div>
             </div>
           </div>
@@ -91,6 +130,21 @@ export default function ServiceTermsPage() {
         <p>
           5. “차밍스푼” 또는 “스푼”이란 서비스 내 유료 또는 무상으로 지급되는
           포인트형 이용재화를 말합니다.
+        </p>
+        <p>
+          6. “투윅스”란 성인 회원 간 1:1 소개팅 및 교제 기회를 제공하고,
+          프로필 제안부터 일정·장소 선택까지 실제 만남 진행을 지원하는 매칭
+          서비스를 말합니다.
+        </p>
+        <p>
+          7. “예치금(약속 이행 보증금)”이란 투윅스의 원활한 만남 진행과
+          노쇼 방지를 위하여 회원이 맡기는 금액으로서, 서비스 이용료·매칭비·회비
+          또는 성혼 대가가 아닌 반환을 전제로 한 보증 성격의 금액을 말합니다.
+        </p>
+        <p>
+          8. “노쇼”란 확정된 만남에 사전 취소 연락 없이 참석하지 않거나,
+          약속 시간 이후에도 합리적인 시간 동안 연락 없이 도착하지 않는 경우를
+          말합니다.
         </p>
       </LegalSectionCard>
 
@@ -235,7 +289,101 @@ export default function ServiceTermsPage() {
         </p>
       </LegalSectionCard>
 
-      <LegalSectionCard title="제9조 이용제한 및 서비스 종료">
+      <LegalSectionCard title="제9조 투윅스 서비스의 성격">
+        <p>
+          1. 투윅스는 결혼 상대방의 알선 또는 성혼을 목적으로 하는
+          결혼중개서비스가 아니라, 성인 회원 간 소개팅 및 교제 기회를 제공하는
+          매칭 서비스입니다.
+        </p>
+        <p>
+          2. 회사는 혼인 상대방 선정을 위한 전문 상담, 성혼을 목적으로 한 알선,
+          성혼 보장 또는 성혼을 조건으로 한 수수료의 수취를 제공하지 않습니다.
+          회원이 입력한 결혼 의향·가치관 정보는 만남의 호환성을 검토하기 위한
+          참고정보일 뿐, 회사가 결혼 성사를 약속하거나 보증한다는 의미가
+          아닙니다.
+        </p>
+        <p>
+          3. 상대방과의 교제 또는 혼인 여부는 회원이 자율적으로 결정하며,
+          회사는 만남의 결과나 교제·혼인의 성립을 보장하지 않습니다.
+        </p>
+        <p>
+          4. 서비스의 명칭이나 본 조의 표현과 관계없이 실제 제공행위가 관계
+          법령상 신고·등록 또는 별도 의무의 대상이 되는 경우, 회사는 해당
+          법령에 따른 절차와 의무를 준수합니다.
+        </p>
+      </LegalSectionCard>
+
+      <LegalSectionCard title="제10조 투윅스 예치금의 관리·반환·차감">
+        <p>
+          1. 예치금은 원활한 만남 진행과 노쇼 방지를 위한 약속 이행 보증금이며,
+          회사는 회원별 입금·차감·반환 내역을 서비스 이용대금과 구분하여
+          관리합니다. 예치금에는 별도의 이자가 발생하지 않습니다.
+        </p>
+        <p>
+          2. 정상적으로 만남을 완료하거나 반환 요건을 충족한 경우 예치금은
+          회원 요청에 따라 반환되거나 다음 회차 참여를 위하여 유지될 수
+          있습니다.
+        </p>
+        <p>
+          3. 회원의 단순 변심, 확정 약속 취소, 당일 취소 또는 노쇼로 인해
+          상대방의 시간 손실과 일정·장소 재조율 등 운영 손실이 발생한 경우,
+          회사는 아래와 같이 사전에 정한 손해배상액의 예정 기준에 따라 예치금의
+          일부 또는 전부를 차감할 수 있습니다.
+        </p>
+        <p>
+          회원별 기준 예치금은 신청 경로와 상품에 따라 다를 수 있으며, 서비스에
+          표시된 해당 회원의 기준 금액을 적용합니다. 기본 예치금 30,000원은
+          9,000원·15,000원·30,000원, 외부 플랫폼 예치금 20,000원은
+          6,000원·10,000원·20,000원의 순서로 차감 기준이 계산됩니다.
+        </p>
+
+        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+          <table className="min-w-[780px] w-full border-collapse text-left text-[12px] leading-5 text-slate-700">
+            <thead className="bg-slate-50 text-slate-900">
+              <tr>
+                <th className="border-b border-slate-200 px-3 py-3 font-bold">시점·사유</th>
+                <th className="border-b border-slate-200 px-3 py-3 font-bold">차감 기준</th>
+                <th className="border-b border-slate-200 px-3 py-3 font-bold">반환·처리</th>
+                <th className="border-b border-slate-200 px-3 py-3 font-bold">산정 취지</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TWOWEEKS_DEPOSIT_POLICY_ROWS.map((row) => (
+                <tr key={row.stage} className="align-top last:[&>td]:border-b-0">
+                  <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-900">{row.stage}</td>
+                  <td className="border-b border-slate-100 px-3 py-3 font-bold text-violet-700">{row.deduction}</td>
+                  <td className="border-b border-slate-100 px-3 py-3">{row.handling}</td>
+                  <td className="border-b border-slate-100 px-3 py-3">{row.basis}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          4. 당일 취소 기준일은 대한민국 표준시(KST)의 만남일 00:00부터이며,
+          차감액은 회원의 예치금 잔액을 초과하지 않습니다. 동일 사유로 예치금을
+          차감한 범위에 대하여 회사가 중복하여 배상을 청구하지 않습니다.
+        </p>
+        <p>
+          5. 회사 또는 상대방의 귀책, 천재지변, 응급질환, 안전 우려 등 회원에게
+          책임을 묻기 어려운 사유가 객관적으로 확인되는 경우에는 차감하지
+          않습니다. 회사는 개별 사정, 실제 손해 및 관계 법령을 고려하여 차감액을
+          감액하거나 면제할 수 있습니다.
+        </p>
+        <p>
+          6. 차감이 발생하는 경우 회사는 적용 단계, 차감액 및 잔여 예치금을
+          회원에게 안내합니다. 회원은 고객센터를 통해 소명자료를 제출하거나
+          재검토를 요청할 수 있습니다.
+        </p>
+        <p>
+          7. 반환 요청이 접수된 예치금은 회사 확인 후 영업일 기준 3일 이내
+          처리를 원칙으로 하며, 금융기관 사정에 따라 실제 입금 시점은 달라질 수
+          있습니다.
+        </p>
+      </LegalSectionCard>
+
+      <LegalSectionCard title="제11조 이용제한 및 서비스 종료">
         <p>
           1. 회사는 회원이 본 약관, 운영정책 또는 관계 법령을 위반하는 경우
           사안의 경중에 따라 경고, 콘텐츠 제한, 일부 기능 제한, 계정 정지,
@@ -247,7 +395,7 @@ export default function ServiceTermsPage() {
         </p>
       </LegalSectionCard>
 
-      <LegalSectionCard title="제10조 회사의 권리와 의무">
+      <LegalSectionCard title="제12조 회사의 권리와 의무">
         <p>
           1. 회사는 관계 법령과 본 약관이 금지하는 행위를 하지 않으며, 안정적인
           서비스 제공을 위하여 지속적으로 노력합니다.
@@ -261,7 +409,7 @@ export default function ServiceTermsPage() {
         </p>
       </LegalSectionCard>
 
-      <LegalSectionCard title="제11조 회원의 의무">
+      <LegalSectionCard title="제13조 회원의 의무">
         <p>
           1. 회원은 자신의 계정을 직접 관리하여야 하며, 계정을 타인에게
           대여·양도·공유하여서는 안 됩니다.
@@ -276,7 +424,7 @@ export default function ServiceTermsPage() {
         </p>
       </LegalSectionCard>
 
-      <LegalSectionCard title="제12조 지식재산권">
+      <LegalSectionCard title="제14조 지식재산권">
         <p>
           1. 서비스에 관한 저작권, 상표권, 디자인, 데이터베이스, 화면 구성,
           문구, 로고 등 일체의 권리는 회사 또는 정당한 권리자에게 귀속됩니다.
@@ -287,7 +435,7 @@ export default function ServiceTermsPage() {
         </p>
       </LegalSectionCard>
 
-      <LegalSectionCard title="제13조 면책">
+      <LegalSectionCard title="제15조 면책">
         <p>
           1. 회사는 천재지변, 불가항력, 통신장애, 제3자 서비스 장애, 회원의
           귀책사유로 인한 손해에 대하여 책임을 지지 않습니다.
@@ -303,7 +451,7 @@ export default function ServiceTermsPage() {
         </p>
       </LegalSectionCard>
 
-      <LegalSectionCard title="제14조 분쟁 해결 및 관할">
+      <LegalSectionCard title="제16조 분쟁 해결 및 관할">
         <p>
           1. 회사와 회원 간 분쟁이 발생한 경우 당사자는 신의성실의 원칙에 따라
           협의하여 해결하도록 노력합니다.

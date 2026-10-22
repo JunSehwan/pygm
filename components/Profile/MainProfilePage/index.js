@@ -432,7 +432,7 @@ export default function ProfileMainPage({ user }) {
       );
 
       await saveIdentityVerificationToUser(user.userID, {
-        provider: verified.provider || "PORTONE_DANAL",
+        provider: verified.provider || "PORTONE",
         phone: verifiedPhone,
         name: verifiedName,
         birth: verifiedBirth,

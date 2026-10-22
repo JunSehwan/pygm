@@ -1,8 +1,68 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth!=null;
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownedBy(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isPrimaryAdmin() {
+      return signedIn() && request.auth.uid == '9OqbfNZW6lgq5NLB0lAigkYQxME2';
+    }
+
+    function withinSizeLimit(maxBytes) {
+      return request.resource == null || request.resource.size <= maxBytes;
+    }
+
+    // 가입 시 프로필 사진. 상대 프로필 표시 호환성을 위해 로그인 사용자의 read는 유지한다.
+    match /twoweeksApplications/{applicationId}/{ownerUid}/photos/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if ownedBy(ownerUid) && withinSizeLimit(10 * 1024 * 1024) &&
+        (request.resource == null || request.resource.contentType.matches('image/(jpeg|png|webp)'));
+    }
+
+    // 직업/재직 인증자료는 신청자 본인과 주 관리자 외에는 Storage SDK로 읽을 수 없다.
+    match /twoweeksApplications/{applicationId}/{ownerUid}/verification/{fileName} {
+      allow read: if ownedBy(ownerUid) || isPrimaryAdmin();
+      allow write: if ownedBy(ownerUid) && withinSizeLimit(15 * 1024 * 1024) &&
+        (request.resource == null || request.resource.contentType.matches('image/(jpeg|png|webp)'));
+    }
+
+    // 대시보드 프로필 사진과 직업 인증자료는 현재 로그인 세션 UID 경로로 분리한다.
+    match /twoweeksApplications/{applicationId}/{ownerUid}/profileEdits/photos/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if ownedBy(ownerUid) && withinSizeLimit(10 * 1024 * 1024) &&
+        (request.resource == null || request.resource.contentType.matches('image/(jpeg|png|webp)'));
+    }
+
+    match /twoweeksApplications/{applicationId}/{ownerUid}/profileEdits/verification/{allPaths=**} {
+      allow read: if ownedBy(ownerUid) || isPrimaryAdmin();
+      allow write: if ownedBy(ownerUid) && withinSizeLimit(15 * 1024 * 1024) &&
+        (request.resource == null || request.resource.contentType.matches('image/(jpeg|png|webp)'));
+    }
+
+    // 현장사진도 현재 로그인 세션 UID 경로에만 업로드할 수 있다.
+    match /twoweeksMatches/{matchId}/proofs/{applicationId}/{ownerUid}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if ownedBy(ownerUid) &&
+        withinSizeLimit(10 * 1024 * 1024) &&
+        (request.resource == null || request.resource.contentType.matches('image/.*'));
+    }
+
+    // 연애노트 이미지는 관리자 Cloud Function(Admin SDK)만 업로드한다.
+    match /twoweeksDatingNotes/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // 기존 서비스 저장소는 종전 로그인 기반 규칙을 유지한다.
+    match /{root}/{allPaths=**} {
+      allow read, write: if signedIn() &&
+        root != 'twoweeksApplications' &&
+        root != 'twoweeksMatches' &&
+        root != 'twoweeksDatingNotes';
     }
   }
 }

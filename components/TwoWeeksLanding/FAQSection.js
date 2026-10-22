@@ -1,37 +1,44 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { FiChevronDown } from "react-icons/fi";
 import MobileFrame from "./MobileFrame";
-import SectionTitle from "./SectionTitle";
 import { FAQ_ITEMS } from "./constants";
-import { reveal } from "./motionConfig";
 
-function FAQItem({ item, open, onToggle }) {
+function FAQItem({ item, index, open, onToggle }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-solid border-zinc-200 bg-white">
+    <article className="border-b border-slate-200 border-solid last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left md:px-7"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-5 py-6 text-left md:py-7"
       >
-        <div className="break-keep text-sm font-semibold leading-7 text-zinc-950 md:text-base">
-          Q. {item.q}
-        </div>
-        <FiChevronDown
-          className={`shrink-0 text-xl text-zinc-500 transition duration-300 ${
-            open ? "rotate-180" : ""
-          }`}
-        />
+        <span className="flex min-w-0 items-start gap-4">
+          <span className="mt-1 text-xs font-black text-[#ff5b4d]">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <span className="break-keep text-base font-black leading-7 text-slate-950 md:text-lg">
+            {item.q}
+          </span>
+        </span>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg text-slate-600">
+          <FiChevronDown
+            className={`transition duration-300 ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
+        </span>
       </button>
-
-      <div className={`grid transition-all duration-300 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+      <div
+        className={`grid transition-all duration-300 ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
         <div className="overflow-hidden">
-          <div className="break-keep border-solid border-t border-zinc-100 px-5 py-5 text-sm leading-7 text-zinc-600 md:px-7 md:text-base">
+          <p className="break-keep pb-7 pl-8 pr-12 text-sm font-medium leading-7 text-slate-600 md:pl-10 md:text-base md:leading-8">
             {item.a}
-          </div>
+          </p>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -39,26 +46,33 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section id="faq" className="min-h-[100svh] bg-white md:min-h-screen md:snap-start">
-      <MobileFrame className="flex min-h-[100svh] flex-col justify-center py-16 md:min-h-screen md:py-20">
-        <motion.div {...reveal("up")}>
-          <SectionTitle
-            eyebrow="faq"
-            title="자주 묻는 질문"
-            desc="어떤 부분이 궁금하시나요?"
-          />
-        </motion.div>
+    <section id="faq" className="bg-white text-slate-950">
+      <MobileFrame className="py-20 md:py-32">
+        <div className="grid gap-10 lg:grid-cols-[0.68fr_1.32fr] lg:gap-20">
+          <div className="lg:sticky lg:top-28 lg:self-start">
+            <p className="text-xs font-black tracking-[0.08em] text-[#ff5b4d] md:text-sm">
+              자주 묻는 질문
+            </p>
+            <h2 className="mt-5 break-keep text-[38px] font-black leading-[1.12] tracking-[-0.015em] md:text-6xl">
+              신청 전,
+              <br />
+              궁금한 점을 확인하세요.
+            </h2>
+          </div>
 
-        <div className="mx-auto mt-8 w-full max-w-[390px] space-y-3 sm:max-w-[520px] md:mt-12 md:max-w-4xl md:space-y-4">
-          {FAQ_ITEMS.map((item, idx) => (
-            <motion.div key={item.q} {...reveal(idx % 2 === 0 ? "left" : "right", idx * 0.04)}>
+          <div className="border-t border-slate-950">
+            {FAQ_ITEMS.map((item, index) => (
               <FAQItem
+                key={item.q}
                 item={item}
-                open={openIndex === idx}
-                onToggle={() => setOpenIndex(openIndex === idx ? -1 : idx)}
+                index={index}
+                open={openIndex === index}
+                onToggle={() =>
+                  setOpenIndex(openIndex === index ? -1 : index)
+                }
               />
-            </motion.div>
-          ))}
+            ))}
+          </div>
         </div>
       </MobileFrame>
     </section>

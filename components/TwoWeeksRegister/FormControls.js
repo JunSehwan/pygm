@@ -64,9 +64,10 @@ export function SelectBox({ value, onChange, options, placeholder, error }) {
           )}
         >
           <option value="">{placeholder}</option>
-          {options.map((item) => (
-            <option key={item} value={item}>{item}</option>
-          ))}
+          {options.map((item) => {
+            const option = typeof item === "string" ? { label: item, value: item } : item;
+            return <option key={option.value} value={option.value}>{option.label}</option>;
+          })}
         </select>
         {/* <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" /> */}
       </div>

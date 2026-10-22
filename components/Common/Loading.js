@@ -124,7 +124,7 @@ export default function LoadingPage() {
             className="mt-8 text-center"
           >
             <div className="text-[22px] font-extrabold tracking-[-0.04em] text-slate-900">
-              차밍수프 - 이동 중
+              이동 중
             </div>
 
             <motion.p
@@ -136,7 +136,7 @@ export default function LoadingPage() {
                 ease: "easeInOut",
               }}
             >
-              결이 잘 맞는 이성찾기! - 차밍수프
+              결이 잘 맞는 이성찾기!
             </motion.p>
 
             <div className="flex justify-center">

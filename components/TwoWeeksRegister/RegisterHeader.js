@@ -1,28 +1,54 @@
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { FiChevronRight } from "react-icons/fi";
 import { TWOWEEKS_DASHBOARD_PATH } from "./constants";
+import DashboardConfirmModal from "./DashboardConfirmModal";
 
-export default function RegisterHeader({ dark = false }) {
+export default function RegisterHeader() {
+  const router = useRouter();
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const openModal = () => setModalOpen(true);
+  const closeModal = () => setModalOpen(false);
+  const goDashboard = async () => {
+    closeModal();
+    try {
+      const moved = await router.push(TWOWEEKS_DASHBOARD_PATH);
+      if (moved === false && typeof window !== "undefined") window.location.assign(TWOWEEKS_DASHBOARD_PATH);
+    } catch (error) {
+      if (typeof window !== "undefined") window.location.assign(TWOWEEKS_DASHBOARD_PATH);
+    }
+  };
+
   return (
-    <header className="fixed left-0 top-0 z-40 w-full bg-black text-white">
-      <div className="mx-auto flex h-[68px] w-full max-w-[1440px] items-center justify-between px-5 md:h-[78px] md:px-9">
-        <Link href="/2weeks" className="flex items-center" aria-label="2WEEKS 홈">
-          <img
-            src="/logo/2weeks_logo_white.png"
-            alt="2WEEKS"
-            className="h-8 w-[118px] object-contain md:h-10 md:w-[150px]"
-            draggable={false}
-          />
-        </Link>
+    <>
+      <header className="fixed left-0 top-0 z-40 w-full border-b border-[#e3e8ef] bg-white/96 text-[#102a43] backdrop-blur">
+        <div className="mx-auto flex h-[64px] w-full max-w-[720px] items-center justify-between px-4 sm:px-5 md:h-[72px] md:px-6">
+          <Link href="/2weeks" className="flex min-w-0 items-center gap-2.5" aria-label="2WEEKS 홈">
+            <img
+              src="/logo/2weeks_logo.png"
+              alt="2WEEKS"
+              className="h-8 w-8 shrink-0 object-contain md:h-9 md:w-9"
+              draggable={false}
+            />
+            <span className="truncate text-sm font-extrabold tracking-[-0.02em] text-[#164f9c] md:text-[15px]">
+              내 소개 준비하기
+            </span>
+          </Link>
 
-        <Link
-          href={TWOWEEKS_DASHBOARD_PATH}
-          className="inline-flex items-center gap-2 rounded-lg border border-white/25 px-3.5 py-2 text-xs font-semibold text-white/90 transition hover:border-white hover:text-white md:px-5 md:py-2.5 md:text-sm"
-        >
-          신청 현황 조회
-          <FiChevronRight />
-        </Link>
-      </div>
-    </header>
+          <button
+            type="button"
+            onClick={openModal}
+            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#d7e0eb] bg-white px-2.5 text-[11px] font-bold text-[#4d657e] transition hover:border-[#7fa8dc] hover:text-[#164f9c] md:h-9 md:px-3 md:text-xs"
+          >
+            신청현황 조회
+            <FiChevronRight className="text-[13px]" />
+          </button>
+        </div>
+      </header>
+
+      <DashboardConfirmModal open={modalOpen} onClose={closeModal} onConfirm={goDashboard} />
+    </>
   );
 }

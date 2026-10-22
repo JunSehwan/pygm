@@ -5,10 +5,10 @@ export default function TwoWeeksRegisterPage() {
   return (
     <>
       <Head>
-        <title>투윅스 신청 | 2WEEKS</title>
+        <title>내 소개 준비하기 | 투윅스</title>
         <meta
           name="description"
-          content="투윅스 1기 신청 페이지입니다. 기본 정보, 사진, 신원 인증 자료를 제출하고 운영자 검토를 거쳐 매칭 안내를 받을 수 있습니다."
+          content="한 화면에 한 가지씩 답하며 투윅스 소개 프로필을 준비하세요. 본인확인부터 실제 만남 조건까지 자동 저장됩니다."
         />
       </Head>
       <TwoWeeksRegister />
