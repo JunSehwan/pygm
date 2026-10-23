@@ -1,0 +1,2437 @@
+diff --git a/components/TwoWeeksAdmin/adminService.js b/components/TwoWeeksAdmin/adminService.js
+index 367a428..ea678b7 100644
+--- a/components/TwoWeeksAdmin/adminService.js
++++ b/components/TwoWeeksAdmin/adminService.js
+@@ -63,7 +63,6 @@ import {
+   TWOWEEKS_SCHEDULE_TOTAL_DUE_HOURS,
+   addScheduleHoursClient,
+   buildTwoWeeksSchedulePolicy,
+-  isValidTwoWeeksSchedulePolicy,
+ } from "../TwoWeeksShared/schedulePolicy";
+ 
+ const RESPONSE_DUE_DAYS = 2;
+@@ -1952,7 +1951,39 @@ export async function createTwoWeeksMatch({
+       throw new Error("동일 회사 신청자끼리는 매칭할 수 없습니다.");
+     }
+ 
+-    transaction.set(matchRef, matchPayload);
++    if (transactionMale.basic?.gender !== "male" || transactionFemale.basic?.gender !== "female") {
++      throw new Error("남성 신청자와 여성 신청자를 각각 선택해주세요.");
++    }
++    const currentScore = getPairScore(transactionMale, transactionFemale);
++    if (!currentScore.complete || getHardMatchingBlockers(currentScore).length ||
++        getUnacknowledgedMatchingConflicts(currentScore, acknowledgedConflictCodes).length) {
++      throw new Error("매칭 조건이 변경되었습니다. 목록을 새로고침하고 충돌 내용을 다시 확인해주세요.");
++    }
++    const { rankingScore: _currentRanking, internalAdjustment: _currentAdjustment, adminRanking: _currentAdminRanking, ...currentPublicScore } = currentScore;
++    const currentConflicts = getAdvisoryMatchingConflicts(currentScore);
++    transaction.set(matchRef, {
++      ...matchPayload,
++      maleName: getApplicationName(transactionMale),
++      femaleName: getApplicationName(transactionFemale),
++      candidatePreviews: {
++        [male.id]: buildCandidatePreviewForViewer(transactionFemale),
++        [female.id]: buildCandidatePreviewForViewer(transactionMale),
++      },
++      scoreTotal: currentPublicScore.total || 0,
++      areaOverlap: currentPublicScore.areaOverlap || [],
++      timeOverlap: currentPublicScore.timeOverlap || [],
++      ageDiff: currentPublicScore.ageDiff ?? null,
++      matchingCompatibility: currentPublicScore,
++      publicMatchingReasons: currentPublicScore.reasons || [],
++      publicMatchingReasonVersion: currentPublicScore.reasonVersion || "public_v2",
++      compatibilityConflictReview: {
++        status: currentConflicts.length ? "admin_confirmed" : "not_required",
++        conflictCodes: currentConflicts.map((item) => item.code),
++        conflictLabels: currentConflicts.map((item) => item.label),
++        reviewedByUid: currentConflicts.length ? adminUid : "",
++        reviewedAtClient: currentConflicts.length ? createdAtClient : "",
++      },
++    });
+     transaction.update(maleRef, {
+       matchingStatus: "proposed",
+       currentProposal: buildCurrentProposal(female.id, matchId, {
+@@ -2359,94 +2390,14 @@ async function sendFinalMeetingSms(application = {}, finalMeeting = {}) {
+ export async function confirmMeetingSchedule({ match, place = {}, adminUid = "" }) {
+   if (!match?.id) throw new Error("확정할 매칭 정보가 없습니다.");
+ 
+-  const finalChoice = match?.schedule?.finalChoice || match?.schedule?.selectedChoice || {};
+-  const finalTimeChoice = match?.schedule?.finalTimeChoice || finalChoice?.timeChoice || finalChoice || {};
+-  const finalPlaceChoice = match?.schedule?.finalPlaceChoice || finalChoice?.placeChoice || finalChoice || {};
+-
+-  if (!finalTimeChoice?.id && !finalTimeChoice?.startAtClient) {
+-    throw new Error("상대가 선택한 일시가 아직 없습니다.");
+-  }
+-
+-  if (
+-    isValidTwoWeeksSchedulePolicy(match?.schedulePolicy) &&
+-    !match.schedulePolicy.allowedTimeOptionIds.includes(finalTimeChoice.id)
+-  ) {
+-    throw new Error("고정된 다음 주말 후보에 포함되지 않은 일정입니다. 매칭 정보를 다시 확인해주세요.");
+-  }
+-
+-  const meetingStartMs = Date.parse(String(finalTimeChoice?.startAtClient || ""));
+-  if (!Number.isNaN(meetingStartMs) && meetingStartMs <= Date.now()) {
+-    throw new Error("이미 지난 일시는 확정할 수 없습니다. 새 일정 후보를 안내해주세요.");
+-  }
+-
+-  if (!(finalPlaceChoice?.placeId || finalPlaceChoice?.cafeId || finalPlaceChoice?.cafeName)) {
+-    throw new Error("상대가 선택한 장소가 아직 없습니다.");
+-  }
+-
+-  const placeName = String(place.placeName || finalPlaceChoice.cafeName || "").trim();
+-  if (!placeName) throw new Error("장소명을 입력해주세요.");
+-
+-  const finalMeeting = {
+-    ...finalChoice,
+-    ...finalTimeChoice,
+-    ...finalPlaceChoice,
+-    timeChoice: finalTimeChoice,
+-    placeChoice: finalPlaceChoice,
+-    finalTimeChoice,
+-    finalPlaceChoice,
+-    placeName,
+-    address: String(place.address || finalPlaceChoice.address || "").trim(),
+-    mapUrl: String(place.mapUrl || finalPlaceChoice.cafeMapUrl || "").trim(),
+-    memo: String(place.memo || "").trim(),
+-    confirmedAtClient: new Date().toISOString(),
+-    confirmedByUid: adminUid,
+-  };
+-
++  const confirm = httpsCallable(getFunctions(undefined, "asia-northeast3"), "submitTwoWeeksSchedule");
++  const result = await confirm({ mode: "admin_confirm", matchId: match.id, place });
++  if (!result?.data?.ok) throw new Error("일정 확정 결과를 확인하지 못했습니다.");
++  const { finalMeeting } = result.data;
+   const male = await getApplicationById(match.maleApplicationId);
+   const female = await getApplicationById(match.femaleApplicationId);
+-
+   const matchRef = doc(db, "twoweeksMatches", match.id);
+ 
+-  await setDoc(
+-    matchRef,
+-    {
+-      status: "confirmed",
+-      scheduleStatus: "confirmed",
+-      photoRevealStatus: "revealed",
+-      finalMeeting,
+-      schedule: {
+-        status: "confirmed",
+-        finalTimeChoice,
+-        finalPlaceChoice,
+-        finalChoice,
+-        selectedChoice: finalChoice,
+-        finalMeeting,
+-        confirmedAt: serverTimestamp(),
+-        confirmedAtClient: finalMeeting.confirmedAtClient,
+-      },
+-      updatedAt: serverTimestamp(),
+-      confirmedByUid: adminUid,
+-    },
+-    { merge: true }
+-  );
+-
+-  const applicationPatch = {
+-    matchingStatus: "confirmed",
+-    photoRevealStatus: "revealed",
+-    "currentProposal.photoRevealStatus": "revealed",
+-    "schedule.status": "confirmed",
+-    "schedule.finalMeeting": finalMeeting,
+-    "schedule.confirmedAt": serverTimestamp(),
+-    "schedule.confirmedAtClient": finalMeeting.confirmedAtClient,
+-    updatedAt: serverTimestamp(),
+-  };
+-
+-  await Promise.all(
+-    [male, female]
+-      .filter((item) => item?.id)
+-      .map((application) => updateDoc(doc(db, "twoweeksApplications", application.id), applicationPatch))
+-  );
+-
+   const smsResults = {
+     male: male ? await sendFinalMeetingSms(male, finalMeeting) : { status: "skipped", reason: "NO_MALE_APPLICATION" },
+     female: female ? await sendFinalMeetingSms(female, finalMeeting) : { status: "skipped", reason: "NO_FEMALE_APPLICATION" },
+diff --git a/components/TwoWeeksProposal/proposalService.js b/components/TwoWeeksProposal/proposalService.js
+index bf1b78f..35c5e2b 100644
+--- a/components/TwoWeeksProposal/proposalService.js
++++ b/components/TwoWeeksProposal/proposalService.js
+@@ -6,6 +6,7 @@ import {
+   getDocs,
+   increment,
+   query,
++  runTransaction,
+   serverTimestamp,
+   setDoc,
+   updateDoc,
+@@ -90,9 +91,6 @@ export async function loadActiveCafeCandidates() {
+   }
+ }
+ 
+-const RESPONSE_DUE_DAYS = 2;
+-const SCHEDULE_DUE_DAYS = 2;
+-
+ function getTimeMs(value) {
+   if (!value) return 0;
+   if (typeof value?.toMillis === "function") return value.toMillis();
+@@ -148,10 +146,6 @@ function assertMeetingDay(matchData = {}) {
+   }
+ }
+ 
+-function addDaysClient(days = 2) {
+-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+-}
+-
+ function getSiteOrigin() {
+   // 브라우저에서 실행될 때는 현재 origin을 최우선으로 사용한다.
+   // localhost/preview에서 운영 도메인으로 튀는 문제를 방지한다.
+@@ -1196,30 +1190,6 @@ function formatMeetingPlaceText(placeChoice = {}) {
+   return [placeChoice.area, placeChoice.cafeName || placeChoice.placeName].filter(Boolean).join(" / ") || "-";
+ }
+ 
+-function buildAutoFinalMeeting({ finalChoice = {}, timeChoice = {}, placeChoice = {}, selectedByApplicationId = "" }) {
+-  const confirmedAtClient = new Date().toISOString();
+-
+-  return {
+-    ...finalChoice,
+-    ...timeChoice,
+-    ...placeChoice,
+-    timeChoice,
+-    placeChoice,
+-    finalTimeChoice: timeChoice,
+-    finalPlaceChoice: placeChoice,
+-    placeName: placeChoice.cafeName || placeChoice.placeName || "",
+-    address: placeChoice.address || "",
+-    mapUrl: placeChoice.cafeMapUrl || placeChoice.mapUrl || "",
+-    cafeMapUrl: placeChoice.cafeMapUrl || placeChoice.mapUrl || "",
+-    memo: "카페에서 60분 정도 가볍게 대화해주세요.",
+-    paymentNote: "음료 등 개인 주문 비용은 각자 부담입니다.",
+-    meetingGuide: "만남 전 한마디에 복장이나 기다리는 위치를 남겨두면 서로를 찾기 쉽습니다.",
+-    selectedByApplicationId,
+-    confirmedAtClient,
+-    confirmedBy: "auto",
+-  };
+-}
+-
+ function truncateText(value = "", max = 80) {
+   const clean = String(value || "").replace(/\s+/g, " ").trim();
+   if (!clean) return "";
+@@ -1263,236 +1233,77 @@ function getApplicationDisplayName(application = {}) {
+   return basic.nickname || basic.name || "상대";
+ }
+ 
+-function normalizeTimeChoices(value = []) {
+-  return Array.isArray(value)
+-    ? value
+-        .filter((item) => item?.id)
+-        .slice(0, 3)
+-        .map((item) => ({
+-          id: item.id,
+-          dateKey: item.dateKey || "",
+-          dateLabel: item.dateLabel || "",
+-          dayLabel: item.dayLabel || "",
+-          timeSlotKey: item.timeSlotKey || "",
+-          timeLabel: item.timeLabel || "",
+-          startAtClient: item.startAtClient || "",
+-        }))
+-    : [];
+-}
+-
+-function normalizePlaceChoices(value = []) {
+-  return Array.isArray(value)
+-    ? value
+-        .filter((item) => item?.placeId || item?.cafeId || item?.id)
+-        .slice(0, 3)
+-        .map((item) => ({
+-          id: item.placeId || item.cafeId || item.id,
+-          placeId: item.placeId || item.cafeId || item.id,
+-          area: item.area || "",
+-          cafeId: item.cafeId || item.placeId || item.id || "",
+-          cafeName: item.cafeName || item.name || "",
+-          cafeStation: item.cafeStation || item.station || "",
+-          cafeRatingLabel: item.cafeRatingLabel || item.ratingLabel || "",
+-          cafeReason: item.cafeReason || item.reason || "",
+-          cafeMapQuery: item.cafeMapQuery || item.mapQuery || "",
+-          cafeMapUrl: item.cafeMapUrl || item.mapUrl || "",
+-        }))
+-    : [];
+-}
+-
+-function combineFinalChoice(timeChoice = {}, placeChoice = {}, selectedByApplicationId = "") {
+-  return {
+-    id: `${timeChoice.id || "time"}_${placeChoice.placeId || placeChoice.cafeId || placeChoice.id || "place"}`,
+-    ...timeChoice,
+-    area: placeChoice.area || "",
+-    placeId: placeChoice.placeId || placeChoice.cafeId || placeChoice.id || "",
+-    cafeId: placeChoice.cafeId || placeChoice.placeId || placeChoice.id || "",
+-    cafeName: placeChoice.cafeName || "",
+-    cafeStation: placeChoice.cafeStation || "",
+-    cafeRatingLabel: placeChoice.cafeRatingLabel || "",
+-    cafeReason: placeChoice.cafeReason || "",
+-    cafeMapQuery: placeChoice.cafeMapQuery || "",
+-    cafeMapUrl: placeChoice.cafeMapUrl || "",
+-    timeChoice,
+-    placeChoice,
+-    selectedByApplicationId,
+-    selectedAtClient: new Date().toISOString(),
+-  };
+-}
+-
+-export async function saveScheduleChoices({
+-  viewerApplication,
+-  candidateApplication,
+-  choices = [],
+-}) {
++async function submitScheduleSelection(viewerApplication, candidateApplication, selection) {
+   await ensureAuth();
+-
+-  if (!viewerApplication?.id || !candidateApplication?.id) {
+-    throw new Error("일정 선택 정보를 확인할 수 없습니다.");
++  if (!viewerApplication?.id || !candidateApplication?.id || !viewerApplication.currentProposal?.matchId) {
++    throw new Error("일정 선택 정보를 확인할 수 없습니다. 신청현황을 새로고침해주세요.");
+   }
+-
+-  const matchId = viewerApplication?.currentProposal?.matchId || "";
+-  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
+-
+-  const source = Array.isArray(choices)
+-    ? {
+-        timeChoices: choices,
+-        placeChoices: choices,
+-      }
+-    : choices || {};
+-
+-  const cleanTimeChoices = normalizeTimeChoices(source.timeChoices || source.times || []);
+-  const cleanPlaceChoices = normalizePlaceChoices(source.placeChoices || source.places || []);
+-
+-  if (cleanTimeChoices.length !== 3 || cleanPlaceChoices.length !== 3) {
+-    throw new Error("일시 후보 3개와 장소 후보 3개를 선택해주세요.");
+-  }
+-
+-  const matchRef = doc(db, "twoweeksMatches", matchId);
+-  const existingMatch = await getMatchDoc(matchId);
+-
+-  if (existingMatch?.schedule?.firstSelectorApplicationId && existingMatch.schedule.firstSelectorApplicationId !== viewerApplication.id) {
+-    throw new Error("상대가 먼저 후보를 선택했습니다. 상대가 제안한 일시/장소 중 1개씩 선택해주세요.");
+-  }
+-
+-  const counterpartDueAtClient = addDaysClient(SCHEDULE_DUE_DAYS);
+-
+-  await setDoc(
+-    matchRef,
+-    {
+-      status: "mutualAccepted",
+-      scheduleStatus: "waiting_counterpart",
+-      schedule: {
+-        status: "waiting_counterpart",
+-        firstSelectorApplicationId: viewerApplication.id,
+-        counterpartApplicationId: candidateApplication.id,
+-        timeChoices: cleanTimeChoices,
+-        placeChoices: cleanPlaceChoices,
+-        firstChoices: cleanTimeChoices,
+-        firstSelectedAt: serverTimestamp(),
+-        firstSelectedAtClient: new Date().toISOString(),
+-        counterpartDueDays: SCHEDULE_DUE_DAYS,
+-        counterpartDueAtClient,
+-      },
+-      updatedAt: serverTimestamp(),
+-    },
+-    { merge: true }
+-  );
+-
+-  await sendEventSms(candidateApplication, "일정 후보 도착", [
+-    "상대가 일시 3개와 장소 3개를 선택했습니다.",
+-    "2일 내 일시 1개와 장소 1개를 선택해주세요.",
+-  ]);
+-
+-  return {
+-    matchId,
+-    timeChoices: cleanTimeChoices,
+-    placeChoices: cleanPlaceChoices,
+-  };
++  const submit = httpsCallable(getFunctions(undefined, "asia-northeast3"), "submitTwoWeeksSchedule");
++  const result = await submit({
++    ...selection,
++    matchId: viewerApplication.currentProposal.matchId,
++    viewerApplicationId: viewerApplication.id,
++    candidateApplicationId: candidateApplication.id,
++  });
++  if (!result?.data?.ok) throw new Error("일정 저장 결과를 확인하지 못했습니다.");
++  return result.data;
+ }
+ 
+-export async function saveScheduleFinalChoice({
+-  viewerApplication,
+-  candidateApplication,
+-  choice,
+-}) {
+-  await ensureAuth();
+-
+-  if (!viewerApplication?.id || !candidateApplication?.id) {
+-    throw new Error("일정 선택 정보를 확인할 수 없습니다.");
+-  }
+-
+-  const matchId = viewerApplication?.currentProposal?.matchId || "";
+-  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
+-
+-  const timeChoice = choice?.timeChoice || choice?.time || null;
+-  const placeChoice = choice?.placeChoice || choice?.place || null;
+-
+-  if (!timeChoice?.id) {
+-    throw new Error("확정할 일시를 선택해주세요.");
+-  }
+-
+-  if (!(placeChoice?.placeId || placeChoice?.cafeId || placeChoice?.id)) {
+-    throw new Error("확정할 장소를 선택해주세요.");
++export async function saveScheduleChoices({ viewerApplication, candidateApplication, choices = [] }) {
++  const source = Array.isArray(choices) ? { timeChoices: choices, placeChoices: choices } : choices || {};
++  const result = await submitScheduleSelection(viewerApplication, candidateApplication, {
++    mode: "first",
++    timeIds: (source.timeChoices || source.times || []).map((item) => item.id),
++    placeIds: (source.placeChoices || source.places || []).map((item) => item.cafeId || item.placeId || item.id),
++  });
++  if (!result.alreadySubmitted) {
++    await sendEventSms(candidateApplication, "일정 후보 도착", [
++      "상대가 일시 3개와 장소 3개를 선택했습니다.",
++      "24시간 내 일시 1개와 장소 1개를 선택해주세요.",
++    ]);
+   }
++  return result;
++}
+ 
+-  const cleanTimeChoice = normalizeTimeChoices([timeChoice])[0];
+-  const cleanPlaceChoice = normalizePlaceChoices([placeChoice])[0];
+-  const finalChoice = combineFinalChoice(cleanTimeChoice, cleanPlaceChoice, viewerApplication.id);
+-  const finalMeeting = buildAutoFinalMeeting({
+-    finalChoice,
+-    timeChoice: cleanTimeChoice,
+-    placeChoice: cleanPlaceChoice,
+-    selectedByApplicationId: viewerApplication.id,
++export async function saveScheduleFinalChoice({ viewerApplication, candidateApplication, choice }) {
++  const time = choice?.timeChoice || choice?.time;
++  const place = choice?.placeChoice || choice?.place;
++  const result = await submitScheduleSelection(viewerApplication, candidateApplication, {
++    mode: "final", timeId: time?.id || "", placeId: place?.cafeId || place?.placeId || place?.id || "",
+   });
+-
+-  const matchRef = doc(db, "twoweeksMatches", matchId);
+-  const matchSnap = await getDoc(matchRef);
+-  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+-  const hadPreviousNote = Boolean(matchData?.preMeetingNotes?.[viewerApplication.id]?.note);
+-
+-  await setDoc(
+-    matchRef,
+-    {
+-      status: "confirmed",
+-      scheduleStatus: "confirmed",
+-      photoRevealStatus: "revealed",
+-      finalMeeting,
+-      schedule: {
+-        status: "confirmed",
+-        finalTimeChoice: cleanTimeChoice,
+-        finalPlaceChoice: cleanPlaceChoice,
+-        finalChoice,
+-        selectedChoice: finalChoice,
+-        finalMeeting,
+-        finalSelectedAt: serverTimestamp(),
+-        finalSelectedAtClient: finalChoice.selectedAtClient,
+-        confirmedAt: serverTimestamp(),
+-        confirmedAtClient: finalMeeting.confirmedAtClient,
+-        confirmedBy: "auto",
+-      },
+-      updatedAt: serverTimestamp(),
+-    },
+-    { merge: true }
+-  );
+-
+-  const applicationPatch = {
+-    matchingStatus: "confirmed",
+-    photoRevealStatus: "revealed",
+-    "currentProposal.photoRevealStatus": "revealed",
+-    "schedule.status": "confirmed",
+-    "schedule.finalMeeting": finalMeeting,
+-    "schedule.confirmedAt": serverTimestamp(),
+-    "schedule.confirmedAtClient": finalMeeting.confirmedAtClient,
+-    updatedAt: serverTimestamp(),
+-  };
+-
+-  await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), applicationPatch).catch(() => {});
+-  await updateDoc(doc(db, "twoweeksApplications", candidateApplication.id), applicationPatch).catch(() => {});
+-
++  if (result.alreadySubmitted) return result;
+   const smsResults = {
+-    viewer: await sendEventSms(viewerApplication, "일시와 장소 안내", buildMeetingReadySmsLines(finalMeeting)),
+-    candidate: await sendEventSms(candidateApplication, "일시와 장소 안내", buildMeetingReadySmsLines(finalMeeting)),
++    viewer: await sendEventSms(viewerApplication, "일시와 장소 안내", buildMeetingReadySmsLines(result.finalMeeting)),
++    candidate: await sendEventSms(candidateApplication, "일시와 장소 안내", buildMeetingReadySmsLines(result.finalMeeting)),
+   };
+-
+-  await setDoc(
+-    matchRef,
+-    {
+-      meetingReadySms: smsResults,
+-      meetingReadySmsUpdatedAt: serverTimestamp(),
++  await setDoc(doc(db, "twoweeksMatches", result.matchId), {
++    meetingReadySms: smsResults, meetingReadySmsUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp(),
++  }, { merge: true }).catch(() => {});
++  return { ...result, smsResults };
++}
++
++async function recordOwnMeetingState({ matchRef, viewerApplication, candidateApplication, field, summaryField, completeStatus, payload, requireMeetingDay = false }) {
++  return runTransaction(db, async (transaction) => {
++    const snap = await transaction.get(matchRef);
++    const matchData = snap.exists() ? { id: snap.id, ...snap.data() } : {};
++    if (matchData.status !== "confirmed" || !isSamePairMatch(matchData, viewerApplication.id, candidateApplication.id)) {
++      throw new Error("현재 확정된 만남에서만 참석·도착 확인을 할 수 있습니다.");
++    }
++    if (requireMeetingDay) assertMeetingDay(matchData);
++    const existing = matchData[field] || {};
++    const desired = typeof payload === "function" ? payload(matchData) : payload;
++    const alreadyConfirmed = existing[viewerApplication.id]?.status === desired.status;
++    const record = alreadyConfirmed ? existing[viewerApplication.id] : desired;
++    const next = { ...existing, [viewerApplication.id]: record };
++    const complete = next[viewerApplication.id]?.status === record.status && next[candidateApplication.id]?.status === record.status;
++    if (alreadyConfirmed) return { matchData, record, complete, alreadyConfirmed: true };
++    transaction.update(matchRef, {
++      [`${field}.${viewerApplication.id}`]: record,
++      [summaryField]: complete ? completeStatus : "waiting_counterpart",
+       updatedAt: serverTimestamp(),
+-    },
+-    { merge: true }
+-  ).catch(() => {});
+-
+-  return {
+-    matchId,
+-    choice: finalChoice,
+-    timeChoice: cleanTimeChoice,
+-    placeChoice: cleanPlaceChoice,
+-    finalMeeting,
+-    smsResults,
+-  };
++    });
++    return { matchData, record, complete, alreadyConfirmed: false };
++  });
+ }
+ 
+ export async function saveMeetingAttendance({
+@@ -1518,30 +1329,11 @@ export async function saveMeetingAttendance({
+   };
+ 
+   const matchRef = doc(db, "twoweeksMatches", matchId);
+-  const matchSnap = await getDoc(matchRef);
+-  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+-  const existingAttendance = matchData?.meetingAttendance || {};
+-  const nextAttendance = {
+-    ...existingAttendance,
+-    [viewerApplication.id]: payload,
+-  };
+-
+-  const viewerConfirmed = nextAttendance?.[viewerApplication.id]?.status === "attending";
+-  const counterpartConfirmed = nextAttendance?.[candidateApplication.id]?.status === "attending";
+-  const bothConfirmed = viewerConfirmed && counterpartConfirmed;
+-  const finalMeeting = matchData?.finalMeeting || matchData?.schedule?.finalMeeting || viewerApplication?.schedule?.finalMeeting || {};
+-
+-  await setDoc(
+-    matchRef,
+-    {
+-      meetingAttendance: {
+-        [viewerApplication.id]: payload,
+-      },
+-      attendanceStatus: bothConfirmed ? "both_confirmed" : "waiting_counterpart",
+-      updatedAt: serverTimestamp(),
+-    },
+-    { merge: true }
+-  );
++  const { matchData, complete: bothConfirmed, alreadyConfirmed } = await recordOwnMeetingState({
++    matchRef, viewerApplication, candidateApplication, field: "meetingAttendance", summaryField: "attendanceStatus", completeStatus: "both_confirmed", payload,
++  });
++  if (alreadyConfirmed) return { matchId, attendance: matchData.meetingAttendance[viewerApplication.id], bothConfirmed, alreadyConfirmed: true };
++  const finalMeeting = matchData.finalMeeting || matchData.schedule?.finalMeeting || {};
+ 
+   await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
+     "schedule.attendanceStatus": cleanStatus,
+@@ -1669,53 +1461,17 @@ export async function saveMeetingArrival({
+ 
+   const arrivedAtClient = new Date().toISOString();
+   const matchRef = doc(db, "twoweeksMatches", matchId);
+-  const matchSnap = await getDoc(matchRef);
+-  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
+-  assertMeetingDay(matchData);
+-  const preMeetingNotes = matchData?.preMeetingNotes || {};
+-  const myPreMeetingNote = preMeetingNotes?.[viewerApplication.id]?.note || "";
+-  const existingArrival = matchData?.meetingArrival || {};
+-  const existingMyArrival = existingArrival?.[viewerApplication.id] || null;
+-
+-  if (existingMyArrival?.status === "arrived") {
+-    return {
+-      matchId,
+-      arrival: existingMyArrival,
+-      bothArrived:
+-        existingArrival?.[candidateApplication.id]?.status === "arrived",
+-      alreadyConfirmed: true,
+-    };
+-  }
+-
+-  const payload = {
+-    applicationId: viewerApplication.id,
+-    displayName: getApplicationDisplayName(viewerApplication),
+-    status: status === "arrived" ? "arrived" : "arrived",
+-    preMeetingNoteSnapshot: truncateText(myPreMeetingNote, 120),
+-    arrivedAtClient,
+-    updatedAtClient: arrivedAtClient,
+-  };
+-
+-  const nextArrival = {
+-    ...existingArrival,
+-    [viewerApplication.id]: payload,
+-  };
+-
+-  const viewerArrived = nextArrival?.[viewerApplication.id]?.status === "arrived";
+-  const counterpartArrived = nextArrival?.[candidateApplication.id]?.status === "arrived";
+-  const bothArrived = viewerArrived && counterpartArrived;
+-
+-  await setDoc(
+-    matchRef,
+-    {
+-      meetingArrival: {
+-        [viewerApplication.id]: payload,
+-      },
+-      arrivalStatus: bothArrived ? "both_arrived" : "waiting_counterpart",
+-      updatedAt: serverTimestamp(),
+-    },
+-    { merge: true }
+-  );
++  const { record: payload, complete: bothArrived, alreadyConfirmed } = await recordOwnMeetingState({
++    matchRef, viewerApplication, candidateApplication, field: "meetingArrival", summaryField: "arrivalStatus", completeStatus: "both_arrived", requireMeetingDay: true,
++    payload: (matchData) => ({
++      applicationId: viewerApplication.id,
++      displayName: getApplicationDisplayName(viewerApplication),
++      status: "arrived",
++      preMeetingNoteSnapshot: truncateText(matchData.preMeetingNotes?.[viewerApplication.id]?.note || "", 120),
++      arrivedAtClient, updatedAtClient: arrivedAtClient,
++    }),
++  });
++  if (alreadyConfirmed) return { matchId, arrival: payload, bothArrived, alreadyConfirmed: true };
+ 
+   await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
+     "schedule.arrivalStatus": "arrived",
+diff --git a/components/TwoWeeksShared/testAuth.js b/components/TwoWeeksShared/testAuth.js
+index 9d4b3c9..3a7af4e 100644
+--- a/components/TwoWeeksShared/testAuth.js
++++ b/components/TwoWeeksShared/testAuth.js
+@@ -25,7 +25,8 @@ export function normalizeTestPhone(value = "") {
+ }
+ 
+ export function isTwoWeeksTestPhone(phone = "") {
+-  return TWOWEEKS_TEST_PHONES.includes(normalizeTestPhone(phone));
++  const enabled = process.env.NEXT_PUBLIC_TWOWEEKS_ENABLE_TEST_AUTH === "true";
++  return enabled && TWOWEEKS_TEST_PHONES.includes(normalizeTestPhone(phone));
+ }
+ 
+ export function buildTwoWeeksTestIdentityData({
+diff --git a/firestore.rules b/firestore.rules
+index 3f7afdb..b7a6a57 100644
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -178,34 +178,30 @@ service cloud.firestore {
+         );
+     }
+ 
++    function twoweeksOwnParticipantMapOnly(field) {
++      let maleId = resource.data.get('maleApplicationId', '');
++      let femaleId = resource.data.get('femaleApplicationId', '');
++      let next = request.resource.data.get(field, {});
++      let previous = resource.data.get(field, {});
++      return next == previous || (
++        next is map && previous is map &&
++        next.diff(previous).affectedKeys().hasOnly([maleId, femaleId]) &&
++        (!next.diff(previous).affectedKeys().hasAny([maleId]) || ownsTwoWeeksApplication(maleId)) &&
++        (!next.diff(previous).affectedKeys().hasAny([femaleId]) || ownsTwoWeeksApplication(femaleId))
++      );
++    }
++
+     function twoweeksMatchParticipantUpdateOnlyAllowedFields() {
++      // 일정·확정 상태는 서버 Callable에서만 변경합니다. 참석/도착/메모는 본인 행만 씁니다.
+       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+-        'status',
+-        'scheduleStatus',
+-        'schedule',
+-        'photoRevealStatus',
+-        'mutualAcceptedAt',
+-        'mutualAcceptedAtClient',
+-        'declinedByApplicationId',
+-        'declinedCounterpartApplicationId',
+-        'declinedAt',
+-        'declinedAtClient',
+-        'decline',
+-        'finalMeeting',
+-        'meetingReadySms',
+-        'meetingReadySmsUpdatedAt',
+-        'meetingAttendance',
+-        'attendanceStatus',
+-        'meetingAttendanceSms',
+-        'finalAttendanceGuideSms',
+-        'meetingArrival',
+-        'arrivalStatus',
+-        'meetingProofs',
+-        'noShowEvidenceStatus',
+-        'preMeetingNotes',
+-        'preMeetingNoteSms',
+-        'updatedAt'
+-      ]);
++        'meetingReadySms', 'meetingReadySmsUpdatedAt',
++        'meetingAttendance', 'attendanceStatus', 'meetingAttendanceSms', 'finalAttendanceGuideSms',
++        'meetingArrival', 'arrivalStatus', 'meetingProofs', 'noShowEvidenceStatus',
++        'preMeetingNotes', 'preMeetingNoteSms', 'updatedAt'
++      ]) && twoweeksOwnParticipantMapOnly('meetingAttendance') &&
++        twoweeksOwnParticipantMapOnly('meetingArrival') &&
++        twoweeksOwnParticipantMapOnly('meetingProofs') &&
++        twoweeksOwnParticipantMapOnly('preMeetingNotes');
+     }
+ 
+     function preservesTwoWeeksTerminalMatchState() {
+@@ -387,14 +383,8 @@ service cloud.firestore {
+           hasValidTwoWeeksDashboardSession(applicationId)
+         )
+       );
+-      allow create: if isAdmin() || (
+-        signedIn() &&
+-        request.resource.data.get('uid', '') == request.auth.uid &&
+-        validInitialTwoWeeksDeposit() &&
+-        validTwoWeeksRequiredConsentsAtCreate() &&
+-        validTwoWeeksIdentityAtCreate() &&
+-        validTwoWeeksProfilePhotosAtWrite()
+-      );
++      // 가입은 서버 Callable에서 신원·중복·초기 상태를 함께 검증합니다.
++      allow create: if isAdmin();
+       allow update: if isAdmin() || (
+         signedIn() &&
+         request.resource.data.get('uid', '') == resource.data.get('uid', '') &&
+@@ -519,23 +509,8 @@ service cloud.firestore {
+ 
+     match /twoweeksProposalResponses/{responseId} {
+       allow read: if isAdmin() || (signedIn() && isTwoWeeksResponseParticipant(resource.data));
+-      allow create: if isAdmin() || (
+-        signedIn() &&
+-        validTwoWeeksResponseOwnerWrite() &&
+-        validTwoWeeksResponseMatchBinding(responseId)
+-      );
+-      allow update: if isAdmin() || (
+-        signedIn() &&
+-        isTwoWeeksResponseParticipant(resource.data) &&
+-        ownsTwoWeeksApplication(resource.data.get('viewerApplicationId', '')) &&
+-        request.resource.data.get('viewerApplicationId', '') == resource.data.get('viewerApplicationId', '') &&
+-        request.resource.data.get('candidateApplicationId', '') == resource.data.get('candidateApplicationId', '') &&
+-        request.resource.data.get('matchId', '') == resource.data.get('matchId', '') &&
+-        request.resource.data.get('response', '') == resource.data.get('response', '') &&
+-        request.resource.data.get('status', '') == resource.data.get('status', '') &&
+-        validTwoWeeksResponseOwnerWrite() &&
+-        validTwoWeeksResponseMatchBinding(responseId)
+-      );
++      // 제안 응답은 신청서와 매칭 상태를 함께 갱신하는 서버 트랜잭션만 사용합니다.
++      allow create, update: if isAdmin();
+       allow delete: if isAdmin();
+     }
+ 
+@@ -607,9 +582,7 @@ service cloud.firestore {
+         request.resource.data.get('femaleApplicationId', '') == resource.data.get('femaleApplicationId', '') &&
+         request.resource.data.get('roundId', '') == resource.data.get('roundId', '') &&
+         preservesTwoWeeksTerminalMatchState() &&
+-        twoweeksMatchParticipantUpdateOnlyAllowedFields() &&
+-        validTwoWeeksScheduleTimeChoices() &&
+-        validTwoWeeksSchedulePlaceChoices()
++        twoweeksMatchParticipantUpdateOnlyAllowedFields()
+       );
+     }
+ 
+diff --git a/functions/index.js b/functions/index.js
+index 32fa547..3783a29 100644
+--- a/functions/index.js
++++ b/functions/index.js
+@@ -1096,6 +1096,7 @@ exports.notifyTwoWeeksMutualAccepted = require("./twoWeeksMutualAcceptedNotifica
+ // 투윅스 제안 거절 시 상대방 위로/결과 안내 문자
+ exports.notifyTwoWeeksProposalDeclined = require("./twoWeeksDeclinedNotification").notifyTwoWeeksProposalDeclined;
+ exports.respondTwoWeeksProposal = require("./twoWeeksProposalRespond").respondTwoWeeksProposal;
++exports.submitTwoWeeksSchedule = require("./twoWeeksScheduleSubmission").submitTwoWeeksSchedule;
+ exports.notifyTwoWeeksAdminMatchLifecycle = require("./twoWeeksAdminLifecycleNotification").notifyTwoWeeksAdminMatchLifecycle;
+ 
+ // 투윅스 매칭 제안 단계 선명 프로필 조회 및 기존 흐림 스냅샷 갱신
+diff --git a/functions/twoWeeksApplicationSubmission.js b/functions/twoWeeksApplicationSubmission.js
+index 6d98e55..4704e65 100644
+--- a/functions/twoWeeksApplicationSubmission.js
++++ b/functions/twoWeeksApplicationSubmission.js
+@@ -10,7 +10,7 @@ const {
+   TWOWEEKS_MIN_PROFILE_PHOTOS,
+ } = require("./twoWeeksProfilePhotoPolicy");
+ const { resolveApplicationMarketingData } = require("./twoWeeksMarketingAttribution");
+-const { buildInitialDeposit } = require("./twoWeeksInitialDepositPolicy");
++const { buildInitialDeposit, normalizeGender } = require("./twoWeeksInitialDepositPolicy");
+ 
+ if (!admin.apps.length) {
+   admin.initializeApp();
+@@ -274,7 +274,7 @@ exports.finalizeTwoWeeksApplicationSubmission = onCall(
+       throw new HttpsError("invalid-argument", "신청 정보가 없습니다.");
+     }
+ 
+-    const basic = incoming.basic && typeof incoming.basic === "object" ? incoming.basic : {};
++    let basic = incoming.basic && typeof incoming.basic === "object" ? incoming.basic : {};
+     // 필수 약관 동의는 화면 검증과 별도로 서버에서도 확인합니다.
+     // 마케팅은 명시적으로 true일 때만 동의로 기록하며, 선택하지 않아도 가입됩니다.
+     const incomingConsents = incoming.consents && typeof incoming.consents === "object" ? incoming.consents : {};
+@@ -316,6 +316,19 @@ exports.finalizeTwoWeeksApplicationSubmission = onCall(
+       phone,
+     });
+ 
++    // 성별·성명·생년월일은 본인인증 서버 기록을 기준으로 저장합니다.
++    // 클라이언트 값과 예치금 정책에 서로 다른 성별이 반영되지 않게 합니다.
++    const verifiedGender = normalizeGender(verified.isTestIdentity ? basic.gender : verified.gender);
++    const birth = verified.isTestIdentity ? onlyDigits(basic.birthDate || identityInput.birth || "").slice(0, 8) : verified.birth;
++    if (!["male", "female"].includes(verifiedGender) || !/^\d{8}$/.test(birth)) {
++      throw new HttpsError("invalid-argument", "본인인증 성별과 생년월일을 확인해주세요.");
++    }
++    const birthYear = Number(birth.slice(0, 4));
++    const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).replace(/-/g, "");
++    const age = Number(today.slice(0, 4)) - birthYear - (today.slice(4) < birth.slice(4) ? 1 : 0);
++    if (age < 18 || age > 100) throw new HttpsError("invalid-argument", "성인 신청자의 생년월일을 확인해주세요.");
++    basic = { ...basic, gender: verifiedGender, name: verified.name || compactText(basic.name, 80), birthYear, birthDate: birth, age, ageType: "full_age" };
++
+     // preflight를 우회하거나 동시에 두 창에서 가입하더라도 서버 최종 저장 단계에서 다시 차단한다.
+     await assertNoDuplicateApplication({
+       verified,
+@@ -438,7 +451,21 @@ exports.finalizeTwoWeeksApplicationSubmission = onCall(
+     }
+ 
+     const applicationData = {
+-      ...incoming,
++      schemaVersion: 4,
++      source: "twoweeks_mvp_web",
++      roundId: compactText(incoming.roundId, 80),
++      roundLabel: compactText(incoming.roundLabel, 80),
++      applicantAuthProvider: compactText(incoming.applicantAuthProvider, 40),
++      inquiryLinkClicked: false,
++      completedAtClient: compactText(incoming.completedAtClient, 80),
++      disclosurePolicySnapshot: {
++        proposalStage: `등록한 프로필 사진(최소 ${TWOWEEKS_MIN_PROFILE_PHOTOS}장)과 기본 정보 일부 공개`,
++        profilePhotoMinimum: TWOWEEKS_MIN_PROFILE_PHOTOS,
++        profilePhotoMaximum: TWOWEEKS_MAX_PROFILE_PHOTOS,
++        contactDisclosure: "소개팅 후 상호 연결 희망 시 공개",
++        identityDocumentDisclosure: "상대방에게 공개하지 않음",
++        organizationDisclosure: "후보 제안 단계 비공개, 양쪽 만남 진행 의사 확인 후 공개",
++      },
+       ...resolvedMarketing,
+       testMode: verified.isTestIdentity,
+       uid,
+diff --git a/functions/twoWeeksDeadlineExpirations.js b/functions/twoWeeksDeadlineExpirations.js
+index 63eeebb..2d3fb11 100644
+--- a/functions/twoWeeksDeadlineExpirations.js
++++ b/functions/twoWeeksDeadlineExpirations.js
+@@ -3,6 +3,7 @@ const axios = require("axios");
+ const CryptoJS = require("crypto-js");
+ const { onSchedule } = require("firebase-functions/v2/scheduler");
+ const logger = require("firebase-functions/logger");
++const { getProposalResponseDueMs, getScheduleStageDueMs } = require("./twoWeeksSchedulePolicy");
+ 
+ if (!admin.apps.length) {
+   admin.initializeApp();
+@@ -30,14 +31,6 @@ function toClientNow() {
+   return new Date().toISOString();
+ }
+ 
+-function toMillis(value) {
+-  if (!value) return 0;
+-  if (typeof value?.toDate === "function") return value.toDate().getTime();
+-
+-  const ms = Date.parse(String(value));
+-  return Number.isNaN(ms) ? 0 : ms;
+-}
+-
+ function addSafeSet(target = {}, key = "", value) {
+   if (!key) return target;
+   return {
+@@ -193,18 +186,11 @@ async function sendGuideSms(application = {}, subject = "", lines = []) {
+ }
+ 
+ function getProposalDueMs(match = {}) {
+-  return toMillis(match.responseDueAtClient || match.proposalDueAtClient || match.schedule?.responseDueAtClient);
++  return getProposalResponseDueMs(match);
+ }
+ 
+ function getScheduleDueMs(match = {}) {
+-  const schedule = match.schedule || {};
+-  const status = String(match.scheduleStatus || schedule.status || "");
+-
+-  if (["waiting_counterpart", "needs_final_choice"].includes(status)) {
+-    return toMillis(schedule.counterpartDueAtClient || schedule.dueAtClient);
+-  }
+-
+-  return toMillis(schedule.dueAtClient || schedule.counterpartDueAtClient);
++  return getScheduleStageDueMs(match);
+ }
+ 
+ function getScheduleTargetIds(match = {}) {
+@@ -332,276 +318,318 @@ async function sendScheduleReminderIfNeeded({ db, match, applicationsById, nowMs
+   return results;
+ }
+ 
+-async function expireProposalMatch({ db, match, male, female, nowMs }) {
+-  if (isTerminalMatch(match) || match.status !== "proposed") return null;
++async function expireProposalMatch({ db, match: requestedMatch, nowMs }) {
++  const matchId = requestedMatch.id;
++  const committed = await db.runTransaction(async (transaction) => {
++    const currentSnap = await transaction.get(db.collection("twoweeksMatches").doc(matchId));
++    if (!currentSnap.exists) return null;
++    const match = { id: currentSnap.id, ...currentSnap.data() };
++    const ids = getPairIds(match);
++    const snaps = await Promise.all(ids.map((id) => transaction.get(db.collection("twoweeksApplications").doc(id))));
++    const currentApplications = snaps.filter((snap) => snap.exists).map((snap) => ({ id: snap.id, ...snap.data() }))
++      .filter((app) => app.currentProposal?.matchId === matchId && app.status !== "withdrawn" && app.withdrawal?.status !== "completed");
++    if (isTerminalMatch(match) || match.status !== "proposed") return null;
++
++    const dueMs = getProposalDueMs(match);
++    if (!dueMs || nowMs < dueMs) return null;
++    if (match.expiration?.proposalExpiredAtClient) return null;
++
++    const apps = currentApplications;
++    const nonResponders = apps.filter((app) => {
++      const response = String(app?.currentProposal?.response || "");
++      return !response || response === "pending";
++    });
++    const acceptedApps = apps.filter((app) => String(app?.currentProposal?.response || "") === "accepted");
+ 
+-  const dueMs = getProposalDueMs(match);
+-  if (!dueMs || nowMs < dueMs) return null;
+-  if (match.expiration?.proposalExpiredAtClient) return null;
++    if (!nonResponders.length) return null;
+ 
+-  const apps = [male, female].filter(Boolean);
+-  const nonResponders = apps.filter((app) => {
+-    const response = String(app?.currentProposal?.response || "");
+-    return !response || response === "pending";
+-  });
+-  const acceptedApps = apps.filter((app) => String(app?.currentProposal?.response || "") === "accepted");
++    const smsResults = {};
++    const notifications = [];
+ 
+-  if (!nonResponders.length) return null;
++    for (const app of acceptedApps) {
++      notifications.push({ application: app, title: "매칭 제안 종료", lines: [
++        "상대방이 기한 내 만남을 확정하지 않아 이번 제안은 종료되었습니다.",
++        "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
++        "다음 후보를 다시 검토해드리겠습니다.",
++      ] });
++    }
+ 
+-  const smsResults = {};
++    for (const app of nonResponders) {
++      notifications.push({ application: app, title: "응답 기한 만료", lines: [
++        "기한 내 응답이 없어 이번 매칭 제안은 종료되었습니다.",
++        "무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
++      ] });
++    }
+ 
+-  for (const app of acceptedApps) {
+-    smsResults[app.id] = await sendGuideSms(app, "매칭 제안 종료", [
+-      "상대방이 기한 내 만남을 확정하지 않아 이번 제안은 종료되었습니다.",
+-      "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
+-      "다음 후보를 다시 검토해드리겠습니다.",
+-    ]);
+-  }
++    const batch = transaction;
++    const matchRef = db.collection("twoweeksMatches").doc(match.id);
++    batch.set(
++      matchRef,
++      {
++        status: "proposal_expired",
++        proposalStatus: "expired",
++        expiredStage: "proposal_response",
++        expiredByApplicationIds: nonResponders.map((app) => app.id),
++        expiration: {
++          proposalExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
++          proposalExpiredAtClient: toClientNow(),
++          dueAtClient: match.responseDueAtClient || "",
++          nonResponderApplicationIds: nonResponders.map((app) => app.id),
++          acceptedApplicationIds: acceptedApps.map((app) => app.id),
++          smsResults,
++        },
++        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++      },
++      { merge: true }
++    );
+ 
+-  for (const app of nonResponders) {
+-    smsResults[app.id] = await sendGuideSms(app, "응답 기한 만료", [
+-      "기한 내 응답이 없어 이번 매칭 제안은 종료되었습니다.",
+-      "무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
+-    ]);
+-  }
++    for (const app of acceptedApps) {
++      const appRef = db.collection("twoweeksApplications").doc(app.id);
++      batch.update(appRef, {
++        matchingStatus: "not_started",
++        matchingAvailability: "active",
++        nextRoundStatus: "ready",
++        currentProposal: admin.firestore.FieldValue.delete(),
++        scheduleStatus: "not_started",
++        schedule: admin.firestore.FieldValue.delete(),
++        photoRevealStatus: "hidden",
++        noPenaltyReason: "counterpart_proposal_no_response",
++        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++      });
++    }
+ 
+-  const batch = db.batch();
+-  const matchRef = db.collection("twoweeksMatches").doc(match.id);
+-  batch.set(
+-    matchRef,
+-    {
+-      status: "proposal_expired",
+-      proposalStatus: "expired",
+-      expiredStage: "proposal_response",
+-      expiredByApplicationIds: nonResponders.map((app) => app.id),
+-      expiration: {
+-        proposalExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+-        proposalExpiredAtClient: toClientNow(),
+-        dueAtClient: match.responseDueAtClient || "",
+-        nonResponderApplicationIds: nonResponders.map((app) => app.id),
+-        acceptedApplicationIds: acceptedApps.map((app) => app.id),
+-        smsResults,
+-      },
+-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-    },
+-    { merge: true }
+-  );
++    for (const app of nonResponders) {
++      const appRef = db.collection("twoweeksApplications").doc(app.id);
++      const previousProposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
++      const isRepeatedNoResponse = previousProposalNoResponseCount >= 1;
++
++      if (!isRepeatedNoResponse) {
++        // 첫 제안 무응답은 이력과 경고만 남기고 다음 후보 검토가 가능하도록 복귀시킨다.
++        // 한 번의 기한 초과로 무기한 정지되면 관리자 매칭풀에서 영구히 사라질 수 있다.
++        batch.update(appRef, {
++          matchingStatus: "not_started",
++          matchingAvailability: "active",
++          matchingPauseReason: admin.firestore.FieldValue.delete(),
++          nextRoundStatus: "ready",
++          currentProposal: admin.firestore.FieldValue.delete(),
++          scheduleStatus: "not_started",
++          schedule: admin.firestore.FieldValue.delete(),
++          photoRevealStatus: "hidden",
++          "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
++          "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
++          "penaltyStats.lastPenaltyReason": "proposal_no_response",
++          "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
++          "penaltyStats.lastPenaltyAtClient": toClientNow(),
++          "penaltyStats.lastMatchId": match.id,
++          "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
++          "penaltyStats.reviewStatus": "warning_recorded",
++          "penaltyStats.lastAdminDecision": "auto_returned_after_first_proposal_no_response",
++          "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
++          "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
++          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++        });
++      } else {
++        // 반복 무응답부터는 운영자가 참여 의사를 확인한 뒤 복귀시킨다.
++        batch.update(appRef, {
++          matchingStatus: "paused",
++          matchingAvailability: "paused",
++          matchingPauseReason: "proposal_no_response",
++          matchingPausedAt: admin.firestore.FieldValue.serverTimestamp(),
++          matchingPausedAtClient: toClientNow(),
++          scheduleStatus: "proposal_expired",
++          nextRoundStatus: "admin_review",
++          currentProposal: admin.firestore.FieldValue.delete(),
++          "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
++          "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
++          "penaltyStats.lastPenaltyReason": "proposal_no_response",
++          "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
++          "penaltyStats.lastPenaltyAtClient": toClientNow(),
++          "penaltyStats.lastMatchId": match.id,
++          "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
++          "penaltyStats.reviewStatus": "admin_review",
++          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++        });
++      }
++    }
+ 
+-  for (const app of acceptedApps) {
+-    const appRef = db.collection("twoweeksApplications").doc(app.id);
+-    batch.update(appRef, {
+-      matchingStatus: "not_started",
+-      matchingAvailability: "active",
+-      nextRoundStatus: "ready",
+-      currentProposal: admin.firestore.FieldValue.delete(),
+-      scheduleStatus: "not_started",
+-      schedule: admin.firestore.FieldValue.delete(),
+-      photoRevealStatus: "hidden",
+-      noPenaltyReason: "counterpart_proposal_no_response",
+-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-    });
++
++    return {
++      notifications,
++      matchId: match.id,
++      stage: "proposal_response",
++      nonResponders: nonResponders.map((app) => app.id),
++      accepted: acceptedApps.map((app) => app.id),
++    };
++  });
++  if (!committed) return null;
++  const { notifications, ...result } = committed;
++  const smsResults = {};
++  for (const notification of notifications) {
++    smsResults[notification.application.id] = await sendGuideSms(notification.application, notification.title, notification.lines);
+   }
++  await db.collection("twoweeksMatches").doc(matchId).set({
++    expiration: { smsResults }, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++  }, { merge: true });
++  return result;
++}
++
++async function expireScheduleMatch({ db, match: requestedMatch, nowMs }) {
++  const matchId = requestedMatch.id;
++  const committed = await db.runTransaction(async (transaction) => {
++    const currentSnap = await transaction.get(db.collection("twoweeksMatches").doc(matchId));
++    if (!currentSnap.exists) return null;
++    const match = { id: currentSnap.id, ...currentSnap.data() };
++    const ids = getPairIds(match);
++    const snaps = await Promise.all(ids.map((id) => transaction.get(db.collection("twoweeksApplications").doc(id))));
++    const currentApplications = snaps.filter((snap) => snap.exists).map((snap) => ({ id: snap.id, ...snap.data() }))
++      .filter((app) => app.currentProposal?.matchId === matchId && app.status !== "withdrawn" && app.withdrawal?.status !== "completed");
++    if (isTerminalMatch(match)) return null;
++
++    const schedule = match.schedule || {};
++    const status = String(match.scheduleStatus || schedule.status || "");
++    if (!["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice"].includes(status)) return null;
++
++    const dueMs = getScheduleDueMs(match);
++    if (!dueMs || nowMs < dueMs) return null;
++    if (match.expiration?.scheduleExpiredAtClient) return null;
++
++    const allIds = getPairIds(match);
++    const isCounterpartStep = ["waiting_counterpart", "needs_final_choice"].includes(status);
++    const nonResponderIds = isCounterpartStep ? getScheduleTargetIds(match) : allIds;
++    const noPenaltyIds = allIds.filter((id) => !nonResponderIds.includes(id));
++
++    const nonResponders = [];
++    const noPenaltyApps = [];
++
++    for (const id of nonResponderIds) {
++      const app = currentApplications.find((item) => item.id === id);
++      if (app) nonResponders.push(app);
++    }
++
++    for (const id of noPenaltyIds) {
++      const app = currentApplications.find((item) => item.id === id);
++      if (app) noPenaltyApps.push(app);
++    }
++
++    if (!nonResponders.length) return null;
++
++    const smsResults = {};
++    const notifications = [];
+ 
+-  for (const app of nonResponders) {
+-    const appRef = db.collection("twoweeksApplications").doc(app.id);
+-    const previousProposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
+-    const isRepeatedNoResponse = previousProposalNoResponseCount >= 1;
++    for (const app of noPenaltyApps) {
++      notifications.push({ application: app, title: "일정조율 종료", lines: [
++        "상대방이 기한 내 일시/장소를 확정하지 않아 이번 만남은 종료되었습니다.",
++        "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
++        "다음 후보를 다시 검토해드리겠습니다.",
++      ] });
++    }
++
++    for (const app of nonResponders) {
++      notifications.push({ application: app, title: "일정조율 기한 만료", lines: [
++        "기한 내 일시/장소 선택이 완료되지 않아 이번 만남은 종료되었습니다.",
++        "일정조율 무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
++      ] });
++    }
++
++    const batch = transaction;
++    const matchRef = db.collection("twoweeksMatches").doc(match.id);
++    const expiredStage = isCounterpartStep ? "schedule_counterpart_choice" : "schedule_first_choice";
++    const nextScheduleStatus = isCounterpartStep ? "counterpart_expired" : "schedule_expired";
++
++    batch.set(
++      matchRef,
++      {
++        status: "schedule_expired",
++        scheduleStatus: nextScheduleStatus,
++        expiredStage,
++        expiredByApplicationIds: nonResponders.map((app) => app.id),
++        schedule: {
++          status: nextScheduleStatus,
++          expiredAt: admin.firestore.FieldValue.serverTimestamp(),
++          expiredAtClient: toClientNow(),
++          expiredReason: expiredStage,
++        },
++        expiration: {
++          scheduleExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
++          scheduleExpiredAtClient: toClientNow(),
++          dueAtClient:
++            schedule.counterpartDueAtClient ||
++            schedule.dueAtClient ||
++            "",
++          expiredStage,
++          nonResponderApplicationIds: nonResponders.map((app) => app.id),
++          noPenaltyApplicationIds: noPenaltyApps.map((app) => app.id),
++          smsResults,
++        },
++        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++      },
++      { merge: true }
++    );
+ 
+-    if (!isRepeatedNoResponse) {
+-      // 첫 제안 무응답은 이력과 경고만 남기고 다음 후보 검토가 가능하도록 복귀시킨다.
+-      // 한 번의 기한 초과로 무기한 정지되면 관리자 매칭풀에서 영구히 사라질 수 있다.
++    for (const app of noPenaltyApps) {
++      const appRef = db.collection("twoweeksApplications").doc(app.id);
+       batch.update(appRef, {
+         matchingStatus: "not_started",
+         matchingAvailability: "active",
+-        matchingPauseReason: admin.firestore.FieldValue.delete(),
+         nextRoundStatus: "ready",
+         currentProposal: admin.firestore.FieldValue.delete(),
+         scheduleStatus: "not_started",
+         schedule: admin.firestore.FieldValue.delete(),
+         photoRevealStatus: "hidden",
+-        "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
+-        "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
+-        "penaltyStats.lastPenaltyReason": "proposal_no_response",
+-        "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
+-        "penaltyStats.lastPenaltyAtClient": toClientNow(),
+-        "penaltyStats.lastMatchId": match.id,
+-        "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
+-        "penaltyStats.reviewStatus": "warning_recorded",
+-        "penaltyStats.lastAdminDecision": "auto_returned_after_first_proposal_no_response",
+-        "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
+-        "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
++        noPenaltyReason: "counterpart_schedule_no_response",
+         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+       });
+-    } else {
+-      // 반복 무응답부터는 운영자가 참여 의사를 확인한 뒤 복귀시킨다.
++    }
++
++    for (const app of nonResponders) {
++      const appRef = db.collection("twoweeksApplications").doc(app.id);
+       batch.update(appRef, {
+         matchingStatus: "paused",
+         matchingAvailability: "paused",
+-        matchingPauseReason: "proposal_no_response",
++        matchingPauseReason: expiredStage,
+         matchingPausedAt: admin.firestore.FieldValue.serverTimestamp(),
+         matchingPausedAtClient: toClientNow(),
+-        scheduleStatus: "proposal_expired",
++        scheduleStatus: nextScheduleStatus,
+         nextRoundStatus: "admin_review",
++        // 종료된 제안을 남겨두면 관리자 복귀 판정이 이를 활성 제안으로 오인한다.
+         currentProposal: admin.firestore.FieldValue.delete(),
+-        "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
++        schedule: {
++          status: nextScheduleStatus,
++          expiredAt: admin.firestore.FieldValue.serverTimestamp(),
++          expiredAtClient: toClientNow(),
++          expiredReason: expiredStage,
++        },
++        "penaltyStats.scheduleNoResponseCount": admin.firestore.FieldValue.increment(1),
+         "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
+-        "penaltyStats.lastPenaltyReason": "proposal_no_response",
++        "penaltyStats.lastPenaltyReason": expiredStage,
+         "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
+         "penaltyStats.lastPenaltyAtClient": toClientNow(),
+         "penaltyStats.lastMatchId": match.id,
+-        "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
++        "penaltyStats.lastCounterpartOutcome": noPenaltyApps.length ? "counterpart_waited" : "both_no_response",
+         "penaltyStats.reviewStatus": "admin_review",
+         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+       });
+     }
+-  }
+-
+-  await batch.commit();
+-
+-  return {
+-    matchId: match.id,
+-    stage: "proposal_response",
+-    nonResponders: nonResponders.map((app) => app.id),
+-    accepted: acceptedApps.map((app) => app.id),
+-  };
+-}
+ 
+-async function expireScheduleMatch({ db, match, applicationsById, nowMs }) {
+-  if (isTerminalMatch(match)) return null;
+-
+-  const schedule = match.schedule || {};
+-  const status = String(match.scheduleStatus || schedule.status || "");
+-  if (!["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice"].includes(status)) return null;
+-
+-  const dueMs = getScheduleDueMs(match);
+-  if (!dueMs || nowMs < dueMs) return null;
+-  if (match.expiration?.scheduleExpiredAtClient) return null;
+-
+-  const allIds = getPairIds(match);
+-  const isCounterpartStep = ["waiting_counterpart", "needs_final_choice"].includes(status);
+-  const nonResponderIds = isCounterpartStep ? getScheduleTargetIds(match) : allIds;
+-  const noPenaltyIds = allIds.filter((id) => !nonResponderIds.includes(id));
+-
+-  const nonResponders = [];
+-  const noPenaltyApps = [];
+-
+-  for (const id of nonResponderIds) {
+-    const app = applicationsById[id] || (await getApplication(db, id));
+-    if (app) nonResponders.push(app);
+-  }
+-
+-  for (const id of noPenaltyIds) {
+-    const app = applicationsById[id] || (await getApplication(db, id));
+-    if (app) noPenaltyApps.push(app);
+-  }
+-
+-  if (!nonResponders.length) return null;
+ 
++    return {
++      notifications,
++      matchId: match.id,
++      stage: expiredStage,
++      nonResponders: nonResponders.map((app) => app.id),
++      noPenalty: noPenaltyApps.map((app) => app.id),
++    };
++  });
++  if (!committed) return null;
++  const { notifications, ...result } = committed;
+   const smsResults = {};
+-
+-  for (const app of noPenaltyApps) {
+-    smsResults[app.id] = await sendGuideSms(app, "일정조율 종료", [
+-      "상대방이 기한 내 일시/장소를 확정하지 않아 이번 만남은 종료되었습니다.",
+-      "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
+-      "다음 후보를 다시 검토해드리겠습니다.",
+-    ]);
+-  }
+-
+-  for (const app of nonResponders) {
+-    smsResults[app.id] = await sendGuideSms(app, "일정조율 기한 만료", [
+-      "기한 내 일시/장소 선택이 완료되지 않아 이번 만남은 종료되었습니다.",
+-      "일정조율 무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
+-    ]);
++  for (const notification of notifications) {
++    smsResults[notification.application.id] = await sendGuideSms(notification.application, notification.title, notification.lines);
+   }
+-
+-  const batch = db.batch();
+-  const matchRef = db.collection("twoweeksMatches").doc(match.id);
+-  const expiredStage = isCounterpartStep ? "schedule_counterpart_choice" : "schedule_first_choice";
+-  const nextScheduleStatus = isCounterpartStep ? "counterpart_expired" : "schedule_expired";
+-
+-  batch.set(
+-    matchRef,
+-    {
+-      status: "schedule_expired",
+-      scheduleStatus: nextScheduleStatus,
+-      expiredStage,
+-      expiredByApplicationIds: nonResponders.map((app) => app.id),
+-      schedule: {
+-        status: nextScheduleStatus,
+-        expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+-        expiredAtClient: toClientNow(),
+-        expiredReason: expiredStage,
+-      },
+-      expiration: {
+-        scheduleExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+-        scheduleExpiredAtClient: toClientNow(),
+-        dueAtClient:
+-          schedule.counterpartDueAtClient ||
+-          schedule.dueAtClient ||
+-          "",
+-        expiredStage,
+-        nonResponderApplicationIds: nonResponders.map((app) => app.id),
+-        noPenaltyApplicationIds: noPenaltyApps.map((app) => app.id),
+-        smsResults,
+-      },
+-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-    },
+-    { merge: true }
+-  );
+-
+-  for (const app of noPenaltyApps) {
+-    const appRef = db.collection("twoweeksApplications").doc(app.id);
+-    batch.update(appRef, {
+-      matchingStatus: "not_started",
+-      matchingAvailability: "active",
+-      nextRoundStatus: "ready",
+-      currentProposal: admin.firestore.FieldValue.delete(),
+-      scheduleStatus: "not_started",
+-      schedule: admin.firestore.FieldValue.delete(),
+-      photoRevealStatus: "hidden",
+-      noPenaltyReason: "counterpart_schedule_no_response",
+-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-    });
+-  }
+-
+-  for (const app of nonResponders) {
+-    const appRef = db.collection("twoweeksApplications").doc(app.id);
+-    batch.update(appRef, {
+-      matchingStatus: "paused",
+-      matchingAvailability: "paused",
+-      matchingPauseReason: expiredStage,
+-      matchingPausedAt: admin.firestore.FieldValue.serverTimestamp(),
+-      matchingPausedAtClient: toClientNow(),
+-      scheduleStatus: nextScheduleStatus,
+-      nextRoundStatus: "admin_review",
+-      // 종료된 제안을 남겨두면 관리자 복귀 판정이 이를 활성 제안으로 오인한다.
+-      currentProposal: admin.firestore.FieldValue.delete(),
+-      schedule: {
+-        status: nextScheduleStatus,
+-        expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+-        expiredAtClient: toClientNow(),
+-        expiredReason: expiredStage,
+-      },
+-      "penaltyStats.scheduleNoResponseCount": admin.firestore.FieldValue.increment(1),
+-      "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
+-      "penaltyStats.lastPenaltyReason": expiredStage,
+-      "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
+-      "penaltyStats.lastPenaltyAtClient": toClientNow(),
+-      "penaltyStats.lastMatchId": match.id,
+-      "penaltyStats.lastCounterpartOutcome": noPenaltyApps.length ? "counterpart_waited" : "both_no_response",
+-      "penaltyStats.reviewStatus": "admin_review",
+-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-    });
+-  }
+-
+-  await batch.commit();
+-
+-  return {
+-    matchId: match.id,
+-    stage: expiredStage,
+-    nonResponders: nonResponders.map((app) => app.id),
+-    noPenalty: noPenaltyApps.map((app) => app.id),
+-  };
++  await db.collection("twoweeksMatches").doc(matchId).set({
++    expiration: { smsResults }, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++  }, { merge: true });
++  return result;
+ }
+ 
+ async function processProposedMatches({ db, nowMs }) {
+@@ -666,62 +694,66 @@ async function repairExpiredAdminReviewApplications({ db }) {
+ 
+   if (snap.empty) return { scanned: 0, returnedToPool: 0, staleProposalCleared: 0 };
+ 
+-  const batch = db.batch();
+   let returnedToPool = 0;
+   let staleProposalCleared = 0;
+ 
+-  snap.forEach((doc) => {
+-    const app = { id: doc.id, ...doc.data() };
+-    if (String(app.matchingStatus || "") !== "paused") return;
+-
+-    const pauseReason = String(app.matchingPauseReason || app?.penaltyStats?.lastPenaltyReason || "");
+-    if (!NO_RESPONSE_REVIEW_REASONS.has(pauseReason)) return;
+-
+-    const proposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
+-    const isFirstProposalNoResponse =
+-      pauseReason === "proposal_no_response" && proposalNoResponseCount <= 1;
+-    const ref = db.collection("twoweeksApplications").doc(app.id);
+-
+-    if (isFirstProposalNoResponse) {
+-      batch.update(ref, {
+-        matchingStatus: "not_started",
+-        matchingAvailability: "active",
+-        matchingPauseReason: admin.firestore.FieldValue.delete(),
+-        nextRoundStatus: "ready",
+-        currentProposal: admin.firestore.FieldValue.delete(),
+-        scheduleStatus: "not_started",
+-        schedule: admin.firestore.FieldValue.delete(),
+-        photoRevealStatus: "hidden",
+-        "penaltyStats.reviewStatus": "warning_recorded",
+-        "penaltyStats.lastAdminDecision": "auto_repaired_first_proposal_no_response",
+-        "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
+-        "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
+-        resumedAt: admin.firestore.FieldValue.serverTimestamp(),
+-        resumedAtClient: toClientNow(),
+-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-      });
+-      returnedToPool += 1;
+-      return;
+-    }
+-
+-    const currentProposalStatus = String(app?.currentProposal?.status || app?.currentProposal?.response || "");
+-    const hasStaleProposal =
+-      Boolean(app?.currentProposal?.candidateApplicationId) &&
+-      ["expired", "declined", "cancelled", "canceled", "completed"].includes(currentProposalStatus);
+-
+-    if (hasStaleProposal || pauseReason.startsWith("schedule_")) {
+-      batch.update(ref, {
+-        currentProposal: admin.firestore.FieldValue.delete(),
+-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-      });
+-      staleProposalCleared += 1;
+-    }
+-  });
+-
+-  if (returnedToPool || staleProposalCleared) await batch.commit();
++  for (const document of snap.docs) {
++    const outcome = await db.runTransaction(async (batch) => {
++      const current = await batch.get(document.ref);
++      if (!current.exists) return;
++      const app = { id: current.id, ...current.data() };
++      if (app.nextRoundStatus !== "admin_review" || String(app.matchingStatus || "") !== "paused") return;
++      const proposalStatus = String(app.currentProposal?.status || app.currentProposal?.response || "");
++      if (app.currentProposal?.candidateApplicationId && !["expired", "declined", "cancelled", "canceled", "completed"].includes(proposalStatus)) return;
++
++      const pauseReason = String(app.matchingPauseReason || app?.penaltyStats?.lastPenaltyReason || "");
++      if (!NO_RESPONSE_REVIEW_REASONS.has(pauseReason)) return;
++
++      const proposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
++      const isFirstProposalNoResponse =
++        pauseReason === "proposal_no_response" && proposalNoResponseCount <= 1;
++      const ref = db.collection("twoweeksApplications").doc(app.id);
++
++      if (isFirstProposalNoResponse) {
++        batch.update(ref, {
++          matchingStatus: "not_started",
++          matchingAvailability: "active",
++          matchingPauseReason: admin.firestore.FieldValue.delete(),
++          nextRoundStatus: "ready",
++          currentProposal: admin.firestore.FieldValue.delete(),
++          scheduleStatus: "not_started",
++          schedule: admin.firestore.FieldValue.delete(),
++          photoRevealStatus: "hidden",
++          "penaltyStats.reviewStatus": "warning_recorded",
++          "penaltyStats.lastAdminDecision": "auto_repaired_first_proposal_no_response",
++          "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
++          "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
++          resumedAt: admin.firestore.FieldValue.serverTimestamp(),
++          resumedAtClient: toClientNow(),
++          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++        });
++        return "returned";
++      }
++
++      const currentProposalStatus = String(app?.currentProposal?.status || app?.currentProposal?.response || "");
++      const hasStaleProposal =
++        Boolean(app?.currentProposal?.candidateApplicationId) &&
++        ["expired", "declined", "cancelled", "canceled", "completed"].includes(currentProposalStatus);
++
++      if (hasStaleProposal || pauseReason.startsWith("schedule_")) {
++        batch.update(ref, {
++          currentProposal: admin.firestore.FieldValue.delete(),
++          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++        });
++        return "cleared";
++      }
++    });
++    if (outcome === "returned") returnedToPool += 1;
++    if (outcome === "cleared") staleProposalCleared += 1;
++  }
+ 
+   return {
+-    scanned: snap.size,
++    scanned: snap.docs.length,
+     returnedToPool,
+     staleProposalCleared,
+   };
+@@ -758,3 +790,9 @@ exports.processTwoWeeksDeadlineExpirations = onSchedule(
+     });
+   }
+ );
++
++// 회귀 테스트에서 스케줄러와 동일한 만료 처리 함수를 사용합니다.
++exports.expireProposalMatch = expireProposalMatch;
++exports.expireScheduleMatch = expireScheduleMatch;
++
++exports.repairExpiredAdminReviewApplications = repairExpiredAdminReviewApplications;
+diff --git a/functions/twoWeeksMatchParticipantSync.js b/functions/twoWeeksMatchParticipantSync.js
+index bb1a728..8d9ce8e 100644
+--- a/functions/twoWeeksMatchParticipantSync.js
++++ b/functions/twoWeeksMatchParticipantSync.js
+@@ -47,7 +47,9 @@ function buildApplicationPatch(match = {}, applicationId = "") {
+     };
+   }
+ 
+-  if (status === "mutualAccepted" || scheduleStatus === "waiting_counterpart") {
++  if ([status, scheduleStatus].some((value) => ["cancelled", "canceled", "expired", "proposal_expired", "schedule_expired", "counterpart_expired", "failed", "completed", "withdrawn"].includes(value))) return null;
++
++  if (status !== "confirmed" && scheduleStatus !== "confirmed" && (status === "mutualAccepted" || scheduleStatus === "waiting_counterpart")) {
+     return {
+       matchingStatus: "mutualAccepted",
+       "currentProposal.mutualAcceptedAt": match?.mutualAcceptedAt || admin.firestore.FieldValue.serverTimestamp(),
+@@ -121,37 +123,31 @@ const syncTwoWeeksMatchParticipants = onDocumentWritten(
+     if (applicationIds.length !== 2) return;
+ 
+     const db = admin.firestore();
+-    const applicationSnaps = await Promise.all(
+-      applicationIds.map((applicationId) =>
+-        db.collection("twoweeksApplications").doc(applicationId).get()
+-      )
+-    );
+-    const applicationsById = new Map(
+-      applicationSnaps
+-        .filter((snap) => snap.exists)
+-        .map((snap) => [snap.id, snap.data() || {}])
+-    );
+-    const batch = db.batch();
+-    let writeCount = 0;
+-
+-    for (const applicationId of applicationIds) {
+-      const application = applicationsById.get(applicationId) || {};
+-      if (
+-        application.status === "withdrawn" ||
+-        application.withdrawal?.status === "completed"
+-      ) {
+-        continue;
+-      }
+-      const patch = buildApplicationPatch(after, applicationId);
+-      if (!patch) continue;
+-      const ref = db.collection("twoweeksApplications").doc(applicationId);
+-      batch.update(ref, patch);
+-      writeCount += 1;
+-    }
++    await synchronizeMatchParticipants(db, event.params.matchId);
+ 
+-    if (!writeCount) return;
+-    await batch.commit();
+   }
+ );
+ 
+-module.exports = { syncTwoWeeksMatchParticipants };
++async function synchronizeMatchParticipants(db, matchId) {
++  // 이벤트는 순서가 바뀌거나 재전송될 수 있으므로 현재 DB 상태를 기준으로 동기화합니다.
++  return db.runTransaction(async (transaction) => {
++    const matchSnap = await transaction.get(db.collection("twoweeksMatches").doc(matchId));
++    if (!matchSnap.exists) return;
++    const match = { ...matchSnap.data(), id: matchId };
++    const ids = [...new Set([cleanId(match.maleApplicationId), cleanId(match.femaleApplicationId)].filter(Boolean))];
++    if (ids.length !== 2) return;
++    const refs = ids.map((id) => db.collection("twoweeksApplications").doc(id));
++    const snaps = await Promise.all(refs.map((ref) => transaction.get(ref)));
++    for (let index = 0; index < snaps.length; index += 1) {
++      const snap = snaps[index];
++      if (!snap.exists) continue;
++      const application = snap.data();
++      // 다음 상대를 소개받은 신청서를 이전 매칭의 이벤트로 되돌리지 않습니다.
++      if (application.status === "withdrawn" || application.withdrawal?.status === "completed" || application.currentProposal?.matchId !== matchId) continue;
++      const patch = buildApplicationPatch(match, snap.id);
++      if (patch) transaction.update(refs[index], patch);
++    }
++  });
++}
++
++module.exports = { syncTwoWeeksMatchParticipants, synchronizeMatchParticipants };
+diff --git a/functions/twoWeeksMutualAcceptedNotification.js b/functions/twoWeeksMutualAcceptedNotification.js
+index e2bc458..1673c75 100644
+--- a/functions/twoWeeksMutualAcceptedNotification.js
++++ b/functions/twoWeeksMutualAcceptedNotification.js
+@@ -3,17 +3,9 @@ const admin = require("firebase-admin");
+ const axios = require("axios");
+ const CryptoJS = require("crypto-js");
+ const { assertApplicationOwner } = require("./twoWeeksCallerAuth");
++const { buildScheduleOpeningPatch, assertLiveMatch } = require("./twoWeeksScheduleSubmission");
+ const { notifyTwoWeeksAdminLifecycle } = require("./twoWeeksAdminLifecycleNotification");
+-const {
+-  PROPOSAL_RESPONSE_DUE_HOURS,
+-  SCHEDULE_STAGE_DUE_HOURS,
+-  SCHEDULE_TOTAL_DUE_HOURS,
+-  addHoursClient,
+-  buildSchedulePolicy,
+-  getMatchSchedulePolicy,
+-  getProposalResponseDueMs,
+-  toMillis,
+-} = require("./twoWeeksSchedulePolicy");
++const { getProposalResponseDueMs, toMillis } = require("./twoWeeksSchedulePolicy");
+ 
+ const NOTIFICATION_LOCK_STALE_MS = 2 * 60 * 1000;
+ 
+@@ -279,96 +271,28 @@ const notifyTwoWeeksMutualAccepted = onCall(
+       throw new HttpsError("deadline-exceeded", "제안 응답 기한이 종료되었습니다.");
+     }
+ 
+-    // 신규 매칭은 Firestore의 서버 생성시각을 최종 기준으로 사용한다.
+-    // 정책 도입 전 문서처럼 서버 생성시각이 없을 때만 호환용 기준을 사용한다.
+-    const schedulePolicy = match.createdAt
+-      ? buildSchedulePolicy(match.createdAt)
+-      : getMatchSchedulePolicy(match);
+-    const currentScheduleStatus = String(
+-      match.scheduleStatus || match?.schedule?.status || ""
+-    );
+-    const terminalStatuses = [
+-      "declined",
+-      "failed",
+-      "expired",
+-      "proposal_expired",
+-      "schedule_expired",
+-      "counterpart_expired",
+-      "cancelled",
+-      "canceled",
+-    ];
+-
+-    if (
+-      terminalStatuses.includes(String(match.status || "")) ||
+-      terminalStatuses.includes(String(match.proposalStatus || "")) ||
+-      terminalStatuses.includes(currentScheduleStatus)
+-    ) {
+-      throw new HttpsError("failed-precondition", "이미 종료된 제안입니다.");
+-    }
+-
+-    const scheduleProgressed = [
+-      "waiting_counterpart",
+-      "needs_final_choice",
+-      "place_pending",
+-      "confirmed",
+-    ].includes(currentScheduleStatus);
+-    const scheduleInitializedByServer = Boolean(
+-      match?.schedule?.serverPolicyInitializedAtClient
+-    );
+-    const nowClient = new Date().toISOString();
+-    const firstDueAtClient = scheduleInitializedByServer
+-      ? match?.schedule?.dueAtClient || addHoursClient(SCHEDULE_STAGE_DUE_HOURS, nowClient)
+-      : addHoursClient(SCHEDULE_STAGE_DUE_HOURS, nowClient);
+-
+-    const authoritativeMatchPatch = {
+-      schedulePolicy,
+-      policySnapshot: {
+-        ...(match.policySnapshot || {}),
+-        proposalResponseDueHours: PROPOSAL_RESPONSE_DUE_HOURS,
+-        scheduleSelectionDueHours: SCHEDULE_TOTAL_DUE_HOURS,
+-        firstScheduleSelectionDueHours: SCHEDULE_STAGE_DUE_HOURS,
+-        counterpartScheduleSelectionDueHours: SCHEDULE_STAGE_DUE_HOURS,
+-        meetingWeekRule: schedulePolicy.meetingWeekRule,
+-        meetingTimeZone: schedulePolicy.timeZone,
+-      },
+-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+-    };
+-
+-    if (!scheduleProgressed && currentScheduleStatus !== "confirmed") {
+-      authoritativeMatchPatch.status = "mutualAccepted";
+-      authoritativeMatchPatch.scheduleStatus = "ready";
+-      authoritativeMatchPatch.mutualAcceptedAt =
+-        match.mutualAcceptedAt || admin.firestore.FieldValue.serverTimestamp();
+-      authoritativeMatchPatch.mutualAcceptedAtClient =
+-        match.mutualAcceptedAtClient || nowClient;
+-      authoritativeMatchPatch.schedule = {
+-        ...(match.schedule || {}),
+-        status: "ready",
+-        dueHours: SCHEDULE_STAGE_DUE_HOURS,
+-        totalDueHours: SCHEDULE_TOTAL_DUE_HOURS,
+-        dueAtClient: firstDueAtClient,
+-        policyVersion: schedulePolicy.version,
+-        meetingWindowStartDateKey: schedulePolicy.windowStartDateKey,
+-        meetingWindowEndDateKey: schedulePolicy.windowEndDateKey,
+-        openedAt: match?.schedule?.openedAt || admin.firestore.FieldValue.serverTimestamp(),
+-        openedAtClient: match?.schedule?.openedAtClient || nowClient,
+-        serverPolicyInitializedAt: admin.firestore.FieldValue.serverTimestamp(),
+-        serverPolicyInitializedAtClient:
+-          match?.schedule?.serverPolicyInitializedAtClient || nowClient,
+-        firstSelectorApplicationId: match?.schedule?.firstSelectorApplicationId || "",
+-        firstChoices: Array.isArray(match?.schedule?.firstChoices)
+-          ? match.schedule.firstChoices
+-          : [],
+-        finalChoice: match?.schedule?.finalChoice || null,
+-      };
++    // 문자 요청이 늦게 도착해도 이미 선택한 후보나 확정/종료 상태를 덮어쓰지 않습니다.
++    // 신규 응답은 수락 트랜잭션이 일정을 엽니다. 이 경로는 레거시 매칭만 보완합니다.
++    const authoritativeMatchPatch = await db.runTransaction(async (transaction) => {
++      const ref = db.collection("twoweeksMatches").doc(matchId);
++      const currentSnap = await transaction.get(ref);
++      if (!currentSnap.exists) throw new HttpsError("not-found", "매칭 정보를 찾을 수 없습니다.");
++      const current = currentSnap.data() || {};
++      assertLiveMatch(current);
++      const currentStatus = current.scheduleStatus || current.schedule?.status || "";
++      if (current.status === "confirmed" || ["waiting_counterpart", "needs_final_choice", "place_pending", "confirmed"].includes(currentStatus)) {
++        return { skipNotifications: true };
++      }
++      if (["ready", "needs_first_choice"].includes(currentStatus)) return {};
++      const patch = buildScheduleOpeningPatch(current);
++      transaction.set(ref, patch, { merge: true });
++      return patch;
++    });
++
++    if (authoritativeMatchPatch.skipNotifications) {
++      return { status: "already_progressed", sent: false, scheduleOpened: false, results: [] };
+     }
+ 
+-    // 문자 발송 여부와 관계없이 일정 기준과 첫 선택 기한을 서버에서 먼저 확정한다.
+-    await db.collection("twoweeksMatches").doc(matchId).set(
+-      authoritativeMatchPatch,
+-      { merge: true }
+-    );
+-
+     await notifyTwoWeeksAdminLifecycle({
+       matchId,
+       event: "mutual_accepted",
+diff --git a/functions/twoWeeksProposalRespond.js b/functions/twoWeeksProposalRespond.js
+index c707bb5..2a093aa 100644
+--- a/functions/twoWeeksProposalRespond.js
++++ b/functions/twoWeeksProposalRespond.js
+@@ -3,6 +3,7 @@
+ const { onCall, HttpsError } = require("firebase-functions/v2/https");
+ const admin = require("firebase-admin");
+ const { assertApplicationOwner } = require("./twoWeeksCallerAuth");
++const { buildScheduleOpeningPatch } = require("./twoWeeksScheduleSubmission");
+ const { getProposalResponseDueMs, toMillis } = require("./twoWeeksSchedulePolicy");
+ 
+ if (!admin.apps.length) admin.initializeApp();
+@@ -167,7 +168,9 @@ async function recordTwoWeeksProposalResponse(request, db = admin.firestore()) {
+         updatedAt: field.serverTimestamp(),
+       });
+       tx.set(matchRef, {
+-        status: "mutualAccepted", mutualAcceptedAt: field.serverTimestamp(), updatedAt: field.serverTimestamp(),
++        ...(!["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice", "confirmed"].includes(scheduleStatus)
++          ? buildScheduleOpeningPatch(match, now) : {}),
++        status: "mutualAccepted", mutualAcceptedAt: match.mutualAcceptedAt || field.serverTimestamp(), updatedAt: field.serverTimestamp(),
+       }, { merge: true });
+     } else if (response === "declined") {
+       // 거절 알림 함수가 이후 상세 사유와 종료 상태를 다시 검증/동기화합니다.
+diff --git a/functions/twoWeeksTestAuth.js b/functions/twoWeeksTestAuth.js
+index 35e3d04..96d488e 100644
+--- a/functions/twoWeeksTestAuth.js
++++ b/functions/twoWeeksTestAuth.js
+@@ -23,7 +23,8 @@ function normalizeTwoWeeksPhone(value = "") {
+ }
+ 
+ function isTwoWeeksTestPhone(value = "") {
+-  return TWO_WEEKS_TEST_PHONES.has(normalizeTwoWeeksPhone(value));
++  const enabled = process.env.FUNCTIONS_EMULATOR === "true" || process.env.TWOWEEKS_ENABLE_TEST_AUTH === "true";
++  return enabled && TWO_WEEKS_TEST_PHONES.has(normalizeTwoWeeksPhone(value));
+ }
+ 
+ module.exports = {
+diff --git a/tests/twProposalResponse.test.cjs b/tests/twProposalResponse.test.cjs
+index bc38665..9746a18 100644
+--- a/tests/twProposalResponse.test.cjs
++++ b/tests/twProposalResponse.test.cjs
+@@ -10,6 +10,8 @@ caller.assertApplicationOwner = async (req, applicationId) => {
+     throw new Error('not owner');
+   }
+ };
++const admin = require('../functions/node_modules/firebase-admin');
++if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-twoweeks-tests' });
+ const { recordTwoWeeksProposalResponse } = require('../functions/twoWeeksProposalRespond.js');
+ const FUTURE = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+ function fakeDb({ myResponse = null, counterpartResponse = null, status = 'proposed' } = {}) {
+diff --git a/functions/tests/twoWeeksTestAuth.test.js b/functions/tests/twoWeeksTestAuth.test.js
+new file mode 100644
+index 0000000..d88fd11
+--- /dev/null
++++ b/functions/tests/twoWeeksTestAuth.test.js
+@@ -0,0 +1,23 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { isTwoWeeksTestPhone } = require("../twoWeeksTestAuth");
++
++test("고정 인증번호 테스트 계정은 운영 환경에서 기본적으로 비활성화된다", () => {
++  const saved = { enabled: process.env.TWOWEEKS_ENABLE_TEST_AUTH, emulator: process.env.FUNCTIONS_EMULATOR };
++  try {
++    delete process.env.TWOWEEKS_ENABLE_TEST_AUTH;
++    delete process.env.FUNCTIONS_EMULATOR;
++    assert.equal(isTwoWeeksTestPhone("01000000001"), false);
++    process.env.TWOWEEKS_ENABLE_TEST_AUTH = "true";
++    assert.equal(isTwoWeeksTestPhone("+82 10-0000-0001"), true);
++    assert.equal(isTwoWeeksTestPhone("01055550111"), false);
++    delete process.env.TWOWEEKS_ENABLE_TEST_AUTH;
++    process.env.FUNCTIONS_EMULATOR = "true";
++    assert.equal(isTwoWeeksTestPhone("01000000002"), true);
++  } finally {
++    if (saved.enabled === undefined) delete process.env.TWOWEEKS_ENABLE_TEST_AUTH;
++    else process.env.TWOWEEKS_ENABLE_TEST_AUTH = saved.enabled;
++    if (saved.emulator === undefined) delete process.env.FUNCTIONS_EMULATOR;
++    else process.env.FUNCTIONS_EMULATOR = saved.emulator;
++  }
++});
+diff --git a/functions/twoWeeksScheduleSubmission.js b/functions/twoWeeksScheduleSubmission.js
+new file mode 100644
+index 0000000..20710bf
+--- /dev/null
++++ b/functions/twoWeeksScheduleSubmission.js
+@@ -0,0 +1,178 @@
++const { onCall, HttpsError } = require("firebase-functions/v2/https");
++const admin = require("firebase-admin");
++const { assertApplicationOwner, isAdminUid } = require("./twoWeeksCallerAuth");
++const { getMatchSchedulePolicy, getScheduleStageDueMs, addHoursClient, toMillis } = require("./twoWeeksSchedulePolicy");
++
++const TERMINAL = new Set(["declined", "failed", "expired", "proposal_expired", "schedule_expired", "counterpart_expired", "cancelled", "canceled", "completed", "withdrawn"]);
++const placeId = (value = {}) => String(value.cafeId || value.placeId || value.id || "").trim();
++
++function buildScheduleOpeningPatch(match = {}, now = new Date().toISOString()) {
++  const schedule = match.schedule || {};
++  const openedAt = schedule.serverPolicyInitializedAt || schedule.openedAt || admin.firestore.FieldValue.serverTimestamp();
++  const openedAtClient = schedule.serverPolicyInitializedAtClient || schedule.openedAtClient || now;
++  return {
++    status: "mutualAccepted",
++    scheduleStatus: "ready",
++    schedulePolicy: getMatchSchedulePolicy(match),
++    mutualAcceptedAt: match.mutualAcceptedAt || admin.firestore.FieldValue.serverTimestamp(),
++    mutualAcceptedAtClient: match.mutualAcceptedAtClient || now,
++    schedule: {
++      ...schedule, status: "ready", dueHours: 24, totalDueHours: 48,
++      dueAtClient: schedule.dueAtClient || addHoursClient(24, openedAtClient),
++      openedAt: schedule.openedAt || openedAt,
++      openedAtClient: schedule.openedAtClient || openedAtClient,
++      serverPolicyInitializedAt: openedAt,
++      serverPolicyInitializedAtClient: openedAtClient,
++    },
++    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
++  };
++}
++
++function assertLiveMatch(match) {
++  if ([match.status, match.proposalStatus, match.scheduleStatus, match.schedule?.status].some((value) => TERMINAL.has(value))) {
++    throw new HttpsError("failed-precondition", "이미 종료된 소개입니다. 신청현황을 다시 확인해주세요.");
++  }
++}
++
++function canonicalPlace(snapshot) {
++  const data = snapshot.exists ? snapshot.data() : null;
++  if (!data || data.status !== "active" || !data.name || !data.area) {
++    throw new HttpsError("failed-precondition", "선택한 장소가 현재 이용 가능하지 않습니다. 장소 목록을 다시 확인해주세요.");
++  }
++  return {
++    id: snapshot.id, placeId: snapshot.id, cafeId: snapshot.id,
++    area: data.area, cafeName: data.name, cafeStation: data.station || "",
++    cafeRatingLabel: data.ratingLabel || "", cafeReason: data.reason || "",
++    cafeMapQuery: data.mapQuery || "", cafeMapUrl: data.mapUrl || "", address: data.address || "",
++  };
++}
++
++async function recordTwoWeeksSchedule(request, db = admin.firestore()) {
++  const input = request.data || {};
++  const mode = String(input.mode || "");
++  const matchId = String(input.matchId || "").trim();
++  const viewerId = String(input.viewerApplicationId || "").trim();
++  const candidateId = String(input.candidateApplicationId || "").trim();
++  const adminMode = mode === "admin_confirm";
++  if (!matchId || !["first", "final", "admin_confirm"].includes(mode)) {
++    throw new HttpsError("invalid-argument", "일정 선택 정보를 확인해주세요.");
++  }
++  if (adminMode) {
++    if (!request.auth?.uid || !await isAdminUid(request.auth.uid)) {
++      throw new HttpsError("permission-denied", "관리자만 일정을 확정할 수 있습니다.");
++    }
++  } else {
++    if (!viewerId || !candidateId || viewerId === candidateId) throw new HttpsError("invalid-argument", "매칭 참여자 정보를 확인해주세요.");
++    await assertApplicationOwner(request, viewerId, { allowAdmin: false });
++  }
++  const matchRef = db.collection("twoweeksMatches").doc(matchId);
++  return db.runTransaction(async (tx) => {
++    const matchSnap = await tx.get(matchRef);
++    if (!matchSnap.exists) throw new HttpsError("not-found", "매칭 정보를 찾을 수 없습니다.");
++    const match = matchSnap.data();
++    assertLiveMatch(match);
++    const ids = [match.maleApplicationId, match.femaleApplicationId];
++    if (!ids[0] || !ids[1] || ids[0] === ids[1] || (!adminMode && (!ids.includes(viewerId) || !ids.includes(candidateId)))) {
++      throw new HttpsError("permission-denied", "해당 매칭의 참여자가 아닙니다.");
++    }
++    const refs = ids.map((id) => db.collection("twoweeksApplications").doc(id));
++    const responseRefs = ids.map((id, index) => db.collection("twoweeksProposalResponses").doc(`${id}_${ids[1 - index]}`));
++    const snapshots = await Promise.all([...refs, ...responseRefs].map((ref) => tx.get(ref)));
++    const apps = snapshots.slice(0, 2);
++    if (apps.some((snap) => !snap.exists || snap.data().status === "withdrawn" || snap.data().reviewStatus !== "approved" || snap.data().withdrawal?.status === "completed" || snap.data().currentProposal?.matchId !== matchId)) {
++      throw new HttpsError("failed-precondition", "현재 진행 중인 소개가 아닙니다. 신청현황을 다시 확인해주세요.");
++    }
++    if (snapshots.slice(2).some((snap) => !snap.exists || snap.data().response !== "accepted" || snap.data().matchId !== matchId)) {
++      throw new HttpsError("failed-precondition", "양쪽 모두 소개를 수락한 뒤 일정조율을 진행해주세요.");
++    }
++    const schedule = match.schedule || {};
++    const status = match.scheduleStatus || schedule.status || "";
++    const policy = getMatchSchedulePolicy(match);
++    const nowMs = Date.now();
++    const now = new Date(nowMs).toISOString();
++    const timeIds = mode === "first" ? input.timeIds : [adminMode ? schedule.finalTimeChoice?.id : input.timeId];
++    const cafeIds = mode === "first" ? input.placeIds : [adminMode ? placeId(schedule.finalPlaceChoice) : input.placeId];
++    const count = mode === "first" ? 3 : 1;
++    if (!Array.isArray(timeIds) || !Array.isArray(cafeIds) || timeIds.length !== count || cafeIds.length !== count ||
++        new Set(timeIds).size !== count || new Set(cafeIds).size !== count ||
++        [...timeIds, ...cafeIds].some((id) => typeof id !== "string" || !id || id.includes("/"))) {
++      throw new HttpsError("invalid-argument", count === 3 ? "서로 다른 일시 후보 3개와 장소 후보 3개를 선택해주세요." : "확정할 일시와 장소를 선택해주세요.");
++    }
++    const times = timeIds.map((id) => policy.timeOptions.find((option) => option.id === id));
++    if (times.some((time) => !time || toMillis(time.startAtClient) <= nowMs)) {
++      throw new HttpsError("invalid-argument", "현재 허용된 다음 주말 일시 중에서 선택해주세요.");
++    }
++    if (!adminMode && mode === "final" && status === "confirmed") {
++      if (schedule.finalTimeChoice?.id === timeIds[0] && placeId(schedule.finalPlaceChoice) === cafeIds[0] && schedule.finalChoice?.selectedByApplicationId === viewerId) {
++        return { ok: true, matchId, alreadySubmitted: true, finalMeeting: match.finalMeeting, choice: schedule.finalChoice, timeChoice: schedule.finalTimeChoice, placeChoice: schedule.finalPlaceChoice };
++      }
++      throw new HttpsError("already-exists", "이미 확정된 일정입니다. 신청현황을 다시 확인해주세요.");
++    }
++    if (mode === "first" && ["waiting_counterpart", "needs_final_choice"].includes(status)) {
++      const sameIds = (values, requested, getId) => values?.length === requested.length && requested.every((id) => values.some((value) => getId(value) === id));
++      if (schedule.firstSelectorApplicationId === viewerId && sameIds(schedule.timeChoices, timeIds, (item) => item.id) && sameIds(schedule.placeChoices, cafeIds, placeId)) {
++        return { ok: true, matchId, alreadySubmitted: true, timeChoices: schedule.timeChoices, placeChoices: schedule.placeChoices };
++      }
++      throw new HttpsError("already-exists", "이미 일정 후보가 제출됐습니다. 상대가 제안한 후보를 확인해주세요.");
++    }
++    if (!adminMode) {
++      const due = getScheduleStageDueMs(match) || (toMillis(match.mutualAcceptedAt) + 24 * 60 * 60 * 1000);
++      if (!due || nowMs >= due) throw new HttpsError("deadline-exceeded", "일정 선택 기한이 지났습니다. 신청현황을 확인해주세요.");
++    }
++    if (mode === "first" && !["ready", "needs_first_choice"].includes(status)) {
++      throw new HttpsError("failed-precondition", "현재는 일정 후보를 제출할 수 없습니다.");
++    }
++    if (mode === "final" && (!["waiting_counterpart", "needs_final_choice"].includes(status) || schedule.firstSelectorApplicationId !== candidateId)) {
++      throw new HttpsError("failed-precondition", "상대방이 제출한 후보에서 최종 일정을 선택해주세요.");
++    }
++    if (mode !== "first" && (!schedule.timeChoices?.some((time) => time.id === timeIds[0]) || !schedule.placeChoices?.some((place) => placeId(place) === cafeIds[0]))) {
++      throw new HttpsError("invalid-argument", "상대방이 제안한 일시와 장소 중에서 선택해주세요.");
++    }
++    const cafeSnaps = await Promise.all(cafeIds.map((id) => tx.get(db.collection("twoweeksCafeCandidates").doc(id))));
++    const places = cafeSnaps.map(canonicalPlace);
++    const field = admin.firestore.FieldValue;
++    if (mode === "first") {
++      const nextSchedule = {
++        ...schedule, status: "waiting_counterpart", firstSelectorApplicationId: viewerId, counterpartApplicationId: candidateId,
++        timeChoices: times, placeChoices: places, firstChoices: times,
++        firstSelectedAt: field.serverTimestamp(), firstSelectedAtClient: now,
++        counterpartDueHours: 24, counterpartDueDays: 1, counterpartDueAtClient: addHoursClient(24, now),
++      };
++      tx.update(matchRef, { status: "mutualAccepted", scheduleStatus: "waiting_counterpart", schedule: nextSchedule, updatedAt: field.serverTimestamp() });
++      return { ok: true, matchId, timeChoices: times, placeChoices: places, alreadySubmitted: false };
++    }
++    const timeChoice = times[0];
++    const placeChoice = places[0];
++    const selectedBy = adminMode ? schedule.finalChoice?.selectedByApplicationId || "" : viewerId;
++    const choice = { ...timeChoice, ...placeChoice, timeChoice, placeChoice, selectedByApplicationId: selectedBy, selectedAtClient: now };
++    // 장소 ID와 일시 ID는 각각 placeChoice/timeChoice에 보존합니다.
++    const finalMeeting = {
++      ...choice, finalTimeChoice: timeChoice, finalPlaceChoice: placeChoice,
++      placeName: placeChoice.cafeName, address: placeChoice.address, mapUrl: placeChoice.cafeMapUrl,
++      memo: "카페에서 60분 정도 가볍게 대화해주세요.", paymentNote: "음료 등 개인 주문 비용은 각자 부담입니다.",
++      meetingGuide: "만남 전 한마디에 복장이나 기다리는 위치를 남겨두면 서로를 찾기 쉽습니다.",
++      confirmedAtClient: now, confirmedBy: adminMode ? "admin" : "auto",
++      ...(adminMode ? { confirmedByUid: request.auth.uid } : {}),
++    };
++    if (adminMode) {
++      for (const key of ["placeName", "address", "mapUrl", "memo"]) {
++        if (typeof input.place?.[key] === "string" && input.place[key].trim()) finalMeeting[key] = input.place[key].trim().slice(0, 1000);
++      }
++    }
++    tx.update(matchRef, {
++      status: "confirmed", scheduleStatus: "confirmed", photoRevealStatus: "revealed", finalMeeting,
++      schedule: { ...schedule, status: "confirmed", finalTimeChoice: timeChoice, finalPlaceChoice: placeChoice, finalChoice: choice, selectedChoice: choice, finalMeeting,
++        finalSelectedAt: field.serverTimestamp(), finalSelectedAtClient: now, confirmedAt: field.serverTimestamp(), confirmedAtClient: now, confirmedBy: finalMeeting.confirmedBy },
++      updatedAt: field.serverTimestamp(),
++    });
++    for (const ref of refs) tx.update(ref, {
++      matchingStatus: "confirmed", photoRevealStatus: "revealed", "currentProposal.photoRevealStatus": "revealed",
++      "schedule.status": "confirmed", "schedule.finalMeeting": finalMeeting,
++      "schedule.confirmedAt": field.serverTimestamp(), "schedule.confirmedAtClient": now, updatedAt: field.serverTimestamp(),
++    });
++    return { ok: true, matchId, finalMeeting, choice, timeChoice, placeChoice, alreadySubmitted: false };
++  });
++}
++
++const submitTwoWeeksSchedule = onCall({ region: "asia-northeast3" }, (request) => recordTwoWeeksSchedule(request));
++module.exports = { submitTwoWeeksSchedule, recordTwoWeeksSchedule, buildScheduleOpeningPatch, assertLiveMatch };
+diff --git a/tests/helpers/twFakeFirestore.cjs b/tests/helpers/twFakeFirestore.cjs
+new file mode 100644
+index 0000000..d7b9836
+--- /dev/null
++++ b/tests/helpers/twFakeFirestore.cjs
+@@ -0,0 +1,83 @@
++const fs = require('node:fs');
++const vm = require('node:vm');
++const { createRequire } = require('node:module');
++
++const get = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
++const clone = (value) => {
++  if (value == null || typeof value !== 'object') return value;
++  if (typeof value.toMillis === 'function') return value;
++  if (value instanceof Date) return new Date(value);
++  if (Array.isArray(value)) return value.map(clone);
++  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, clone(child)]));
++};
++
++// Serial transactions, rollback, merge, dot paths, and the read-before-write constraint.
++// This is an offline regression fixture, not a replacement for the Firestore emulator.
++function createDb(initial = {}) {
++  const docs = new Map(Object.entries(initial).map(([key, value]) => [key, clone(value)]));
++  let tail = Promise.resolve();
++  const snapshot = (key) => ({ id: key.split('/').at(-1), exists: docs.has(key), data: () => clone(docs.get(key)), ref: reference(key) });
++  const merge = (target, patch) => {
++    for (const [key, value] of Object.entries(patch)) {
++      if (key.includes('.')) {
++        const parts = key.split('.'); let parent = target;
++        for (const part of parts.slice(0, -1)) parent = parent[part] ||= {};
++        merge(parent, { [parts.at(-1)]: value });
++      } else if (value?.__op === 'timestamp' || value?.constructor?.name === 'ServerTimestampTransform') target[key] = new Date().toISOString();
++      else if (value?.__op === 'increment') target[key] = Number(target[key] || 0) + value.amount;
++      else if (value?.__op === 'delete' || value?.constructor?.name === 'DeleteTransform') delete target[key];
++      else if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) target[key] = merge(target[key] && typeof target[key] === 'object' ? target[key] : {}, value);
++      else target[key] = clone(value);
++    }
++    return target;
++  };
++  const write = (key, value, preserve) => docs.set(key, merge(preserve ? docs.get(key) || {} : {}, value));
++  const reference = (key) => ({ key, id: key.split('/').at(-1), get: async () => snapshot(key), set: async (value, options) => write(key, value, options?.merge), update: async (value) => write(key, value, true) });
++  const query = (name, conditions = [], limit = Infinity) => ({
++    doc: (id) => reference(`${name}/${id}`),
++    where: (key, op, value) => { if (op !== '==') throw new Error(`unsupported fixture operator: ${op}`); return query(name, [...conditions, [key, value]], limit); },
++    limit: (count) => query(name, conditions, count),
++    get: async () => {
++      const keys = [...docs.keys()].filter((key) => key.startsWith(`${name}/`) && conditions.every(([field, value]) => get(docs.get(key), field) === value)).slice(0, limit);
++      return { docs: keys.map(snapshot), empty: !keys.length };
++    },
++  });
++  const db = {
++    collection: (name) => query(name),
++    runTransaction: (callback) => {
++      const execute = async () => {
++        const writes = []; let hasWrites = false;
++        const tx = {
++          get: async (ref) => { if (hasWrites) throw new Error('transaction read after write'); return snapshot(ref.key); },
++          set: (ref, value, options) => { hasWrites = true; writes.push([ref.key, value, options?.merge]); },
++          update: (ref, value) => { hasWrites = true; if (!docs.has(ref.key)) throw new Error('missing update target'); writes.push([ref.key, value, true]); },
++        };
++        const result = await callback(tx);
++        for (const [key, value, preserve] of writes) write(key, value, preserve);
++        return result;
++      };
++      const result = tail.then(execute); tail = result.catch(() => {}); return result;
++    },
++  };
++  const firestore = () => db;
++  firestore.FieldValue = { serverTimestamp: () => ({ __op: 'timestamp' }), delete: () => ({ __op: 'delete' }), increment: (amount) => ({ __op: 'increment', amount }) };
++  const admin = { apps: [{}], firestore };
++  const caller = {
++    isAdminUid: async (uid) => uid === 'admin',
++    assertApplicationOwner: async (request, id) => {
++      const application = docs.get(`twoweeksApplications/${id}`);
++      if (!request.auth?.uid || !application || application.uid !== request.auth.uid) throw new Error('not owner');
++      return { uid: request.auth.uid, application };
++    },
++  };
++  return { db, docs, admin, caller };
++}
++
++function loadModule(filename, mocks = {}) {
++  const nativeRequire = createRequire(filename);
++  const module = { exports: {} };
++  const wrapper = vm.runInThisContext(`(function(require,module,exports){${fs.readFileSync(filename, 'utf8')}\n})`, { filename });
++  wrapper((name) => Object.hasOwn(mocks, name) ? mocks[name] : nativeRequire(name), module, module.exports);
++  return module.exports;
++}
++module.exports = { createDb, loadModule };
+diff --git a/tests/twAdminMatch.test.cjs b/tests/twAdminMatch.test.cjs
+new file mode 100644
+index 0000000..551d342
+--- /dev/null
++++ b/tests/twAdminMatch.test.cjs
+@@ -0,0 +1,57 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const vm = require('node:vm');
++const { createDb } = require('./helpers/twFakeFirestore.cjs');
++const policy = require('../functions/twoWeeksSchedulePolicy');
++
++function setup(beforeTransaction = () => {}) {
++  const male = { id: 'male', roundId: 'round', basic: { gender: 'male', name: '남성', nickname: '기존 프로필' }, matchingStatus: 'not_started' };
++  const female = { id: 'female', roundId: 'round', basic: { gender: 'female', name: '여성' }, matchingStatus: 'not_started' };
++  const f = createDb({ 'twoweeksApplications/male': male, 'twoweeksApplications/female': female });
++  const snap = (value) => ({ ...value, exists: () => value.exists });
++  const filename = path.resolve(__dirname, '../components/TwoWeeksAdmin/adminService.js');
++  const source = fs.readFileSync(filename, 'utf8').replace(/^import\s[\s\S]*?from\s+["'][^"']+["'];?\s*$/gm, '').replace(/^export\s+/gm, '');
++  const module = { exports: {} };
++  vm.runInNewContext(`${source}\nmodule.exports = { createTwoWeeksMatch };`, {
++    module, db: f.db, console,
++    doc: (db, collection, id) => db.collection(collection).doc(id),
++    collection: (db, name) => db.collection(name),
++    getDoc: async (ref) => snap(await ref.get()),
++    getDocs: (query) => query.get(),
++    where: (...args) => args,
++    query: (collection, ...conditions) => conditions.reduce((query, condition) => query.where(...condition), collection),
++    runTransaction: (_db, callback) => { beforeTransaction(f.docs); return f.db.runTransaction((tx) => callback({ ...tx, get: async (ref) => snap(await tx.get(ref)) })); },
++    setDoc: (ref, value, options) => ref.set(value, options), updateDoc: (ref, value) => ref.update(value),
++    serverTimestamp: f.admin.firestore.FieldValue.serverTimestamp,
++    getApplicationName: (app) => app.basic.name, getBasic: (app) => app.basic || {},
++    getRoundId: (app) => app.roundId,
++    getMatchingAvailabilityBlockReason: () => '', isMatchAvailableApplication: (app) => app.matchingStatus === 'not_started',
++    getSameCompanyConflict: () => ({ blocked: false }),
++    getPairScore: (left) => ({ complete: left.profileComplete !== false, total: 80, rankingScore: 95, internalAdjustment: 15 }),
++    getHardMatchingBlockers: () => [], getAdvisoryMatchingConflicts: () => [], getUnacknowledgedMatchingConflicts: () => [],
++    normalizeTimeSlotLabels: (values) => values, normalizePhone: () => '',
++    TWOWEEKS_PROPOSAL_RESPONSE_DUE_HOURS: 48, TWOWEEKS_SCHEDULE_TOTAL_DUE_HOURS: 48, TWOWEEKS_SCHEDULE_STAGE_DUE_HOURS: 24,
++    addScheduleHoursClient: policy.addHoursClient, buildTwoWeeksSchedulePolicy: policy.buildSchedulePolicy,
++  }, { filename });
++  return { ...f, create: () => module.exports.createTwoWeeksMatch({ male, female, adminUid: 'admin' }) };
++}
++
++test('admin creation revalidates compatibility inside the transaction', async () => {
++  const f = setup((docs) => { docs.get('twoweeksApplications/male').profileComplete = false; });
++  await assert.rejects(f.create(), /매칭 조건이 변경/);
++  assert.equal(f.docs.has('twoweeksMatches/round_male_female'), false);
++});
++test('admin creation rejects reversed or invalid gender roles', async () => {
++  const f = setup((docs) => { docs.get('twoweeksApplications/male').basic.gender = 'female'; });
++  await assert.rejects(f.create(), /남성 신청자와 여성 신청자/);
++});
++test('admin creation snapshots the current profile and keeps internal ranking private', async () => {
++  const f = setup((docs) => { docs.get('twoweeksApplications/male').basic.nickname = '변경된 프로필'; });
++  const result = await f.create(); assert.equal(result.matchId, 'round_male_female');
++  const match = f.docs.get('twoweeksMatches/round_male_female');
++  assert.equal(match.candidatePreviews.female.basic.nickname, '변경된 프로필');
++  assert.equal(Object.hasOwn(match.matchingCompatibility, 'rankingScore'), false);
++  assert.equal(Object.hasOwn(match.matchingCompatibility, 'internalAdjustment'), false);
++});
+diff --git a/tests/twApplicationSubmission.test.cjs b/tests/twApplicationSubmission.test.cjs
+new file mode 100644
+index 0000000..b7e975d
+--- /dev/null
++++ b/tests/twApplicationSubmission.test.cjs
+@@ -0,0 +1,58 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const path = require('node:path');
++const { createDb, loadModule } = require('./helpers/twFakeFirestore.cjs');
++
++function setup(gender = 'male') {
++  const fixture = createDb({ 'twoweeksIdentityVerifications/verified': {
++    ownerUid: 'applicant', phone: '01055550111', name: '인증된 이름', birth: '19900102', gender,
++    verified: true, ciHash: 'verified-ci', expiresAt: { toMillis: () => Date.now() + 3600000 },
++  } });
++  const service = loadModule(path.resolve(__dirname, '../functions/twoWeeksApplicationSubmission.js'), {
++    'firebase-admin': fixture.admin,
++    './twoWeeksMarketingAttribution': { resolveApplicationMarketingData: async () => ({ marketingAttribution: { firstSource: 'direct' }, referral: { status: 'none' } }) },
++  });
++  const request = (applicationId = 'application_12345') => {
++    const meta = (folder, name) => ({ path: `twoweeksApplications/${applicationId}/applicant/${folder}/${name}.jpg`, url: `https://example.test/${name}.jpg`, type: 'image/jpeg', size: 100 });
++    return { auth: { uid: 'applicant' }, data: { applicationId, verificationDocument: meta('verification', 'job'), application: {
++      uid: 'applicant', roundId: 'twoweeks_beta_1', basic: { phoneNormalized: '01055550111', phoneVerified: true, phoneVerificationSkipped: false, gender: gender === 'male' ? 'female' : 'male', name: '클라이언트 변조', birthDate: '20000101', birthYear: 2000, height: 175 },
++      phoneIdentityVerification: { verified: true, verificationId: 'verified', phone: '01055550111' },
++      identity: { schoolName: '테스트대학교', representativePhoto: meta('photos', 'one'), additionalPhotos: [meta('photos', 'two'), meta('photos', 'three')] },
++      consents: { privacy: true, profileContact: true, noShowDeposit: true, falseInfo: true, marketing: false },
++      currentProposal: { matchId: 'injected' }, withdrawal: { status: 'completed' }, contactOpenStatus: 'open', penaltyStats: { count: -1 },
++      status: 'approved', reviewStatus: 'approved', matchingStatus: 'confirmed',
++    } } };
++  };
++  return { ...fixture, request, submit: (req) => service.finalizeTwoWeeksApplicationSubmission.run(req) };
++}
++
++for (const gender of ['male', 'female']) test(`${gender}: registration stores verified identity and its matching deposit policy`, async () => {
++  const f = setup(gender); const result = await f.submit(f.request());
++  assert.equal(result.ok, true);
++  const app = f.docs.get('twoweeksApplications/application_12345');
++  assert.equal(app.basic.gender, gender);
++  assert.equal(app.basic.name, '인증된 이름');
++  assert.equal(app.basic.birthDate, '19900102');
++  assert.equal(app.basic.birthYear, 1990);
++  assert.equal(app.status, 'applied');
++  assert.equal(app.reviewStatus, 'pending');
++  assert.equal(app.matchingStatus, 'not_ready');
++  assert.equal(app.deposit.policy, gender === 'female' ? 'waived' : 'required');
++  assert.equal(app.deposit.status, gender === 'female' ? 'waived' : 'pending');
++  assert.equal(app.consents.marketing, false);
++  assert.equal(app.identity.verificationDocument, null);
++  assert.ok(f.docs.get('twoweeksApplicationPrivate/application_12345').verificationDocument);
++});
++test('client supplied workflow and operational fields are not stored at registration', async () => {
++  const f = setup(); await f.submit(f.request()); const app = f.docs.get('twoweeksApplications/application_12345');
++  for (const key of ['currentProposal', 'withdrawal', 'contactOpenStatus', 'penaltyStats']) assert.equal(Object.hasOwn(app, key), false, key);
++});
++test('registration without required consent leaves no partial application', async () => { const f = setup(); const req = f.request(); req.data.application.consents.falseInfo = false; await assert.rejects(f.submit(req), /필수 약관/); assert.equal(f.docs.has('twoweeksApplications/application_12345'), false); });
++test('two simultaneous registrations with the same identity create only one application', async () => {
++  const f = setup(); const results = await Promise.allSettled([f.submit(f.request('application_first')), f.submit(f.request('application_second'))]);
++  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
++  assert.equal([...f.docs.keys()].filter((key) => key.startsWith('twoweeksApplications/')).length, 1);
++});
++test('another account cannot reuse a verified identity', async () => { const f = setup(); const req = f.request(); req.auth.uid = 'intruder'; req.data.application.uid = 'intruder'; await assert.rejects(f.submit(req), /로그인 세션/); });
++test('fewer than three profile photos are rejected', async () => { const f = setup(); const req = f.request(); req.data.application.identity.additionalPhotos.pop(); await assert.rejects(f.submit(req), /최소 3장/); });
++test('real identity missing gender cannot use a client supplied female exemption', async () => { const f = setup(); f.docs.get('twoweeksIdentityVerifications/verified').gender = ''; await assert.rejects(f.submit(f.request()), /성별과 생년월일/); });
+diff --git a/tests/twMeetingState.test.cjs b/tests/twMeetingState.test.cjs
+new file mode 100644
+index 0000000..557c50d
+--- /dev/null
++++ b/tests/twMeetingState.test.cjs
+@@ -0,0 +1,41 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const vm = require('node:vm');
++const { createDb } = require('./helpers/twFakeFirestore.cjs');
++
++function setup() {
++  const f = createDb({ 'twoweeksMatches/match': { status: 'confirmed', scheduleStatus: 'confirmed', maleApplicationId: 'male', femaleApplicationId: 'female', finalMeeting: { startAtClient: new Date().toISOString() } } });
++  const filename = path.resolve(__dirname, '../components/TwoWeeksProposal/proposalService.js');
++  const source = fs.readFileSync(filename, 'utf8').replace(/^import\s[\s\S]*?from\s+["'][^"']+["'];?\s*$/gm, '').replace(/^export\s+/gm, '');
++  const module = { exports: {} };
++  vm.runInNewContext(`${source}\nmodule.exports = { recordOwnMeetingState };`, {
++    module, db: f.db,
++    serverTimestamp: f.admin.firestore.FieldValue.serverTimestamp,
++    runTransaction: (_db, callback) => f.db.runTransaction((tx) => callback({
++      ...tx, get: async (ref) => { const snap = await tx.get(ref); return { ...snap, exists: () => snap.exists }; },
++    })),
++  }, { filename });
++  const submit = (id, field = 'meetingAttendance') => module.exports.recordOwnMeetingState({
++    matchRef: f.db.collection('twoweeksMatches').doc('match'),
++    viewerApplication: { id }, candidateApplication: { id: id === 'male' ? 'female' : 'male' },
++    field, summaryField: field === 'meetingAttendance' ? 'attendanceStatus' : 'arrivalStatus',
++    completeStatus: field === 'meetingAttendance' ? 'both_confirmed' : 'both_arrived',
++    payload: { applicationId: id, status: field === 'meetingAttendance' ? 'attending' : 'arrived' },
++    requireMeetingDay: field === 'meetingArrival',
++  });
++  return { ...f, submit, match: () => f.docs.get('twoweeksMatches/match') };
++}
++
++for (const field of ['meetingAttendance', 'meetingArrival']) {
++  test(`simultaneous ${field} submissions preserve both people and a complete summary`, async () => {
++    const f = setup(); const results = await Promise.all([f.submit('male', field), f.submit('female', field)]);
++    assert.equal(results.filter((result) => result.complete).length, 1);
++    assert.equal(Object.keys(f.match()[field]).length, 2);
++    assert.equal(f.match()[field === 'meetingAttendance' ? 'attendanceStatus' : 'arrivalStatus'], field === 'meetingAttendance' ? 'both_confirmed' : 'both_arrived');
++  });
++  test(`${field} cannot be recorded for a cancelled meeting`, async () => { const f = setup(); f.match().status = 'cancelled'; await assert.rejects(f.submit('male', field), /현재 확정된 만남/); });
++  test(`${field} retries preserve the original row`, async () => { const f = setup(); await f.submit('male', field); const before = JSON.stringify(f.match()); assert.equal((await f.submit('male', field)).alreadyConfirmed, true); assert.equal(JSON.stringify(f.match()), before); });
++}
++test('arrival cannot be recorded on a different Seoul calendar day', async () => { const f = setup(); f.match().finalMeeting.startAtClient = new Date(Date.now() + 48 * 3600000).toISOString(); await assert.rejects(f.submit('male', 'meetingArrival'), /당일/); });
+diff --git a/tests/twScheduleJourney.test.cjs b/tests/twScheduleJourney.test.cjs
+new file mode 100644
+index 0000000..1d17769
+--- /dev/null
++++ b/tests/twScheduleJourney.test.cjs
+@@ -0,0 +1,141 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const path = require('node:path');
++const { createDb, loadModule } = require('./helpers/twFakeFirestore.cjs');
++const { buildSchedulePolicy } = require('../functions/twoWeeksSchedulePolicy');
++const root = path.resolve(__dirname, '../functions');
++
++function setup() {
++  const policy = buildSchedulePolicy();
++  const app = (id, other) => ({ uid: `${id}-owner`, roundId: 'round', status: 'approved', reviewStatus: 'approved', matchingStatus: 'proposed', currentProposal: { matchId: 'match', candidateApplicationId: other, response: 'pending' } });
++  const fixture = createDb({
++    'twoweeksApplications/male': app('male', 'female'),
++    'twoweeksApplications/female': app('female', 'male'),
++    'twoweeksMatches/match': { maleApplicationId: 'male', femaleApplicationId: 'female', roundId: 'round', status: 'proposed', scheduleStatus: 'not_started', createdAt: new Date().toISOString(), schedulePolicy: policy },
++    ...Object.fromEntries(['one', 'two', 'three', 'four'].map((id) => [`twoweeksCafeCandidates/${id}`, { name: `카페 ${id}`, area: '강남구', status: 'active' }])),
++  });
++  const mocks = { 'firebase-admin': fixture.admin, './twoWeeksCallerAuth': fixture.caller };
++  const schedules = loadModule(path.join(root, 'twoWeeksScheduleSubmission.js'), mocks);
++  const proposals = loadModule(path.join(root, 'twoWeeksProposalRespond.js'), { ...mocks, './twoWeeksScheduleSubmission': schedules });
++  const sync = loadModule(path.join(root, 'twoWeeksMatchParticipantSync.js'), mocks);
++  const request = (id, data) => ({ auth: { uid: `${id}-owner` }, data: { matchId: 'match', viewerApplicationId: id, candidateApplicationId: id === 'male' ? 'female' : 'male', ...data } });
++  const respond = (id, response = 'accepted') => proposals.recordTwoWeeksProposalResponse(request(id, { response }), fixture.db);
++  const first = (id) => schedules.recordTwoWeeksSchedule(request(id, { mode: 'first', timeIds: policy.allowedTimeOptionIds.slice(0, 3), placeIds: ['one', 'two', 'three'] }), fixture.db);
++  const final = (id, data = {}) => schedules.recordTwoWeeksSchedule(request(id, { mode: 'final', timeId: policy.allowedTimeOptionIds[0], placeId: 'one', ...data }), fixture.db);
++  const accept = async () => { await respond('male'); await respond('female'); };
++  return { ...fixture, ...schedules, ...sync, request, respond, first, final, accept, policy, match: () => fixture.docs.get('twoweeksMatches/match') };
++}
++
++for (const firstSelector of ['male', 'female']) test(`${firstSelector} first: accept → 3 choices → counterpart confirmation updates both applications`, async () => {
++  const f = setup(); await f.accept();
++  assert.equal(f.match().scheduleStatus, 'ready');
++  assert.ok(f.match().schedule.serverPolicyInitializedAt);
++  await f.first(firstSelector);
++  const counterpart = firstSelector === 'male' ? 'female' : 'male';
++  const result = await f.final(counterpart);
++  assert.equal(result.ok, true);
++  assert.equal(f.match().status, 'confirmed');
++  assert.equal(f.match().finalMeeting.cafeName, '카페 one');
++  for (const id of ['male', 'female']) {
++    assert.equal(f.docs.get(`twoweeksApplications/${id}`).matchingStatus, 'confirmed');
++    assert.equal(f.docs.get(`twoweeksApplications/${id}`).schedule.finalMeeting.startAtClient, result.finalMeeting.startAtClient);
++  }
++});
++
++test('a single acceptance cannot start scheduling', async () => { const f = setup(); await f.respond('male'); await assert.rejects(f.first('male'), /양쪽 모두/); });
++test('simultaneous first submissions have one winner and preserve that selection', async () => {
++  const f = setup(); await f.accept();
++  const results = await Promise.allSettled([f.first('male'), f.first('female')]);
++  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
++  assert.equal(f.match().schedule.firstSelectorApplicationId, 'male');
++});
++test('the first selector cannot finalize their own proposal', async () => { const f = setup(); await f.accept(); await f.first('male'); await assert.rejects(f.final('male'), /상대방이 제출/); });
++test('an allowed time outside the proposed three cannot be selected', async () => { const f = setup(); await f.accept(); await f.first('male'); await assert.rejects(f.final('female', { timeId: f.policy.allowedTimeOptionIds[4] }), /상대방이 제안/); });
++test('an active cafe outside the proposed three cannot be selected', async () => { const f = setup(); await f.accept(); await f.first('male'); await assert.rejects(f.final('female', { placeId: 'four' }), /상대방이 제안/); });
++test('duplicate time choices are rejected without partial writes', async () => {
++  const f = setup(); await f.accept();
++  await assert.rejects(f.recordTwoWeeksSchedule(f.request('male', { mode: 'first', timeIds: Array(3).fill(f.policy.allowedTimeOptionIds[0]), placeIds: ['one', 'two', 'three'] }), f.db), /서로 다른/);
++  assert.equal(f.match().scheduleStatus, 'ready');
++});
++test('inactive cafes cannot be used for a confirmed meeting', async () => { const f = setup(); await f.accept(); await f.first('male'); f.docs.get('twoweeksCafeCandidates/one').status = 'inactive'; await assert.rejects(f.final('female'), /장소가 현재/); assert.equal(f.match().status, 'mutualAccepted'); });
++test('first selection has a 24 hour server deadline', async () => { const f = setup(); await f.accept(); f.match().schedule.serverPolicyInitializedAt = new Date(Date.now() - 25 * 3600000).toISOString(); await assert.rejects(f.first('male'), /기한이 지났/); });
++test('final selection has a 24 hour server deadline', async () => { const f = setup(); await f.accept(); await f.first('male'); f.match().schedule.firstSelectedAt = new Date(Date.now() - 25 * 3600000).toISOString(); await assert.rejects(f.final('female'), /기한이 지났/); });
++test('retrying a first selection does not reset the deadline', async () => { const f = setup(); await f.accept(); await f.first('male'); const anchor = f.match().schedule.firstSelectedAt; assert.equal((await f.first('male')).alreadySubmitted, true); assert.equal(f.match().schedule.firstSelectedAt, anchor); });
++test('retrying final confirmation does not rewrite a confirmed appointment', async () => { const f = setup(); await f.accept(); await f.first('male'); await f.final('female'); const before = JSON.stringify(f.match()); assert.equal((await f.final('female')).alreadySubmitted, true); assert.equal(JSON.stringify(f.match()), before); });
++test('an expired or cancelled match cannot be revived by a participant', async () => { for (const status of ['expired', 'cancelled', 'completed']) { const f = setup(); await f.accept(); await f.first('male'); f.match().status = status; await assert.rejects(f.final('female'), /종료된/); assert.equal(f.match().status, status); } });
++test('admin confirmation also rejects stale cancelled meetings', async () => { const f = setup(); await f.accept(); await f.first('male'); await f.final('female'); f.match().status = 'cancelled'; await assert.rejects(f.recordTwoWeeksSchedule({ auth: { uid: 'admin' }, data: { mode: 'admin_confirm', matchId: 'match' } }, f.db), /종료된/); });
++test('admin confirmation reads the current meeting and updates both participants atomically', async () => { const f = setup(); await f.accept(); await f.first('male'); await f.final('female'); await f.recordTwoWeeksSchedule({ auth: { uid: 'admin' }, data: { mode: 'admin_confirm', matchId: 'match', place: { memo: '운영자 안내' } } }, f.db); assert.equal(f.match().finalMeeting.memo, '운영자 안내'); assert.equal(f.docs.get('twoweeksApplications/male').schedule.finalMeeting.memo, '운영자 안내'); });
++test('a participant cannot call the admin confirmation mode', async () => { const f = setup(); await assert.rejects(f.recordTwoWeeksSchedule(f.request('male', { mode: 'admin_confirm' }), f.db), /관리자만/); });
++test('another account cannot act as a participant', async () => { const f = setup(); await f.accept(); const request = f.request('male', { mode: 'first' }); request.auth.uid = 'intruder'; await assert.rejects(f.recordTwoWeeksSchedule(request, f.db), /not owner/); });
++test('a new current proposal blocks writes from a previous match', async () => { const f = setup(); await f.accept(); await f.first('male'); f.docs.get('twoweeksApplications/female').currentProposal.matchId = 'new-match'; await assert.rejects(f.final('female'), /현재 진행 중인/); });
++test('a delayed sync cannot replace a new proposal with an old declined one', async () => { const f = setup(); f.match().status = 'declined'; f.docs.get('twoweeksApplications/male').currentProposal.matchId = 'new-match'; await f.synchronizeMatchParticipants(f.db, 'match'); assert.equal(f.docs.get('twoweeksApplications/male').currentProposal.matchId, 'new-match'); assert.equal(f.docs.get('twoweeksApplications/female').matchingStatus, 'declined'); });
++test('sync uses the current confirmed state, regardless of the triggering event', async () => { const f = setup(); await f.accept(); await f.first('male'); await f.final('female'); f.docs.get('twoweeksApplications/male').matchingStatus = 'mutualAccepted'; await f.synchronizeMatchParticipants(f.db, 'match'); assert.equal(f.docs.get('twoweeksApplications/male').matchingStatus, 'confirmed'); });
++test('residual confirmed schedule fields cannot revive a cancelled match during sync', async () => { const f = setup(); await f.accept(); await f.first('male'); await f.final('female'); f.match().status = 'cancelled'; f.docs.get('twoweeksApplications/male').matchingStatus = 'cancelled'; await f.synchronizeMatchParticipants(f.db, 'match'); assert.equal(f.docs.get('twoweeksApplications/male').matchingStatus, 'cancelled'); });
++
++function notifications(f) {
++  return loadModule(path.join(root, 'twoWeeksMutualAcceptedNotification.js'), {
++    'firebase-admin': f.admin, './twoWeeksCallerAuth': f.caller,
++    './twoWeeksScheduleSubmission': f,
++    './twoWeeksAdminLifecycleNotification': { notifyTwoWeeksAdminLifecycle: async () => ({}) },
++    axios: { post: async () => { throw new Error('SMS is disabled in offline tests'); } },
++  }).notifyTwoWeeksMutualAccepted;
++}
++test('a delayed mutual acceptance notification cannot overwrite submitted choices', async () => {
++  const f = setup(); await f.accept(); await f.first('male'); const before = JSON.stringify(f.match());
++  const result = await notifications(f).run(f.request('male', {}));
++  assert.equal(result.status, 'already_progressed'); assert.equal(JSON.stringify(f.match()), before);
++});
++test('a delayed mutual acceptance notification does not reopen a confirmed meeting', async () => {
++  const f = setup(); await f.accept(); await f.first('male'); await f.final('female');
++  const before = JSON.stringify(f.match()); await notifications(f).run(f.request('male', {}));
++  assert.equal(JSON.stringify(f.match()), before);
++});
++function expiration(f) {
++  return loadModule(path.join(root, 'twoWeeksDeadlineExpirations.js'), { 'firebase-admin': f.admin, axios: { post: async () => { throw new Error('SMS disabled in tests'); } } });
++}
++test('a stale proposal expiration snapshot cannot undo a mutual acceptance', async () => {
++  const f = setup(); const old = { ...f.match(), id: 'match' }; await f.accept();
++  const result = await expiration(f).expireProposalMatch({ db: f.db, match: old, nowMs: Date.now() + 49 * 3600000 });
++  assert.equal(result, null); assert.equal(f.match().scheduleStatus, 'ready');
++});
++test('a stale schedule snapshot cannot expire a just-selected next step', async () => {
++  const f = setup(); await f.accept(); const old = { ...f.match(), id: 'match' }; await f.first('male');
++  const result = await expiration(f).expireScheduleMatch({ db: f.db, match: old, nowMs: Date.now() });
++  assert.equal(result, null); assert.equal(f.match().scheduleStatus, 'waiting_counterpart');
++});
++test('proposal expiry records the first warning exactly once across retries', async () => {
++  const f = setup(); f.match().createdAt = new Date(Date.now() - 49 * 3600000).toISOString();
++  const process = expiration(f); const args = { db: f.db, match: { id: 'match' }, nowMs: Date.now() };
++  assert.ok(await process.expireProposalMatch(args)); assert.equal(await process.expireProposalMatch(args), null);
++  for (const id of ['male', 'female']) {
++    const app = f.docs.get(`twoweeksApplications/${id}`);
++    assert.equal(app.penaltyStats.proposalNoResponseCount, 1);
++    assert.equal(app.matchingStatus, 'not_started');
++  }
++});
++test('schedule expiry never clears a replacement proposal', async () => {
++  const f = setup(); await f.accept(); await f.first('male');
++  f.match().schedule.firstSelectedAt = new Date(Date.now() - 25 * 3600000).toISOString();
++  f.docs.get('twoweeksApplications/male').currentProposal.matchId = 'new-match';
++  await expiration(f).expireScheduleMatch({ db: f.db, match: { id: 'match' }, nowMs: Date.now() });
++  assert.equal(f.docs.get('twoweeksApplications/male').currentProposal.matchId, 'new-match');
++  assert.equal(f.match().status, 'schedule_expired');
++});
++
++test('legacy first-time no-response review is repaired from current state', async () => {
++  const f = setup(); const app = f.docs.get('twoweeksApplications/male');
++  Object.assign(app, { matchingStatus: 'paused', nextRoundStatus: 'admin_review', matchingPauseReason: 'proposal_no_response', penaltyStats: { proposalNoResponseCount: 1 }, currentProposal: { candidateApplicationId: 'female', status: 'expired' } });
++  const result = await expiration(f).repairExpiredAdminReviewApplications({ db: f.db });
++  assert.equal(result.returnedToPool, 1); assert.equal(app.matchingStatus, 'not_started');
++});
++test('background review repair cannot clear a new proposal created after its scan', async () => {
++  const f = setup(); const app = f.docs.get('twoweeksApplications/male');
++  Object.assign(app, { matchingStatus: 'paused', nextRoundStatus: 'admin_review', matchingPauseReason: 'proposal_no_response', penaltyStats: { proposalNoResponseCount: 1 } });
++  const runTransaction = f.db.runTransaction;
++  f.db.runTransaction = (callback) => {
++    app.matchingStatus = 'proposed'; app.nextRoundStatus = 'ready'; app.currentProposal.matchId = 'new-match';
++    return runTransaction(callback);
++  };
++  const result = await expiration(f).repairExpiredAdminReviewApplications({ db: f.db });
++  assert.equal(result.returnedToPool, 0); assert.equal(app.currentProposal.matchId, 'new-match'); assert.equal(app.matchingStatus, 'proposed');
++});

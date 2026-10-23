@@ -3,17 +3,9 @@ const admin = require("firebase-admin");
 const axios = require("axios");
 const CryptoJS = require("crypto-js");
 const { assertApplicationOwner } = require("./twoWeeksCallerAuth");
+const { buildScheduleOpeningPatch, assertLiveMatch } = require("./twoWeeksScheduleSubmission");
 const { notifyTwoWeeksAdminLifecycle } = require("./twoWeeksAdminLifecycleNotification");
-const {
-  PROPOSAL_RESPONSE_DUE_HOURS,
-  SCHEDULE_STAGE_DUE_HOURS,
-  SCHEDULE_TOTAL_DUE_HOURS,
-  addHoursClient,
-  buildSchedulePolicy,
-  getMatchSchedulePolicy,
-  getProposalResponseDueMs,
-  toMillis,
-} = require("./twoWeeksSchedulePolicy");
+const { getProposalResponseDueMs, toMillis } = require("./twoWeeksSchedulePolicy");
 
 const NOTIFICATION_LOCK_STALE_MS = 2 * 60 * 1000;
 
@@ -279,95 +271,27 @@ const notifyTwoWeeksMutualAccepted = onCall(
       throw new HttpsError("deadline-exceeded", "제안 응답 기한이 종료되었습니다.");
     }
 
-    // 신규 매칭은 Firestore의 서버 생성시각을 최종 기준으로 사용한다.
-    // 정책 도입 전 문서처럼 서버 생성시각이 없을 때만 호환용 기준을 사용한다.
-    const schedulePolicy = match.createdAt
-      ? buildSchedulePolicy(match.createdAt)
-      : getMatchSchedulePolicy(match);
-    const currentScheduleStatus = String(
-      match.scheduleStatus || match?.schedule?.status || ""
-    );
-    const terminalStatuses = [
-      "declined",
-      "failed",
-      "expired",
-      "proposal_expired",
-      "schedule_expired",
-      "counterpart_expired",
-      "cancelled",
-      "canceled",
-    ];
+    // 문자 요청이 늦게 도착해도 이미 선택한 후보나 확정/종료 상태를 덮어쓰지 않습니다.
+    // 신규 응답은 수락 트랜잭션이 일정을 엽니다. 이 경로는 레거시 매칭만 보완합니다.
+    const authoritativeMatchPatch = await db.runTransaction(async (transaction) => {
+      const ref = db.collection("twoweeksMatches").doc(matchId);
+      const currentSnap = await transaction.get(ref);
+      if (!currentSnap.exists) throw new HttpsError("not-found", "매칭 정보를 찾을 수 없습니다.");
+      const current = currentSnap.data() || {};
+      assertLiveMatch(current);
+      const currentStatus = current.scheduleStatus || current.schedule?.status || "";
+      if (current.status === "confirmed" || ["waiting_counterpart", "needs_final_choice", "place_pending", "confirmed"].includes(currentStatus)) {
+        return { skipNotifications: true };
+      }
+      if (["ready", "needs_first_choice"].includes(currentStatus)) return {};
+      const patch = buildScheduleOpeningPatch(current);
+      transaction.set(ref, patch, { merge: true });
+      return patch;
+    });
 
-    if (
-      terminalStatuses.includes(String(match.status || "")) ||
-      terminalStatuses.includes(String(match.proposalStatus || "")) ||
-      terminalStatuses.includes(currentScheduleStatus)
-    ) {
-      throw new HttpsError("failed-precondition", "이미 종료된 제안입니다.");
+    if (authoritativeMatchPatch.skipNotifications) {
+      return { status: "already_progressed", sent: false, scheduleOpened: false, results: [] };
     }
-
-    const scheduleProgressed = [
-      "waiting_counterpart",
-      "needs_final_choice",
-      "place_pending",
-      "confirmed",
-    ].includes(currentScheduleStatus);
-    const scheduleInitializedByServer = Boolean(
-      match?.schedule?.serverPolicyInitializedAtClient
-    );
-    const nowClient = new Date().toISOString();
-    const firstDueAtClient = scheduleInitializedByServer
-      ? match?.schedule?.dueAtClient || addHoursClient(SCHEDULE_STAGE_DUE_HOURS, nowClient)
-      : addHoursClient(SCHEDULE_STAGE_DUE_HOURS, nowClient);
-
-    const authoritativeMatchPatch = {
-      schedulePolicy,
-      policySnapshot: {
-        ...(match.policySnapshot || {}),
-        proposalResponseDueHours: PROPOSAL_RESPONSE_DUE_HOURS,
-        scheduleSelectionDueHours: SCHEDULE_TOTAL_DUE_HOURS,
-        firstScheduleSelectionDueHours: SCHEDULE_STAGE_DUE_HOURS,
-        counterpartScheduleSelectionDueHours: SCHEDULE_STAGE_DUE_HOURS,
-        meetingWeekRule: schedulePolicy.meetingWeekRule,
-        meetingTimeZone: schedulePolicy.timeZone,
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (!scheduleProgressed && currentScheduleStatus !== "confirmed") {
-      authoritativeMatchPatch.status = "mutualAccepted";
-      authoritativeMatchPatch.scheduleStatus = "ready";
-      authoritativeMatchPatch.mutualAcceptedAt =
-        match.mutualAcceptedAt || admin.firestore.FieldValue.serverTimestamp();
-      authoritativeMatchPatch.mutualAcceptedAtClient =
-        match.mutualAcceptedAtClient || nowClient;
-      authoritativeMatchPatch.schedule = {
-        ...(match.schedule || {}),
-        status: "ready",
-        dueHours: SCHEDULE_STAGE_DUE_HOURS,
-        totalDueHours: SCHEDULE_TOTAL_DUE_HOURS,
-        dueAtClient: firstDueAtClient,
-        policyVersion: schedulePolicy.version,
-        meetingWindowStartDateKey: schedulePolicy.windowStartDateKey,
-        meetingWindowEndDateKey: schedulePolicy.windowEndDateKey,
-        openedAt: match?.schedule?.openedAt || admin.firestore.FieldValue.serverTimestamp(),
-        openedAtClient: match?.schedule?.openedAtClient || nowClient,
-        serverPolicyInitializedAt: admin.firestore.FieldValue.serverTimestamp(),
-        serverPolicyInitializedAtClient:
-          match?.schedule?.serverPolicyInitializedAtClient || nowClient,
-        firstSelectorApplicationId: match?.schedule?.firstSelectorApplicationId || "",
-        firstChoices: Array.isArray(match?.schedule?.firstChoices)
-          ? match.schedule.firstChoices
-          : [],
-        finalChoice: match?.schedule?.finalChoice || null,
-      };
-    }
-
-    // 문자 발송 여부와 관계없이 일정 기준과 첫 선택 기한을 서버에서 먼저 확정한다.
-    await db.collection("twoweeksMatches").doc(matchId).set(
-      authoritativeMatchPatch,
-      { merge: true }
-    );
 
     await notifyTwoWeeksAdminLifecycle({
       matchId,

@@ -3,6 +3,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { assertApplicationOwner } = require("./twoWeeksCallerAuth");
+const { buildScheduleOpeningPatch } = require("./twoWeeksScheduleSubmission");
 const { getProposalResponseDueMs, toMillis } = require("./twoWeeksSchedulePolicy");
 
 if (!admin.apps.length) admin.initializeApp();
@@ -167,7 +168,9 @@ async function recordTwoWeeksProposalResponse(request, db = admin.firestore()) {
         updatedAt: field.serverTimestamp(),
       });
       tx.set(matchRef, {
-        status: "mutualAccepted", mutualAcceptedAt: field.serverTimestamp(), updatedAt: field.serverTimestamp(),
+        ...(!["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice", "confirmed"].includes(scheduleStatus)
+          ? buildScheduleOpeningPatch(match, now) : {}),
+        status: "mutualAccepted", mutualAcceptedAt: match.mutualAcceptedAt || field.serverTimestamp(), updatedAt: field.serverTimestamp(),
       }, { merge: true });
     } else if (response === "declined") {
       // 거절 알림 함수가 이후 상세 사유와 종료 상태를 다시 검증/동기화합니다.

@@ -1096,6 +1096,7 @@ exports.notifyTwoWeeksMutualAccepted = require("./twoWeeksMutualAcceptedNotifica
 // 투윅스 제안 거절 시 상대방 위로/결과 안내 문자
 exports.notifyTwoWeeksProposalDeclined = require("./twoWeeksDeclinedNotification").notifyTwoWeeksProposalDeclined;
 exports.respondTwoWeeksProposal = require("./twoWeeksProposalRespond").respondTwoWeeksProposal;
+exports.submitTwoWeeksSchedule = require("./twoWeeksScheduleSubmission").submitTwoWeeksSchedule;
 exports.notifyTwoWeeksAdminMatchLifecycle = require("./twoWeeksAdminLifecycleNotification").notifyTwoWeeksAdminMatchLifecycle;
 
 // 투윅스 매칭 제안 단계 선명 프로필 조회 및 기존 흐림 스냅샷 갱신

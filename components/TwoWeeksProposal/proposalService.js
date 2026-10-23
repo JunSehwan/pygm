@@ -6,6 +6,7 @@ import {
   getDocs,
   increment,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -90,9 +91,6 @@ export async function loadActiveCafeCandidates() {
   }
 }
 
-const RESPONSE_DUE_DAYS = 2;
-const SCHEDULE_DUE_DAYS = 2;
-
 function getTimeMs(value) {
   if (!value) return 0;
   if (typeof value?.toMillis === "function") return value.toMillis();
@@ -146,10 +144,6 @@ function assertMeetingDay(matchData = {}) {
   if (!todayKey || meetingDayKey !== todayKey) {
     throw new Error("현장사진과 도착 확인은 약속 당일에만 사용할 수 있습니다.");
   }
-}
-
-function addDaysClient(days = 2) {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 function getSiteOrigin() {
@@ -1196,30 +1190,6 @@ function formatMeetingPlaceText(placeChoice = {}) {
   return [placeChoice.area, placeChoice.cafeName || placeChoice.placeName].filter(Boolean).join(" / ") || "-";
 }
 
-function buildAutoFinalMeeting({ finalChoice = {}, timeChoice = {}, placeChoice = {}, selectedByApplicationId = "" }) {
-  const confirmedAtClient = new Date().toISOString();
-
-  return {
-    ...finalChoice,
-    ...timeChoice,
-    ...placeChoice,
-    timeChoice,
-    placeChoice,
-    finalTimeChoice: timeChoice,
-    finalPlaceChoice: placeChoice,
-    placeName: placeChoice.cafeName || placeChoice.placeName || "",
-    address: placeChoice.address || "",
-    mapUrl: placeChoice.cafeMapUrl || placeChoice.mapUrl || "",
-    cafeMapUrl: placeChoice.cafeMapUrl || placeChoice.mapUrl || "",
-    memo: "카페에서 60분 정도 가볍게 대화해주세요.",
-    paymentNote: "음료 등 개인 주문 비용은 각자 부담입니다.",
-    meetingGuide: "만남 전 한마디에 복장이나 기다리는 위치를 남겨두면 서로를 찾기 쉽습니다.",
-    selectedByApplicationId,
-    confirmedAtClient,
-    confirmedBy: "auto",
-  };
-}
-
 function truncateText(value = "", max = 80) {
   const clean = String(value || "").replace(/\s+/g, " ").trim();
   if (!clean) return "";
@@ -1263,236 +1233,77 @@ function getApplicationDisplayName(application = {}) {
   return basic.nickname || basic.name || "상대";
 }
 
-function normalizeTimeChoices(value = []) {
-  return Array.isArray(value)
-    ? value
-        .filter((item) => item?.id)
-        .slice(0, 3)
-        .map((item) => ({
-          id: item.id,
-          dateKey: item.dateKey || "",
-          dateLabel: item.dateLabel || "",
-          dayLabel: item.dayLabel || "",
-          timeSlotKey: item.timeSlotKey || "",
-          timeLabel: item.timeLabel || "",
-          startAtClient: item.startAtClient || "",
-        }))
-    : [];
-}
-
-function normalizePlaceChoices(value = []) {
-  return Array.isArray(value)
-    ? value
-        .filter((item) => item?.placeId || item?.cafeId || item?.id)
-        .slice(0, 3)
-        .map((item) => ({
-          id: item.placeId || item.cafeId || item.id,
-          placeId: item.placeId || item.cafeId || item.id,
-          area: item.area || "",
-          cafeId: item.cafeId || item.placeId || item.id || "",
-          cafeName: item.cafeName || item.name || "",
-          cafeStation: item.cafeStation || item.station || "",
-          cafeRatingLabel: item.cafeRatingLabel || item.ratingLabel || "",
-          cafeReason: item.cafeReason || item.reason || "",
-          cafeMapQuery: item.cafeMapQuery || item.mapQuery || "",
-          cafeMapUrl: item.cafeMapUrl || item.mapUrl || "",
-        }))
-    : [];
-}
-
-function combineFinalChoice(timeChoice = {}, placeChoice = {}, selectedByApplicationId = "") {
-  return {
-    id: `${timeChoice.id || "time"}_${placeChoice.placeId || placeChoice.cafeId || placeChoice.id || "place"}`,
-    ...timeChoice,
-    area: placeChoice.area || "",
-    placeId: placeChoice.placeId || placeChoice.cafeId || placeChoice.id || "",
-    cafeId: placeChoice.cafeId || placeChoice.placeId || placeChoice.id || "",
-    cafeName: placeChoice.cafeName || "",
-    cafeStation: placeChoice.cafeStation || "",
-    cafeRatingLabel: placeChoice.cafeRatingLabel || "",
-    cafeReason: placeChoice.cafeReason || "",
-    cafeMapQuery: placeChoice.cafeMapQuery || "",
-    cafeMapUrl: placeChoice.cafeMapUrl || "",
-    timeChoice,
-    placeChoice,
-    selectedByApplicationId,
-    selectedAtClient: new Date().toISOString(),
-  };
-}
-
-export async function saveScheduleChoices({
-  viewerApplication,
-  candidateApplication,
-  choices = [],
-}) {
+async function submitScheduleSelection(viewerApplication, candidateApplication, selection) {
   await ensureAuth();
-
-  if (!viewerApplication?.id || !candidateApplication?.id) {
-    throw new Error("일정 선택 정보를 확인할 수 없습니다.");
+  if (!viewerApplication?.id || !candidateApplication?.id || !viewerApplication.currentProposal?.matchId) {
+    throw new Error("일정 선택 정보를 확인할 수 없습니다. 신청현황을 새로고침해주세요.");
   }
-
-  const matchId = viewerApplication?.currentProposal?.matchId || "";
-  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
-
-  const source = Array.isArray(choices)
-    ? {
-        timeChoices: choices,
-        placeChoices: choices,
-      }
-    : choices || {};
-
-  const cleanTimeChoices = normalizeTimeChoices(source.timeChoices || source.times || []);
-  const cleanPlaceChoices = normalizePlaceChoices(source.placeChoices || source.places || []);
-
-  if (cleanTimeChoices.length !== 3 || cleanPlaceChoices.length !== 3) {
-    throw new Error("일시 후보 3개와 장소 후보 3개를 선택해주세요.");
-  }
-
-  const matchRef = doc(db, "twoweeksMatches", matchId);
-  const existingMatch = await getMatchDoc(matchId);
-
-  if (existingMatch?.schedule?.firstSelectorApplicationId && existingMatch.schedule.firstSelectorApplicationId !== viewerApplication.id) {
-    throw new Error("상대가 먼저 후보를 선택했습니다. 상대가 제안한 일시/장소 중 1개씩 선택해주세요.");
-  }
-
-  const counterpartDueAtClient = addDaysClient(SCHEDULE_DUE_DAYS);
-
-  await setDoc(
-    matchRef,
-    {
-      status: "mutualAccepted",
-      scheduleStatus: "waiting_counterpart",
-      schedule: {
-        status: "waiting_counterpart",
-        firstSelectorApplicationId: viewerApplication.id,
-        counterpartApplicationId: candidateApplication.id,
-        timeChoices: cleanTimeChoices,
-        placeChoices: cleanPlaceChoices,
-        firstChoices: cleanTimeChoices,
-        firstSelectedAt: serverTimestamp(),
-        firstSelectedAtClient: new Date().toISOString(),
-        counterpartDueDays: SCHEDULE_DUE_DAYS,
-        counterpartDueAtClient,
-      },
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  await sendEventSms(candidateApplication, "일정 후보 도착", [
-    "상대가 일시 3개와 장소 3개를 선택했습니다.",
-    "2일 내 일시 1개와 장소 1개를 선택해주세요.",
-  ]);
-
-  return {
-    matchId,
-    timeChoices: cleanTimeChoices,
-    placeChoices: cleanPlaceChoices,
-  };
-}
-
-export async function saveScheduleFinalChoice({
-  viewerApplication,
-  candidateApplication,
-  choice,
-}) {
-  await ensureAuth();
-
-  if (!viewerApplication?.id || !candidateApplication?.id) {
-    throw new Error("일정 선택 정보를 확인할 수 없습니다.");
-  }
-
-  const matchId = viewerApplication?.currentProposal?.matchId || "";
-  if (!matchId) throw new Error("매칭 정보를 찾지 못했습니다.");
-
-  const timeChoice = choice?.timeChoice || choice?.time || null;
-  const placeChoice = choice?.placeChoice || choice?.place || null;
-
-  if (!timeChoice?.id) {
-    throw new Error("확정할 일시를 선택해주세요.");
-  }
-
-  if (!(placeChoice?.placeId || placeChoice?.cafeId || placeChoice?.id)) {
-    throw new Error("확정할 장소를 선택해주세요.");
-  }
-
-  const cleanTimeChoice = normalizeTimeChoices([timeChoice])[0];
-  const cleanPlaceChoice = normalizePlaceChoices([placeChoice])[0];
-  const finalChoice = combineFinalChoice(cleanTimeChoice, cleanPlaceChoice, viewerApplication.id);
-  const finalMeeting = buildAutoFinalMeeting({
-    finalChoice,
-    timeChoice: cleanTimeChoice,
-    placeChoice: cleanPlaceChoice,
-    selectedByApplicationId: viewerApplication.id,
+  const submit = httpsCallable(getFunctions(undefined, "asia-northeast3"), "submitTwoWeeksSchedule");
+  const result = await submit({
+    ...selection,
+    matchId: viewerApplication.currentProposal.matchId,
+    viewerApplicationId: viewerApplication.id,
+    candidateApplicationId: candidateApplication.id,
   });
+  if (!result?.data?.ok) throw new Error("일정 저장 결과를 확인하지 못했습니다.");
+  return result.data;
+}
 
-  const matchRef = doc(db, "twoweeksMatches", matchId);
-  const matchSnap = await getDoc(matchRef);
-  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
-  const hadPreviousNote = Boolean(matchData?.preMeetingNotes?.[viewerApplication.id]?.note);
+export async function saveScheduleChoices({ viewerApplication, candidateApplication, choices = [] }) {
+  const source = Array.isArray(choices) ? { timeChoices: choices, placeChoices: choices } : choices || {};
+  const result = await submitScheduleSelection(viewerApplication, candidateApplication, {
+    mode: "first",
+    timeIds: (source.timeChoices || source.times || []).map((item) => item.id),
+    placeIds: (source.placeChoices || source.places || []).map((item) => item.cafeId || item.placeId || item.id),
+  });
+  if (!result.alreadySubmitted) {
+    await sendEventSms(candidateApplication, "일정 후보 도착", [
+      "상대가 일시 3개와 장소 3개를 선택했습니다.",
+      "24시간 내 일시 1개와 장소 1개를 선택해주세요.",
+    ]);
+  }
+  return result;
+}
 
-  await setDoc(
-    matchRef,
-    {
-      status: "confirmed",
-      scheduleStatus: "confirmed",
-      photoRevealStatus: "revealed",
-      finalMeeting,
-      schedule: {
-        status: "confirmed",
-        finalTimeChoice: cleanTimeChoice,
-        finalPlaceChoice: cleanPlaceChoice,
-        finalChoice,
-        selectedChoice: finalChoice,
-        finalMeeting,
-        finalSelectedAt: serverTimestamp(),
-        finalSelectedAtClient: finalChoice.selectedAtClient,
-        confirmedAt: serverTimestamp(),
-        confirmedAtClient: finalMeeting.confirmedAtClient,
-        confirmedBy: "auto",
-      },
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  const applicationPatch = {
-    matchingStatus: "confirmed",
-    photoRevealStatus: "revealed",
-    "currentProposal.photoRevealStatus": "revealed",
-    "schedule.status": "confirmed",
-    "schedule.finalMeeting": finalMeeting,
-    "schedule.confirmedAt": serverTimestamp(),
-    "schedule.confirmedAtClient": finalMeeting.confirmedAtClient,
-    updatedAt: serverTimestamp(),
-  };
-
-  await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), applicationPatch).catch(() => {});
-  await updateDoc(doc(db, "twoweeksApplications", candidateApplication.id), applicationPatch).catch(() => {});
-
+export async function saveScheduleFinalChoice({ viewerApplication, candidateApplication, choice }) {
+  const time = choice?.timeChoice || choice?.time;
+  const place = choice?.placeChoice || choice?.place;
+  const result = await submitScheduleSelection(viewerApplication, candidateApplication, {
+    mode: "final", timeId: time?.id || "", placeId: place?.cafeId || place?.placeId || place?.id || "",
+  });
+  if (result.alreadySubmitted) return result;
   const smsResults = {
-    viewer: await sendEventSms(viewerApplication, "일시와 장소 안내", buildMeetingReadySmsLines(finalMeeting)),
-    candidate: await sendEventSms(candidateApplication, "일시와 장소 안내", buildMeetingReadySmsLines(finalMeeting)),
+    viewer: await sendEventSms(viewerApplication, "일시와 장소 안내", buildMeetingReadySmsLines(result.finalMeeting)),
+    candidate: await sendEventSms(candidateApplication, "일시와 장소 안내", buildMeetingReadySmsLines(result.finalMeeting)),
   };
+  await setDoc(doc(db, "twoweeksMatches", result.matchId), {
+    meetingReadySms: smsResults, meetingReadySmsUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  }, { merge: true }).catch(() => {});
+  return { ...result, smsResults };
+}
 
-  await setDoc(
-    matchRef,
-    {
-      meetingReadySms: smsResults,
-      meetingReadySmsUpdatedAt: serverTimestamp(),
+async function recordOwnMeetingState({ matchRef, viewerApplication, candidateApplication, field, summaryField, completeStatus, payload, requireMeetingDay = false }) {
+  return runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(matchRef);
+    const matchData = snap.exists() ? { id: snap.id, ...snap.data() } : {};
+    if (matchData.status !== "confirmed" || !isSamePairMatch(matchData, viewerApplication.id, candidateApplication.id)) {
+      throw new Error("현재 확정된 만남에서만 참석·도착 확인을 할 수 있습니다.");
+    }
+    if (requireMeetingDay) assertMeetingDay(matchData);
+    const existing = matchData[field] || {};
+    const desired = typeof payload === "function" ? payload(matchData) : payload;
+    const alreadyConfirmed = existing[viewerApplication.id]?.status === desired.status;
+    const record = alreadyConfirmed ? existing[viewerApplication.id] : desired;
+    const next = { ...existing, [viewerApplication.id]: record };
+    const complete = next[viewerApplication.id]?.status === record.status && next[candidateApplication.id]?.status === record.status;
+    if (alreadyConfirmed) return { matchData, record, complete, alreadyConfirmed: true };
+    transaction.update(matchRef, {
+      [`${field}.${viewerApplication.id}`]: record,
+      [summaryField]: complete ? completeStatus : "waiting_counterpart",
       updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  ).catch(() => {});
-
-  return {
-    matchId,
-    choice: finalChoice,
-    timeChoice: cleanTimeChoice,
-    placeChoice: cleanPlaceChoice,
-    finalMeeting,
-    smsResults,
-  };
+    });
+    return { matchData, record, complete, alreadyConfirmed: false };
+  });
 }
 
 export async function saveMeetingAttendance({
@@ -1518,30 +1329,11 @@ export async function saveMeetingAttendance({
   };
 
   const matchRef = doc(db, "twoweeksMatches", matchId);
-  const matchSnap = await getDoc(matchRef);
-  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
-  const existingAttendance = matchData?.meetingAttendance || {};
-  const nextAttendance = {
-    ...existingAttendance,
-    [viewerApplication.id]: payload,
-  };
-
-  const viewerConfirmed = nextAttendance?.[viewerApplication.id]?.status === "attending";
-  const counterpartConfirmed = nextAttendance?.[candidateApplication.id]?.status === "attending";
-  const bothConfirmed = viewerConfirmed && counterpartConfirmed;
-  const finalMeeting = matchData?.finalMeeting || matchData?.schedule?.finalMeeting || viewerApplication?.schedule?.finalMeeting || {};
-
-  await setDoc(
-    matchRef,
-    {
-      meetingAttendance: {
-        [viewerApplication.id]: payload,
-      },
-      attendanceStatus: bothConfirmed ? "both_confirmed" : "waiting_counterpart",
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const { matchData, complete: bothConfirmed, alreadyConfirmed } = await recordOwnMeetingState({
+    matchRef, viewerApplication, candidateApplication, field: "meetingAttendance", summaryField: "attendanceStatus", completeStatus: "both_confirmed", payload,
+  });
+  if (alreadyConfirmed) return { matchId, attendance: matchData.meetingAttendance[viewerApplication.id], bothConfirmed, alreadyConfirmed: true };
+  const finalMeeting = matchData.finalMeeting || matchData.schedule?.finalMeeting || {};
 
   await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
     "schedule.attendanceStatus": cleanStatus,
@@ -1669,53 +1461,17 @@ export async function saveMeetingArrival({
 
   const arrivedAtClient = new Date().toISOString();
   const matchRef = doc(db, "twoweeksMatches", matchId);
-  const matchSnap = await getDoc(matchRef);
-  const matchData = matchSnap.exists() ? { id: matchSnap.id, ...matchSnap.data() } : {};
-  assertMeetingDay(matchData);
-  const preMeetingNotes = matchData?.preMeetingNotes || {};
-  const myPreMeetingNote = preMeetingNotes?.[viewerApplication.id]?.note || "";
-  const existingArrival = matchData?.meetingArrival || {};
-  const existingMyArrival = existingArrival?.[viewerApplication.id] || null;
-
-  if (existingMyArrival?.status === "arrived") {
-    return {
-      matchId,
-      arrival: existingMyArrival,
-      bothArrived:
-        existingArrival?.[candidateApplication.id]?.status === "arrived",
-      alreadyConfirmed: true,
-    };
-  }
-
-  const payload = {
-    applicationId: viewerApplication.id,
-    displayName: getApplicationDisplayName(viewerApplication),
-    status: status === "arrived" ? "arrived" : "arrived",
-    preMeetingNoteSnapshot: truncateText(myPreMeetingNote, 120),
-    arrivedAtClient,
-    updatedAtClient: arrivedAtClient,
-  };
-
-  const nextArrival = {
-    ...existingArrival,
-    [viewerApplication.id]: payload,
-  };
-
-  const viewerArrived = nextArrival?.[viewerApplication.id]?.status === "arrived";
-  const counterpartArrived = nextArrival?.[candidateApplication.id]?.status === "arrived";
-  const bothArrived = viewerArrived && counterpartArrived;
-
-  await setDoc(
-    matchRef,
-    {
-      meetingArrival: {
-        [viewerApplication.id]: payload,
-      },
-      arrivalStatus: bothArrived ? "both_arrived" : "waiting_counterpart",
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const { record: payload, complete: bothArrived, alreadyConfirmed } = await recordOwnMeetingState({
+    matchRef, viewerApplication, candidateApplication, field: "meetingArrival", summaryField: "arrivalStatus", completeStatus: "both_arrived", requireMeetingDay: true,
+    payload: (matchData) => ({
+      applicationId: viewerApplication.id,
+      displayName: getApplicationDisplayName(viewerApplication),
+      status: "arrived",
+      preMeetingNoteSnapshot: truncateText(matchData.preMeetingNotes?.[viewerApplication.id]?.note || "", 120),
+      arrivedAtClient, updatedAtClient: arrivedAtClient,
+    }),
+  });
+  if (alreadyConfirmed) return { matchId, arrival: payload, bothArrived, alreadyConfirmed: true };
 
   await updateDoc(doc(db, "twoweeksApplications", viewerApplication.id), {
     "schedule.arrivalStatus": "arrived",

@@ -47,7 +47,9 @@ function buildApplicationPatch(match = {}, applicationId = "") {
     };
   }
 
-  if (status === "mutualAccepted" || scheduleStatus === "waiting_counterpart") {
+  if ([status, scheduleStatus].some((value) => ["cancelled", "canceled", "expired", "proposal_expired", "schedule_expired", "counterpart_expired", "failed", "completed", "withdrawn"].includes(value))) return null;
+
+  if (status !== "confirmed" && scheduleStatus !== "confirmed" && (status === "mutualAccepted" || scheduleStatus === "waiting_counterpart")) {
     return {
       matchingStatus: "mutualAccepted",
       "currentProposal.mutualAcceptedAt": match?.mutualAcceptedAt || admin.firestore.FieldValue.serverTimestamp(),
@@ -121,37 +123,31 @@ const syncTwoWeeksMatchParticipants = onDocumentWritten(
     if (applicationIds.length !== 2) return;
 
     const db = admin.firestore();
-    const applicationSnaps = await Promise.all(
-      applicationIds.map((applicationId) =>
-        db.collection("twoweeksApplications").doc(applicationId).get()
-      )
-    );
-    const applicationsById = new Map(
-      applicationSnaps
-        .filter((snap) => snap.exists)
-        .map((snap) => [snap.id, snap.data() || {}])
-    );
-    const batch = db.batch();
-    let writeCount = 0;
+    await synchronizeMatchParticipants(db, event.params.matchId);
 
-    for (const applicationId of applicationIds) {
-      const application = applicationsById.get(applicationId) || {};
-      if (
-        application.status === "withdrawn" ||
-        application.withdrawal?.status === "completed"
-      ) {
-        continue;
-      }
-      const patch = buildApplicationPatch(after, applicationId);
-      if (!patch) continue;
-      const ref = db.collection("twoweeksApplications").doc(applicationId);
-      batch.update(ref, patch);
-      writeCount += 1;
-    }
-
-    if (!writeCount) return;
-    await batch.commit();
   }
 );
 
-module.exports = { syncTwoWeeksMatchParticipants };
+async function synchronizeMatchParticipants(db, matchId) {
+  // 이벤트는 순서가 바뀌거나 재전송될 수 있으므로 현재 DB 상태를 기준으로 동기화합니다.
+  return db.runTransaction(async (transaction) => {
+    const matchSnap = await transaction.get(db.collection("twoweeksMatches").doc(matchId));
+    if (!matchSnap.exists) return;
+    const match = { ...matchSnap.data(), id: matchId };
+    const ids = [...new Set([cleanId(match.maleApplicationId), cleanId(match.femaleApplicationId)].filter(Boolean))];
+    if (ids.length !== 2) return;
+    const refs = ids.map((id) => db.collection("twoweeksApplications").doc(id));
+    const snaps = await Promise.all(refs.map((ref) => transaction.get(ref)));
+    for (let index = 0; index < snaps.length; index += 1) {
+      const snap = snaps[index];
+      if (!snap.exists) continue;
+      const application = snap.data();
+      // 다음 상대를 소개받은 신청서를 이전 매칭의 이벤트로 되돌리지 않습니다.
+      if (application.status === "withdrawn" || application.withdrawal?.status === "completed" || application.currentProposal?.matchId !== matchId) continue;
+      const patch = buildApplicationPatch(match, snap.id);
+      if (patch) transaction.update(refs[index], patch);
+    }
+  });
+}
+
+module.exports = { syncTwoWeeksMatchParticipants, synchronizeMatchParticipants };

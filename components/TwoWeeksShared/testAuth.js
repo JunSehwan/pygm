@@ -25,7 +25,8 @@ export function normalizeTestPhone(value = "") {
 }
 
 export function isTwoWeeksTestPhone(phone = "") {
-  return TWOWEEKS_TEST_PHONES.includes(normalizeTestPhone(phone));
+  const enabled = process.env.NEXT_PUBLIC_TWOWEEKS_ENABLE_TEST_AUTH === "true";
+  return enabled && TWOWEEKS_TEST_PHONES.includes(normalizeTestPhone(phone));
 }
 
 export function buildTwoWeeksTestIdentityData({

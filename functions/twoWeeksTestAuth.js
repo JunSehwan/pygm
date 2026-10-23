@@ -23,7 +23,8 @@ function normalizeTwoWeeksPhone(value = "") {
 }
 
 function isTwoWeeksTestPhone(value = "") {
-  return TWO_WEEKS_TEST_PHONES.has(normalizeTwoWeeksPhone(value));
+  const enabled = process.env.FUNCTIONS_EMULATOR === "true" || process.env.TWOWEEKS_ENABLE_TEST_AUTH === "true";
+  return enabled && TWO_WEEKS_TEST_PHONES.has(normalizeTwoWeeksPhone(value));
 }
 
 module.exports = {

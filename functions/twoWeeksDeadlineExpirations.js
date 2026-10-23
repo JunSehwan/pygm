@@ -3,6 +3,7 @@ const axios = require("axios");
 const CryptoJS = require("crypto-js");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
+const { getProposalResponseDueMs, getScheduleStageDueMs } = require("./twoWeeksSchedulePolicy");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -28,14 +29,6 @@ function onlyDigits(value = "") {
 
 function toClientNow() {
   return new Date().toISOString();
-}
-
-function toMillis(value) {
-  if (!value) return 0;
-  if (typeof value?.toDate === "function") return value.toDate().getTime();
-
-  const ms = Date.parse(String(value));
-  return Number.isNaN(ms) ? 0 : ms;
 }
 
 function addSafeSet(target = {}, key = "", value) {
@@ -193,18 +186,11 @@ async function sendGuideSms(application = {}, subject = "", lines = []) {
 }
 
 function getProposalDueMs(match = {}) {
-  return toMillis(match.responseDueAtClient || match.proposalDueAtClient || match.schedule?.responseDueAtClient);
+  return getProposalResponseDueMs(match);
 }
 
 function getScheduleDueMs(match = {}) {
-  const schedule = match.schedule || {};
-  const status = String(match.scheduleStatus || schedule.status || "");
-
-  if (["waiting_counterpart", "needs_final_choice"].includes(status)) {
-    return toMillis(schedule.counterpartDueAtClient || schedule.dueAtClient);
-  }
-
-  return toMillis(schedule.dueAtClient || schedule.counterpartDueAtClient);
+  return getScheduleStageDueMs(match);
 }
 
 function getScheduleTargetIds(match = {}) {
@@ -332,276 +318,318 @@ async function sendScheduleReminderIfNeeded({ db, match, applicationsById, nowMs
   return results;
 }
 
-async function expireProposalMatch({ db, match, male, female, nowMs }) {
-  if (isTerminalMatch(match) || match.status !== "proposed") return null;
+async function expireProposalMatch({ db, match: requestedMatch, nowMs }) {
+  const matchId = requestedMatch.id;
+  const committed = await db.runTransaction(async (transaction) => {
+    const currentSnap = await transaction.get(db.collection("twoweeksMatches").doc(matchId));
+    if (!currentSnap.exists) return null;
+    const match = { id: currentSnap.id, ...currentSnap.data() };
+    const ids = getPairIds(match);
+    const snaps = await Promise.all(ids.map((id) => transaction.get(db.collection("twoweeksApplications").doc(id))));
+    const currentApplications = snaps.filter((snap) => snap.exists).map((snap) => ({ id: snap.id, ...snap.data() }))
+      .filter((app) => app.currentProposal?.matchId === matchId && app.status !== "withdrawn" && app.withdrawal?.status !== "completed");
+    if (isTerminalMatch(match) || match.status !== "proposed") return null;
 
-  const dueMs = getProposalDueMs(match);
-  if (!dueMs || nowMs < dueMs) return null;
-  if (match.expiration?.proposalExpiredAtClient) return null;
+    const dueMs = getProposalDueMs(match);
+    if (!dueMs || nowMs < dueMs) return null;
+    if (match.expiration?.proposalExpiredAtClient) return null;
 
-  const apps = [male, female].filter(Boolean);
-  const nonResponders = apps.filter((app) => {
-    const response = String(app?.currentProposal?.response || "");
-    return !response || response === "pending";
-  });
-  const acceptedApps = apps.filter((app) => String(app?.currentProposal?.response || "") === "accepted");
-
-  if (!nonResponders.length) return null;
-
-  const smsResults = {};
-
-  for (const app of acceptedApps) {
-    smsResults[app.id] = await sendGuideSms(app, "매칭 제안 종료", [
-      "상대방이 기한 내 만남을 확정하지 않아 이번 제안은 종료되었습니다.",
-      "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
-      "다음 후보를 다시 검토해드리겠습니다.",
-    ]);
-  }
-
-  for (const app of nonResponders) {
-    smsResults[app.id] = await sendGuideSms(app, "응답 기한 만료", [
-      "기한 내 응답이 없어 이번 매칭 제안은 종료되었습니다.",
-      "무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
-    ]);
-  }
-
-  const batch = db.batch();
-  const matchRef = db.collection("twoweeksMatches").doc(match.id);
-  batch.set(
-    matchRef,
-    {
-      status: "proposal_expired",
-      proposalStatus: "expired",
-      expiredStage: "proposal_response",
-      expiredByApplicationIds: nonResponders.map((app) => app.id),
-      expiration: {
-        proposalExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
-        proposalExpiredAtClient: toClientNow(),
-        dueAtClient: match.responseDueAtClient || "",
-        nonResponderApplicationIds: nonResponders.map((app) => app.id),
-        acceptedApplicationIds: acceptedApps.map((app) => app.id),
-        smsResults,
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  for (const app of acceptedApps) {
-    const appRef = db.collection("twoweeksApplications").doc(app.id);
-    batch.update(appRef, {
-      matchingStatus: "not_started",
-      matchingAvailability: "active",
-      nextRoundStatus: "ready",
-      currentProposal: admin.firestore.FieldValue.delete(),
-      scheduleStatus: "not_started",
-      schedule: admin.firestore.FieldValue.delete(),
-      photoRevealStatus: "hidden",
-      noPenaltyReason: "counterpart_proposal_no_response",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    const apps = currentApplications;
+    const nonResponders = apps.filter((app) => {
+      const response = String(app?.currentProposal?.response || "");
+      return !response || response === "pending";
     });
-  }
+    const acceptedApps = apps.filter((app) => String(app?.currentProposal?.response || "") === "accepted");
 
-  for (const app of nonResponders) {
-    const appRef = db.collection("twoweeksApplications").doc(app.id);
-    const previousProposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
-    const isRepeatedNoResponse = previousProposalNoResponseCount >= 1;
+    if (!nonResponders.length) return null;
 
-    if (!isRepeatedNoResponse) {
-      // 첫 제안 무응답은 이력과 경고만 남기고 다음 후보 검토가 가능하도록 복귀시킨다.
-      // 한 번의 기한 초과로 무기한 정지되면 관리자 매칭풀에서 영구히 사라질 수 있다.
+    const smsResults = {};
+    const notifications = [];
+
+    for (const app of acceptedApps) {
+      notifications.push({ application: app, title: "매칭 제안 종료", lines: [
+        "상대방이 기한 내 만남을 확정하지 않아 이번 제안은 종료되었습니다.",
+        "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
+        "다음 후보를 다시 검토해드리겠습니다.",
+      ] });
+    }
+
+    for (const app of nonResponders) {
+      notifications.push({ application: app, title: "응답 기한 만료", lines: [
+        "기한 내 응답이 없어 이번 매칭 제안은 종료되었습니다.",
+        "무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
+      ] });
+    }
+
+    const batch = transaction;
+    const matchRef = db.collection("twoweeksMatches").doc(match.id);
+    batch.set(
+      matchRef,
+      {
+        status: "proposal_expired",
+        proposalStatus: "expired",
+        expiredStage: "proposal_response",
+        expiredByApplicationIds: nonResponders.map((app) => app.id),
+        expiration: {
+          proposalExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+          proposalExpiredAtClient: toClientNow(),
+          dueAtClient: match.responseDueAtClient || "",
+          nonResponderApplicationIds: nonResponders.map((app) => app.id),
+          acceptedApplicationIds: acceptedApps.map((app) => app.id),
+          smsResults,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    for (const app of acceptedApps) {
+      const appRef = db.collection("twoweeksApplications").doc(app.id);
       batch.update(appRef, {
         matchingStatus: "not_started",
         matchingAvailability: "active",
-        matchingPauseReason: admin.firestore.FieldValue.delete(),
         nextRoundStatus: "ready",
         currentProposal: admin.firestore.FieldValue.delete(),
         scheduleStatus: "not_started",
         schedule: admin.firestore.FieldValue.delete(),
         photoRevealStatus: "hidden",
-        "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
-        "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
-        "penaltyStats.lastPenaltyReason": "proposal_no_response",
-        "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
-        "penaltyStats.lastPenaltyAtClient": toClientNow(),
-        "penaltyStats.lastMatchId": match.id,
-        "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
-        "penaltyStats.reviewStatus": "warning_recorded",
-        "penaltyStats.lastAdminDecision": "auto_returned_after_first_proposal_no_response",
-        "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
-        "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
+        noPenaltyReason: "counterpart_proposal_no_response",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-    } else {
-      // 반복 무응답부터는 운영자가 참여 의사를 확인한 뒤 복귀시킨다.
+    }
+
+    for (const app of nonResponders) {
+      const appRef = db.collection("twoweeksApplications").doc(app.id);
+      const previousProposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
+      const isRepeatedNoResponse = previousProposalNoResponseCount >= 1;
+
+      if (!isRepeatedNoResponse) {
+        // 첫 제안 무응답은 이력과 경고만 남기고 다음 후보 검토가 가능하도록 복귀시킨다.
+        // 한 번의 기한 초과로 무기한 정지되면 관리자 매칭풀에서 영구히 사라질 수 있다.
+        batch.update(appRef, {
+          matchingStatus: "not_started",
+          matchingAvailability: "active",
+          matchingPauseReason: admin.firestore.FieldValue.delete(),
+          nextRoundStatus: "ready",
+          currentProposal: admin.firestore.FieldValue.delete(),
+          scheduleStatus: "not_started",
+          schedule: admin.firestore.FieldValue.delete(),
+          photoRevealStatus: "hidden",
+          "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
+          "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
+          "penaltyStats.lastPenaltyReason": "proposal_no_response",
+          "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
+          "penaltyStats.lastPenaltyAtClient": toClientNow(),
+          "penaltyStats.lastMatchId": match.id,
+          "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
+          "penaltyStats.reviewStatus": "warning_recorded",
+          "penaltyStats.lastAdminDecision": "auto_returned_after_first_proposal_no_response",
+          "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
+          "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        // 반복 무응답부터는 운영자가 참여 의사를 확인한 뒤 복귀시킨다.
+        batch.update(appRef, {
+          matchingStatus: "paused",
+          matchingAvailability: "paused",
+          matchingPauseReason: "proposal_no_response",
+          matchingPausedAt: admin.firestore.FieldValue.serverTimestamp(),
+          matchingPausedAtClient: toClientNow(),
+          scheduleStatus: "proposal_expired",
+          nextRoundStatus: "admin_review",
+          currentProposal: admin.firestore.FieldValue.delete(),
+          "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
+          "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
+          "penaltyStats.lastPenaltyReason": "proposal_no_response",
+          "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
+          "penaltyStats.lastPenaltyAtClient": toClientNow(),
+          "penaltyStats.lastMatchId": match.id,
+          "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
+          "penaltyStats.reviewStatus": "admin_review",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+
+    return {
+      notifications,
+      matchId: match.id,
+      stage: "proposal_response",
+      nonResponders: nonResponders.map((app) => app.id),
+      accepted: acceptedApps.map((app) => app.id),
+    };
+  });
+  if (!committed) return null;
+  const { notifications, ...result } = committed;
+  const smsResults = {};
+  for (const notification of notifications) {
+    smsResults[notification.application.id] = await sendGuideSms(notification.application, notification.title, notification.lines);
+  }
+  await db.collection("twoweeksMatches").doc(matchId).set({
+    expiration: { smsResults }, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return result;
+}
+
+async function expireScheduleMatch({ db, match: requestedMatch, nowMs }) {
+  const matchId = requestedMatch.id;
+  const committed = await db.runTransaction(async (transaction) => {
+    const currentSnap = await transaction.get(db.collection("twoweeksMatches").doc(matchId));
+    if (!currentSnap.exists) return null;
+    const match = { id: currentSnap.id, ...currentSnap.data() };
+    const ids = getPairIds(match);
+    const snaps = await Promise.all(ids.map((id) => transaction.get(db.collection("twoweeksApplications").doc(id))));
+    const currentApplications = snaps.filter((snap) => snap.exists).map((snap) => ({ id: snap.id, ...snap.data() }))
+      .filter((app) => app.currentProposal?.matchId === matchId && app.status !== "withdrawn" && app.withdrawal?.status !== "completed");
+    if (isTerminalMatch(match)) return null;
+
+    const schedule = match.schedule || {};
+    const status = String(match.scheduleStatus || schedule.status || "");
+    if (!["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice"].includes(status)) return null;
+
+    const dueMs = getScheduleDueMs(match);
+    if (!dueMs || nowMs < dueMs) return null;
+    if (match.expiration?.scheduleExpiredAtClient) return null;
+
+    const allIds = getPairIds(match);
+    const isCounterpartStep = ["waiting_counterpart", "needs_final_choice"].includes(status);
+    const nonResponderIds = isCounterpartStep ? getScheduleTargetIds(match) : allIds;
+    const noPenaltyIds = allIds.filter((id) => !nonResponderIds.includes(id));
+
+    const nonResponders = [];
+    const noPenaltyApps = [];
+
+    for (const id of nonResponderIds) {
+      const app = currentApplications.find((item) => item.id === id);
+      if (app) nonResponders.push(app);
+    }
+
+    for (const id of noPenaltyIds) {
+      const app = currentApplications.find((item) => item.id === id);
+      if (app) noPenaltyApps.push(app);
+    }
+
+    if (!nonResponders.length) return null;
+
+    const smsResults = {};
+    const notifications = [];
+
+    for (const app of noPenaltyApps) {
+      notifications.push({ application: app, title: "일정조율 종료", lines: [
+        "상대방이 기한 내 일시/장소를 확정하지 않아 이번 만남은 종료되었습니다.",
+        "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
+        "다음 후보를 다시 검토해드리겠습니다.",
+      ] });
+    }
+
+    for (const app of nonResponders) {
+      notifications.push({ application: app, title: "일정조율 기한 만료", lines: [
+        "기한 내 일시/장소 선택이 완료되지 않아 이번 만남은 종료되었습니다.",
+        "일정조율 무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
+      ] });
+    }
+
+    const batch = transaction;
+    const matchRef = db.collection("twoweeksMatches").doc(match.id);
+    const expiredStage = isCounterpartStep ? "schedule_counterpart_choice" : "schedule_first_choice";
+    const nextScheduleStatus = isCounterpartStep ? "counterpart_expired" : "schedule_expired";
+
+    batch.set(
+      matchRef,
+      {
+        status: "schedule_expired",
+        scheduleStatus: nextScheduleStatus,
+        expiredStage,
+        expiredByApplicationIds: nonResponders.map((app) => app.id),
+        schedule: {
+          status: nextScheduleStatus,
+          expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiredAtClient: toClientNow(),
+          expiredReason: expiredStage,
+        },
+        expiration: {
+          scheduleExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
+          scheduleExpiredAtClient: toClientNow(),
+          dueAtClient:
+            schedule.counterpartDueAtClient ||
+            schedule.dueAtClient ||
+            "",
+          expiredStage,
+          nonResponderApplicationIds: nonResponders.map((app) => app.id),
+          noPenaltyApplicationIds: noPenaltyApps.map((app) => app.id),
+          smsResults,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    for (const app of noPenaltyApps) {
+      const appRef = db.collection("twoweeksApplications").doc(app.id);
+      batch.update(appRef, {
+        matchingStatus: "not_started",
+        matchingAvailability: "active",
+        nextRoundStatus: "ready",
+        currentProposal: admin.firestore.FieldValue.delete(),
+        scheduleStatus: "not_started",
+        schedule: admin.firestore.FieldValue.delete(),
+        photoRevealStatus: "hidden",
+        noPenaltyReason: "counterpart_schedule_no_response",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    for (const app of nonResponders) {
+      const appRef = db.collection("twoweeksApplications").doc(app.id);
       batch.update(appRef, {
         matchingStatus: "paused",
         matchingAvailability: "paused",
-        matchingPauseReason: "proposal_no_response",
+        matchingPauseReason: expiredStage,
         matchingPausedAt: admin.firestore.FieldValue.serverTimestamp(),
         matchingPausedAtClient: toClientNow(),
-        scheduleStatus: "proposal_expired",
+        scheduleStatus: nextScheduleStatus,
         nextRoundStatus: "admin_review",
+        // 종료된 제안을 남겨두면 관리자 복귀 판정이 이를 활성 제안으로 오인한다.
         currentProposal: admin.firestore.FieldValue.delete(),
-        "penaltyStats.proposalNoResponseCount": admin.firestore.FieldValue.increment(1),
+        schedule: {
+          status: nextScheduleStatus,
+          expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiredAtClient: toClientNow(),
+          expiredReason: expiredStage,
+        },
+        "penaltyStats.scheduleNoResponseCount": admin.firestore.FieldValue.increment(1),
         "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
-        "penaltyStats.lastPenaltyReason": "proposal_no_response",
+        "penaltyStats.lastPenaltyReason": expiredStage,
         "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
         "penaltyStats.lastPenaltyAtClient": toClientNow(),
         "penaltyStats.lastMatchId": match.id,
-        "penaltyStats.lastCounterpartOutcome": acceptedApps.length ? "counterpart_accepted" : "both_no_response",
+        "penaltyStats.lastCounterpartOutcome": noPenaltyApps.length ? "counterpart_waited" : "both_no_response",
         "penaltyStats.reviewStatus": "admin_review",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
-  }
 
-  await batch.commit();
 
-  return {
-    matchId: match.id,
-    stage: "proposal_response",
-    nonResponders: nonResponders.map((app) => app.id),
-    accepted: acceptedApps.map((app) => app.id),
-  };
-}
-
-async function expireScheduleMatch({ db, match, applicationsById, nowMs }) {
-  if (isTerminalMatch(match)) return null;
-
-  const schedule = match.schedule || {};
-  const status = String(match.scheduleStatus || schedule.status || "");
-  if (!["ready", "needs_first_choice", "waiting_counterpart", "needs_final_choice"].includes(status)) return null;
-
-  const dueMs = getScheduleDueMs(match);
-  if (!dueMs || nowMs < dueMs) return null;
-  if (match.expiration?.scheduleExpiredAtClient) return null;
-
-  const allIds = getPairIds(match);
-  const isCounterpartStep = ["waiting_counterpart", "needs_final_choice"].includes(status);
-  const nonResponderIds = isCounterpartStep ? getScheduleTargetIds(match) : allIds;
-  const noPenaltyIds = allIds.filter((id) => !nonResponderIds.includes(id));
-
-  const nonResponders = [];
-  const noPenaltyApps = [];
-
-  for (const id of nonResponderIds) {
-    const app = applicationsById[id] || (await getApplication(db, id));
-    if (app) nonResponders.push(app);
-  }
-
-  for (const id of noPenaltyIds) {
-    const app = applicationsById[id] || (await getApplication(db, id));
-    if (app) noPenaltyApps.push(app);
-  }
-
-  if (!nonResponders.length) return null;
-
+    return {
+      notifications,
+      matchId: match.id,
+      stage: expiredStage,
+      nonResponders: nonResponders.map((app) => app.id),
+      noPenalty: noPenaltyApps.map((app) => app.id),
+    };
+  });
+  if (!committed) return null;
+  const { notifications, ...result } = committed;
   const smsResults = {};
-
-  for (const app of noPenaltyApps) {
-    smsResults[app.id] = await sendGuideSms(app, "일정조율 종료", [
-      "상대방이 기한 내 일시/장소를 확정하지 않아 이번 만남은 종료되었습니다.",
-      "해당 사유는 회원님에게 불이익 없이 처리됩니다.",
-      "다음 후보를 다시 검토해드리겠습니다.",
-    ]);
+  for (const notification of notifications) {
+    smsResults[notification.application.id] = await sendGuideSms(notification.application, notification.title, notification.lines);
   }
-
-  for (const app of nonResponders) {
-    smsResults[app.id] = await sendGuideSms(app, "일정조율 기한 만료", [
-      "기한 내 일시/장소 선택이 완료되지 않아 이번 만남은 종료되었습니다.",
-      "일정조율 무응답은 다음 매칭 우선순위에 반영될 수 있습니다.",
-    ]);
-  }
-
-  const batch = db.batch();
-  const matchRef = db.collection("twoweeksMatches").doc(match.id);
-  const expiredStage = isCounterpartStep ? "schedule_counterpart_choice" : "schedule_first_choice";
-  const nextScheduleStatus = isCounterpartStep ? "counterpart_expired" : "schedule_expired";
-
-  batch.set(
-    matchRef,
-    {
-      status: "schedule_expired",
-      scheduleStatus: nextScheduleStatus,
-      expiredStage,
-      expiredByApplicationIds: nonResponders.map((app) => app.id),
-      schedule: {
-        status: nextScheduleStatus,
-        expiredAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiredAtClient: toClientNow(),
-        expiredReason: expiredStage,
-      },
-      expiration: {
-        scheduleExpiredAt: admin.firestore.FieldValue.serverTimestamp(),
-        scheduleExpiredAtClient: toClientNow(),
-        dueAtClient:
-          schedule.counterpartDueAtClient ||
-          schedule.dueAtClient ||
-          "",
-        expiredStage,
-        nonResponderApplicationIds: nonResponders.map((app) => app.id),
-        noPenaltyApplicationIds: noPenaltyApps.map((app) => app.id),
-        smsResults,
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  for (const app of noPenaltyApps) {
-    const appRef = db.collection("twoweeksApplications").doc(app.id);
-    batch.update(appRef, {
-      matchingStatus: "not_started",
-      matchingAvailability: "active",
-      nextRoundStatus: "ready",
-      currentProposal: admin.firestore.FieldValue.delete(),
-      scheduleStatus: "not_started",
-      schedule: admin.firestore.FieldValue.delete(),
-      photoRevealStatus: "hidden",
-      noPenaltyReason: "counterpart_schedule_no_response",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-
-  for (const app of nonResponders) {
-    const appRef = db.collection("twoweeksApplications").doc(app.id);
-    batch.update(appRef, {
-      matchingStatus: "paused",
-      matchingAvailability: "paused",
-      matchingPauseReason: expiredStage,
-      matchingPausedAt: admin.firestore.FieldValue.serverTimestamp(),
-      matchingPausedAtClient: toClientNow(),
-      scheduleStatus: nextScheduleStatus,
-      nextRoundStatus: "admin_review",
-      // 종료된 제안을 남겨두면 관리자 복귀 판정이 이를 활성 제안으로 오인한다.
-      currentProposal: admin.firestore.FieldValue.delete(),
-      schedule: {
-        status: nextScheduleStatus,
-        expiredAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiredAtClient: toClientNow(),
-        expiredReason: expiredStage,
-      },
-      "penaltyStats.scheduleNoResponseCount": admin.firestore.FieldValue.increment(1),
-      "penaltyStats.totalNoResponseCount": admin.firestore.FieldValue.increment(1),
-      "penaltyStats.lastPenaltyReason": expiredStage,
-      "penaltyStats.lastPenaltyAt": admin.firestore.FieldValue.serverTimestamp(),
-      "penaltyStats.lastPenaltyAtClient": toClientNow(),
-      "penaltyStats.lastMatchId": match.id,
-      "penaltyStats.lastCounterpartOutcome": noPenaltyApps.length ? "counterpart_waited" : "both_no_response",
-      "penaltyStats.reviewStatus": "admin_review",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-
-  await batch.commit();
-
-  return {
-    matchId: match.id,
-    stage: expiredStage,
-    nonResponders: nonResponders.map((app) => app.id),
-    noPenalty: noPenaltyApps.map((app) => app.id),
-  };
+  await db.collection("twoweeksMatches").doc(matchId).set({
+    expiration: { smsResults }, updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return result;
 }
 
 async function processProposedMatches({ db, nowMs }) {
@@ -666,62 +694,66 @@ async function repairExpiredAdminReviewApplications({ db }) {
 
   if (snap.empty) return { scanned: 0, returnedToPool: 0, staleProposalCleared: 0 };
 
-  const batch = db.batch();
   let returnedToPool = 0;
   let staleProposalCleared = 0;
 
-  snap.forEach((doc) => {
-    const app = { id: doc.id, ...doc.data() };
-    if (String(app.matchingStatus || "") !== "paused") return;
+  for (const document of snap.docs) {
+    const outcome = await db.runTransaction(async (batch) => {
+      const current = await batch.get(document.ref);
+      if (!current.exists) return;
+      const app = { id: current.id, ...current.data() };
+      if (app.nextRoundStatus !== "admin_review" || String(app.matchingStatus || "") !== "paused") return;
+      const proposalStatus = String(app.currentProposal?.status || app.currentProposal?.response || "");
+      if (app.currentProposal?.candidateApplicationId && !["expired", "declined", "cancelled", "canceled", "completed"].includes(proposalStatus)) return;
 
-    const pauseReason = String(app.matchingPauseReason || app?.penaltyStats?.lastPenaltyReason || "");
-    if (!NO_RESPONSE_REVIEW_REASONS.has(pauseReason)) return;
+      const pauseReason = String(app.matchingPauseReason || app?.penaltyStats?.lastPenaltyReason || "");
+      if (!NO_RESPONSE_REVIEW_REASONS.has(pauseReason)) return;
 
-    const proposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
-    const isFirstProposalNoResponse =
-      pauseReason === "proposal_no_response" && proposalNoResponseCount <= 1;
-    const ref = db.collection("twoweeksApplications").doc(app.id);
+      const proposalNoResponseCount = Number(app?.penaltyStats?.proposalNoResponseCount || 0);
+      const isFirstProposalNoResponse =
+        pauseReason === "proposal_no_response" && proposalNoResponseCount <= 1;
+      const ref = db.collection("twoweeksApplications").doc(app.id);
 
-    if (isFirstProposalNoResponse) {
-      batch.update(ref, {
-        matchingStatus: "not_started",
-        matchingAvailability: "active",
-        matchingPauseReason: admin.firestore.FieldValue.delete(),
-        nextRoundStatus: "ready",
-        currentProposal: admin.firestore.FieldValue.delete(),
-        scheduleStatus: "not_started",
-        schedule: admin.firestore.FieldValue.delete(),
-        photoRevealStatus: "hidden",
-        "penaltyStats.reviewStatus": "warning_recorded",
-        "penaltyStats.lastAdminDecision": "auto_repaired_first_proposal_no_response",
-        "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
-        "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
-        resumedAt: admin.firestore.FieldValue.serverTimestamp(),
-        resumedAtClient: toClientNow(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      returnedToPool += 1;
-      return;
-    }
+      if (isFirstProposalNoResponse) {
+        batch.update(ref, {
+          matchingStatus: "not_started",
+          matchingAvailability: "active",
+          matchingPauseReason: admin.firestore.FieldValue.delete(),
+          nextRoundStatus: "ready",
+          currentProposal: admin.firestore.FieldValue.delete(),
+          scheduleStatus: "not_started",
+          schedule: admin.firestore.FieldValue.delete(),
+          photoRevealStatus: "hidden",
+          "penaltyStats.reviewStatus": "warning_recorded",
+          "penaltyStats.lastAdminDecision": "auto_repaired_first_proposal_no_response",
+          "penaltyStats.lastAdminDecisionAt": admin.firestore.FieldValue.serverTimestamp(),
+          "penaltyStats.lastAdminDecisionAtClient": toClientNow(),
+          resumedAt: admin.firestore.FieldValue.serverTimestamp(),
+          resumedAtClient: toClientNow(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return "returned";
+      }
 
-    const currentProposalStatus = String(app?.currentProposal?.status || app?.currentProposal?.response || "");
-    const hasStaleProposal =
-      Boolean(app?.currentProposal?.candidateApplicationId) &&
-      ["expired", "declined", "cancelled", "canceled", "completed"].includes(currentProposalStatus);
+      const currentProposalStatus = String(app?.currentProposal?.status || app?.currentProposal?.response || "");
+      const hasStaleProposal =
+        Boolean(app?.currentProposal?.candidateApplicationId) &&
+        ["expired", "declined", "cancelled", "canceled", "completed"].includes(currentProposalStatus);
 
-    if (hasStaleProposal || pauseReason.startsWith("schedule_")) {
-      batch.update(ref, {
-        currentProposal: admin.firestore.FieldValue.delete(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      staleProposalCleared += 1;
-    }
-  });
-
-  if (returnedToPool || staleProposalCleared) await batch.commit();
+      if (hasStaleProposal || pauseReason.startsWith("schedule_")) {
+        batch.update(ref, {
+          currentProposal: admin.firestore.FieldValue.delete(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return "cleared";
+      }
+    });
+    if (outcome === "returned") returnedToPool += 1;
+    if (outcome === "cleared") staleProposalCleared += 1;
+  }
 
   return {
-    scanned: snap.size,
+    scanned: snap.docs.length,
     returnedToPool,
     staleProposalCleared,
   };
@@ -758,3 +790,9 @@ exports.processTwoWeeksDeadlineExpirations = onSchedule(
     });
   }
 );
+
+// 회귀 테스트에서 스케줄러와 동일한 만료 처리 함수를 사용합니다.
+exports.expireProposalMatch = expireProposalMatch;
+exports.expireScheduleMatch = expireScheduleMatch;
+
+exports.repairExpiredAdminReviewApplications = repairExpiredAdminReviewApplications;

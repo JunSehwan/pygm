@@ -10,6 +10,8 @@ caller.assertApplicationOwner = async (req, applicationId) => {
     throw new Error('not owner');
   }
 };
+const admin = require('../functions/node_modules/firebase-admin');
+if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-twoweeks-tests' });
 const { recordTwoWeeksProposalResponse } = require('../functions/twoWeeksProposalRespond.js');
 const FUTURE = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 function fakeDb({ myResponse = null, counterpartResponse = null, status = 'proposed' } = {}) {

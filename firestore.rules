@@ -178,34 +178,30 @@ service cloud.firestore {
         );
     }
 
+    function twoweeksOwnParticipantMapOnly(field) {
+      let maleId = resource.data.get('maleApplicationId', '');
+      let femaleId = resource.data.get('femaleApplicationId', '');
+      let next = request.resource.data.get(field, {});
+      let previous = resource.data.get(field, {});
+      return next == previous || (
+        next is map && previous is map &&
+        next.diff(previous).affectedKeys().hasOnly([maleId, femaleId]) &&
+        (!next.diff(previous).affectedKeys().hasAny([maleId]) || ownsTwoWeeksApplication(maleId)) &&
+        (!next.diff(previous).affectedKeys().hasAny([femaleId]) || ownsTwoWeeksApplication(femaleId))
+      );
+    }
+
     function twoweeksMatchParticipantUpdateOnlyAllowedFields() {
+      // 일정·확정 상태는 서버 Callable에서만 변경합니다. 참석/도착/메모는 본인 행만 씁니다.
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'status',
-        'scheduleStatus',
-        'schedule',
-        'photoRevealStatus',
-        'mutualAcceptedAt',
-        'mutualAcceptedAtClient',
-        'declinedByApplicationId',
-        'declinedCounterpartApplicationId',
-        'declinedAt',
-        'declinedAtClient',
-        'decline',
-        'finalMeeting',
-        'meetingReadySms',
-        'meetingReadySmsUpdatedAt',
-        'meetingAttendance',
-        'attendanceStatus',
-        'meetingAttendanceSms',
-        'finalAttendanceGuideSms',
-        'meetingArrival',
-        'arrivalStatus',
-        'meetingProofs',
-        'noShowEvidenceStatus',
-        'preMeetingNotes',
-        'preMeetingNoteSms',
-        'updatedAt'
-      ]);
+        'meetingReadySms', 'meetingReadySmsUpdatedAt',
+        'meetingAttendance', 'attendanceStatus', 'meetingAttendanceSms', 'finalAttendanceGuideSms',
+        'meetingArrival', 'arrivalStatus', 'meetingProofs', 'noShowEvidenceStatus',
+        'preMeetingNotes', 'preMeetingNoteSms', 'updatedAt'
+      ]) && twoweeksOwnParticipantMapOnly('meetingAttendance') &&
+        twoweeksOwnParticipantMapOnly('meetingArrival') &&
+        twoweeksOwnParticipantMapOnly('meetingProofs') &&
+        twoweeksOwnParticipantMapOnly('preMeetingNotes');
     }
 
     function preservesTwoWeeksTerminalMatchState() {
@@ -387,14 +383,8 @@ service cloud.firestore {
           hasValidTwoWeeksDashboardSession(applicationId)
         )
       );
-      allow create: if isAdmin() || (
-        signedIn() &&
-        request.resource.data.get('uid', '') == request.auth.uid &&
-        validInitialTwoWeeksDeposit() &&
-        validTwoWeeksRequiredConsentsAtCreate() &&
-        validTwoWeeksIdentityAtCreate() &&
-        validTwoWeeksProfilePhotosAtWrite()
-      );
+      // 가입은 서버 Callable에서 신원·중복·초기 상태를 함께 검증합니다.
+      allow create: if isAdmin();
       allow update: if isAdmin() || (
         signedIn() &&
         request.resource.data.get('uid', '') == resource.data.get('uid', '') &&
@@ -519,23 +509,8 @@ service cloud.firestore {
 
     match /twoweeksProposalResponses/{responseId} {
       allow read: if isAdmin() || (signedIn() && isTwoWeeksResponseParticipant(resource.data));
-      allow create: if isAdmin() || (
-        signedIn() &&
-        validTwoWeeksResponseOwnerWrite() &&
-        validTwoWeeksResponseMatchBinding(responseId)
-      );
-      allow update: if isAdmin() || (
-        signedIn() &&
-        isTwoWeeksResponseParticipant(resource.data) &&
-        ownsTwoWeeksApplication(resource.data.get('viewerApplicationId', '')) &&
-        request.resource.data.get('viewerApplicationId', '') == resource.data.get('viewerApplicationId', '') &&
-        request.resource.data.get('candidateApplicationId', '') == resource.data.get('candidateApplicationId', '') &&
-        request.resource.data.get('matchId', '') == resource.data.get('matchId', '') &&
-        request.resource.data.get('response', '') == resource.data.get('response', '') &&
-        request.resource.data.get('status', '') == resource.data.get('status', '') &&
-        validTwoWeeksResponseOwnerWrite() &&
-        validTwoWeeksResponseMatchBinding(responseId)
-      );
+      // 제안 응답은 신청서와 매칭 상태를 함께 갱신하는 서버 트랜잭션만 사용합니다.
+      allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -607,9 +582,7 @@ service cloud.firestore {
         request.resource.data.get('femaleApplicationId', '') == resource.data.get('femaleApplicationId', '') &&
         request.resource.data.get('roundId', '') == resource.data.get('roundId', '') &&
         preservesTwoWeeksTerminalMatchState() &&
-        twoweeksMatchParticipantUpdateOnlyAllowedFields() &&
-        validTwoWeeksScheduleTimeChoices() &&
-        validTwoWeeksSchedulePlaceChoices()
+        twoweeksMatchParticipantUpdateOnlyAllowedFields()
       );
     }
 

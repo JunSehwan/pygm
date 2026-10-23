@@ -10,7 +10,7 @@ const {
   TWOWEEKS_MIN_PROFILE_PHOTOS,
 } = require("./twoWeeksProfilePhotoPolicy");
 const { resolveApplicationMarketingData } = require("./twoWeeksMarketingAttribution");
-const { buildInitialDeposit } = require("./twoWeeksInitialDepositPolicy");
+const { buildInitialDeposit, normalizeGender } = require("./twoWeeksInitialDepositPolicy");
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -274,7 +274,7 @@ exports.finalizeTwoWeeksApplicationSubmission = onCall(
       throw new HttpsError("invalid-argument", "신청 정보가 없습니다.");
     }
 
-    const basic = incoming.basic && typeof incoming.basic === "object" ? incoming.basic : {};
+    let basic = incoming.basic && typeof incoming.basic === "object" ? incoming.basic : {};
     // 필수 약관 동의는 화면 검증과 별도로 서버에서도 확인합니다.
     // 마케팅은 명시적으로 true일 때만 동의로 기록하며, 선택하지 않아도 가입됩니다.
     const incomingConsents = incoming.consents && typeof incoming.consents === "object" ? incoming.consents : {};
@@ -315,6 +315,19 @@ exports.finalizeTwoWeeksApplicationSubmission = onCall(
       verificationId: identityInput.verificationId,
       phone,
     });
+
+    // 성별·성명·생년월일은 본인인증 서버 기록을 기준으로 저장합니다.
+    // 클라이언트 값과 예치금 정책에 서로 다른 성별이 반영되지 않게 합니다.
+    const verifiedGender = normalizeGender(verified.isTestIdentity ? basic.gender : verified.gender);
+    const birth = verified.isTestIdentity ? onlyDigits(basic.birthDate || identityInput.birth || "").slice(0, 8) : verified.birth;
+    if (!["male", "female"].includes(verifiedGender) || !/^\d{8}$/.test(birth)) {
+      throw new HttpsError("invalid-argument", "본인인증 성별과 생년월일을 확인해주세요.");
+    }
+    const birthYear = Number(birth.slice(0, 4));
+    const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).replace(/-/g, "");
+    const age = Number(today.slice(0, 4)) - birthYear - (today.slice(4) < birth.slice(4) ? 1 : 0);
+    if (age < 18 || age > 100) throw new HttpsError("invalid-argument", "성인 신청자의 생년월일을 확인해주세요.");
+    basic = { ...basic, gender: verifiedGender, name: verified.name || compactText(basic.name, 80), birthYear, birthDate: birth, age, ageType: "full_age" };
 
     // preflight를 우회하거나 동시에 두 창에서 가입하더라도 서버 최종 저장 단계에서 다시 차단한다.
     await assertNoDuplicateApplication({
@@ -438,7 +451,21 @@ exports.finalizeTwoWeeksApplicationSubmission = onCall(
     }
 
     const applicationData = {
-      ...incoming,
+      schemaVersion: 4,
+      source: "twoweeks_mvp_web",
+      roundId: compactText(incoming.roundId, 80),
+      roundLabel: compactText(incoming.roundLabel, 80),
+      applicantAuthProvider: compactText(incoming.applicantAuthProvider, 40),
+      inquiryLinkClicked: false,
+      completedAtClient: compactText(incoming.completedAtClient, 80),
+      disclosurePolicySnapshot: {
+        proposalStage: `등록한 프로필 사진(최소 ${TWOWEEKS_MIN_PROFILE_PHOTOS}장)과 기본 정보 일부 공개`,
+        profilePhotoMinimum: TWOWEEKS_MIN_PROFILE_PHOTOS,
+        profilePhotoMaximum: TWOWEEKS_MAX_PROFILE_PHOTOS,
+        contactDisclosure: "소개팅 후 상호 연결 희망 시 공개",
+        identityDocumentDisclosure: "상대방에게 공개하지 않음",
+        organizationDisclosure: "후보 제안 단계 비공개, 양쪽 만남 진행 의사 확인 후 공개",
+      },
       ...resolvedMarketing,
       testMode: verified.isTestIdentity,
       uid,

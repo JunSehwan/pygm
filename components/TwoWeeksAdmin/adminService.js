@@ -63,7 +63,6 @@ import {
   TWOWEEKS_SCHEDULE_TOTAL_DUE_HOURS,
   addScheduleHoursClient,
   buildTwoWeeksSchedulePolicy,
-  isValidTwoWeeksSchedulePolicy,
 } from "../TwoWeeksShared/schedulePolicy";
 
 const RESPONSE_DUE_DAYS = 2;
@@ -1952,7 +1951,39 @@ export async function createTwoWeeksMatch({
       throw new Error("동일 회사 신청자끼리는 매칭할 수 없습니다.");
     }
 
-    transaction.set(matchRef, matchPayload);
+    if (transactionMale.basic?.gender !== "male" || transactionFemale.basic?.gender !== "female") {
+      throw new Error("남성 신청자와 여성 신청자를 각각 선택해주세요.");
+    }
+    const currentScore = getPairScore(transactionMale, transactionFemale);
+    if (!currentScore.complete || getHardMatchingBlockers(currentScore).length ||
+        getUnacknowledgedMatchingConflicts(currentScore, acknowledgedConflictCodes).length) {
+      throw new Error("매칭 조건이 변경되었습니다. 목록을 새로고침하고 충돌 내용을 다시 확인해주세요.");
+    }
+    const { rankingScore: _currentRanking, internalAdjustment: _currentAdjustment, adminRanking: _currentAdminRanking, ...currentPublicScore } = currentScore;
+    const currentConflicts = getAdvisoryMatchingConflicts(currentScore);
+    transaction.set(matchRef, {
+      ...matchPayload,
+      maleName: getApplicationName(transactionMale),
+      femaleName: getApplicationName(transactionFemale),
+      candidatePreviews: {
+        [male.id]: buildCandidatePreviewForViewer(transactionFemale),
+        [female.id]: buildCandidatePreviewForViewer(transactionMale),
+      },
+      scoreTotal: currentPublicScore.total || 0,
+      areaOverlap: currentPublicScore.areaOverlap || [],
+      timeOverlap: currentPublicScore.timeOverlap || [],
+      ageDiff: currentPublicScore.ageDiff ?? null,
+      matchingCompatibility: currentPublicScore,
+      publicMatchingReasons: currentPublicScore.reasons || [],
+      publicMatchingReasonVersion: currentPublicScore.reasonVersion || "public_v2",
+      compatibilityConflictReview: {
+        status: currentConflicts.length ? "admin_confirmed" : "not_required",
+        conflictCodes: currentConflicts.map((item) => item.code),
+        conflictLabels: currentConflicts.map((item) => item.label),
+        reviewedByUid: currentConflicts.length ? adminUid : "",
+        reviewedAtClient: currentConflicts.length ? createdAtClient : "",
+      },
+    });
     transaction.update(maleRef, {
       matchingStatus: "proposed",
       currentProposal: buildCurrentProposal(female.id, matchId, {
@@ -2359,93 +2390,13 @@ async function sendFinalMeetingSms(application = {}, finalMeeting = {}) {
 export async function confirmMeetingSchedule({ match, place = {}, adminUid = "" }) {
   if (!match?.id) throw new Error("확정할 매칭 정보가 없습니다.");
 
-  const finalChoice = match?.schedule?.finalChoice || match?.schedule?.selectedChoice || {};
-  const finalTimeChoice = match?.schedule?.finalTimeChoice || finalChoice?.timeChoice || finalChoice || {};
-  const finalPlaceChoice = match?.schedule?.finalPlaceChoice || finalChoice?.placeChoice || finalChoice || {};
-
-  if (!finalTimeChoice?.id && !finalTimeChoice?.startAtClient) {
-    throw new Error("상대가 선택한 일시가 아직 없습니다.");
-  }
-
-  if (
-    isValidTwoWeeksSchedulePolicy(match?.schedulePolicy) &&
-    !match.schedulePolicy.allowedTimeOptionIds.includes(finalTimeChoice.id)
-  ) {
-    throw new Error("고정된 다음 주말 후보에 포함되지 않은 일정입니다. 매칭 정보를 다시 확인해주세요.");
-  }
-
-  const meetingStartMs = Date.parse(String(finalTimeChoice?.startAtClient || ""));
-  if (!Number.isNaN(meetingStartMs) && meetingStartMs <= Date.now()) {
-    throw new Error("이미 지난 일시는 확정할 수 없습니다. 새 일정 후보를 안내해주세요.");
-  }
-
-  if (!(finalPlaceChoice?.placeId || finalPlaceChoice?.cafeId || finalPlaceChoice?.cafeName)) {
-    throw new Error("상대가 선택한 장소가 아직 없습니다.");
-  }
-
-  const placeName = String(place.placeName || finalPlaceChoice.cafeName || "").trim();
-  if (!placeName) throw new Error("장소명을 입력해주세요.");
-
-  const finalMeeting = {
-    ...finalChoice,
-    ...finalTimeChoice,
-    ...finalPlaceChoice,
-    timeChoice: finalTimeChoice,
-    placeChoice: finalPlaceChoice,
-    finalTimeChoice,
-    finalPlaceChoice,
-    placeName,
-    address: String(place.address || finalPlaceChoice.address || "").trim(),
-    mapUrl: String(place.mapUrl || finalPlaceChoice.cafeMapUrl || "").trim(),
-    memo: String(place.memo || "").trim(),
-    confirmedAtClient: new Date().toISOString(),
-    confirmedByUid: adminUid,
-  };
-
+  const confirm = httpsCallable(getFunctions(undefined, "asia-northeast3"), "submitTwoWeeksSchedule");
+  const result = await confirm({ mode: "admin_confirm", matchId: match.id, place });
+  if (!result?.data?.ok) throw new Error("일정 확정 결과를 확인하지 못했습니다.");
+  const { finalMeeting } = result.data;
   const male = await getApplicationById(match.maleApplicationId);
   const female = await getApplicationById(match.femaleApplicationId);
-
   const matchRef = doc(db, "twoweeksMatches", match.id);
-
-  await setDoc(
-    matchRef,
-    {
-      status: "confirmed",
-      scheduleStatus: "confirmed",
-      photoRevealStatus: "revealed",
-      finalMeeting,
-      schedule: {
-        status: "confirmed",
-        finalTimeChoice,
-        finalPlaceChoice,
-        finalChoice,
-        selectedChoice: finalChoice,
-        finalMeeting,
-        confirmedAt: serverTimestamp(),
-        confirmedAtClient: finalMeeting.confirmedAtClient,
-      },
-      updatedAt: serverTimestamp(),
-      confirmedByUid: adminUid,
-    },
-    { merge: true }
-  );
-
-  const applicationPatch = {
-    matchingStatus: "confirmed",
-    photoRevealStatus: "revealed",
-    "currentProposal.photoRevealStatus": "revealed",
-    "schedule.status": "confirmed",
-    "schedule.finalMeeting": finalMeeting,
-    "schedule.confirmedAt": serverTimestamp(),
-    "schedule.confirmedAtClient": finalMeeting.confirmedAtClient,
-    updatedAt: serverTimestamp(),
-  };
-
-  await Promise.all(
-    [male, female]
-      .filter((item) => item?.id)
-      .map((application) => updateDoc(doc(db, "twoweeksApplications", application.id), applicationPatch))
-  );
 
   const smsResults = {
     male: male ? await sendFinalMeetingSms(male, finalMeeting) : { status: "skipped", reason: "NO_MALE_APPLICATION" },
